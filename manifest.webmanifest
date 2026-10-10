@@ -1,0 +1,14 @@
+{
+  "name": "Học tập Y khoa",
+  "short_name": "Học tập Y khoa",
+  "description": "Kho kiến thức y khoa cá nhân ôn thi chứng chỉ hành nghề.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fafaf7",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Học tập Y khoa</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Học tập Y khoa">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/mark-192.png">
+<link rel="stylesheet" href="styles.css">
+<script>try{var t=localStorage.getItem("ykkb_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;var f=parseFloat(localStorage.getItem("ykkb_fs"));if(f)document.documentElement.style.setProperty("--fs",f)}catch(e){}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/"><img src="icons/mark-192.png" alt="KHOITN.MD"><span>Học tập Y khoa</span></a>
+  <div class="gsearch" id="gsearch">
+    <input id="q" type="search" placeholder="Tìm bài, bệnh, thuốc…" autocomplete="off" aria-label="Tìm kiếm">
+    <kbd class="slash">/</kbd>
+    <div id="results" hidden></div>
+  </div>
+  <nav class="topnav" id="topnav">
+    <a href="#/lib" data-nav="lib"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 0 7.5 23H19"/></svg><span>Thư viện</span></a>
+    <a href="#/cards" data-nav="cards"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="13" height="10" rx="2"/><path d="M8 19.5h12.5V9"/></svg><span>Ôn thẻ</span> <span id="dueBadge"></span></a>
+  </nav>
+</header>
+<div class="modbar" id="modbar"></div>
+<div class="layout">
+  <aside id="side">
+    <div id="tree"></div>
+    <div class="sbh">Khác</div>
+    <nav class="sbmore" id="sbmore">
+      <a href="#/khung" data-nav="khung"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg><span>Đề cương ôn thi CCHN YKQGQ</span></a>
+      <a href="#/graph" data-nav="graph"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="12" cy="18" r="2"/><path d="M8 6.5l8 1M7 8l4 8M17 10l-4 6"/></svg><span>Sơ đồ liên kết kiến thức</span></a>
+      <details class="sbset" id="sbSettings"><summary><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>Cài đặt</span></summary>
+        <div id="setPanel">
+          <div class="srow"><span>Cỡ chữ</span>
+            <span class="seg"><button data-fs="0.9">A−</button><button data-fs="1">A</button><button data-fs="1.12">A+</button><button data-fs="1.25">A++</button></span></div>
+          <div class="srow"><span>Giao diện</span>
+            <span class="seg"><button data-th="auto">Tự động</button><button data-th="light">Sáng</button><button data-th="dark">Tối</button></span></div>
+        </div>
+      </details>
+    </nav>
+    <p class="meta" id="build"></p>
+  </aside>
+  <main id="main"></main>
+  <button id="sideEdge" class="edge" type="button" aria-label="Đóng hoặc mở thanh bên" aria-expanded="true" title="Đóng / mở thanh bên"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+</div>
+<footer class="pfoot"><span>Học tập Y khoa · Tài liệu ôn tập cá nhân</span></footer>
+<nav class="botnav" id="botnav">
+  <a href="#/" data-nav="home"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6 10.5V19h12v-8.5"/></svg></i><span>Trang chủ</span></a>
+  <button id="bnMenu"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></i><span>Mục lục</span></button>
+  <button id="bnSearch"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></i><span>Tìm</span></button>
+  <a href="#/lib" data-nav="lib"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 0 7.5 23H19"/></svg></i><span>Thư viện</span></a>
+  <a href="#/cards" data-nav="cards"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="13" height="10" rx="2"/><path d="M8 19.5h12.5V9"/></svg></i><span>Ôn thẻ</span></a>
+</nav>
+<div id="lock" hidden>
+  <div class="lockbox">
+    <h1>Học tập Y khoa</h1>
+    <p class="meta">Nội dung được mã hóa. Nhập mật khẩu để mở.</p>
+    <input id="lock-pw" type="password" placeholder="Mật khẩu" autocomplete="current-password">
+    <label class="lockrem"><input id="lock-rem" type="checkbox" checked> Ghi nhớ trên thiết bị này</label>
+    <button id="lock-go" class="b p">Mở</button>
+    <p id="lock-msg" class="lockmsg"></p>
+  </div>
+</div>
+<script src="lock.js"></script>
+</body>
+</html>
