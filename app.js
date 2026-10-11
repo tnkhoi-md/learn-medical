@@ -212,7 +212,7 @@ let jumpTo = null;
 document.addEventListener("click", e => {
   const a = e.target.closest("a[data-g]"); if (!a) return;
   e.preventDefault();
-  $("#side").classList.remove("open");
+  closeSheet();
   const el = document.getElementById(a.dataset.g);
   if (location.hash === a.getAttribute("href") && el) return el.scrollIntoView({ behavior: "smooth", block: "start" });
   jumpTo = a.dataset.g; location.hash = a.getAttribute("href");
@@ -342,6 +342,7 @@ function libPage(cat) {
     <div class="modpage" style="--c:var(--${col})">${body}</div>`;
   window.scrollTo(0, 0);
 }
+let MOD_HTML = "";   // danh sách module (cho ngăn Module trên điện thoại)
 function tree(cur, sec) {
   const curN = byId[cur], curSec = curN ? sectionOfNote(curN) : +((location.hash.match(/^#\/m\/[^/]+\/(\d+)$/) || [])[1] || 0);   // đang ở trang mục thì mở đúng mục đó
   const here = curMod(), hashM = location.hash.match(/^#\/m\/([^/]+)\/(\d+)$/) || [];
@@ -368,6 +369,7 @@ function tree(cur, sec) {
       ${rows.join("\n      ")}
     </details>`;
   }).join("");
+  MOD_HTML = modsHtml;
   const libCur = (location.hash.match(/^#\/lib\/([^/]+)/) || [])[1] || "", isHome = !location.hash || location.hash === "#/" || location.hash === "#";
   $("#tree").innerHTML = `<a class="sbhome${isHome ? " on" : ""}" href="#/"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6 10.5V19h12v-8.5"/></svg><span>Trang chủ</span></a>
     <div class="sbh">Module</div>${modsHtml}
@@ -431,19 +433,38 @@ function focusSearch() { $("#gsearch").classList.add("open"); qEl.focus(); qEl.s
 document.addEventListener("click", e => {
   if (!e.target.closest("#gsearch") && !e.target.closest("#bnSearch")) { $("#results").hidden = true; $("#gsearch").classList.remove("open"); }
 });
-// Mục lục bên trái: điện thoại mở như ngăn kéo; máy tính ẩn/hiện và nhớ lựa chọn trên thiết bị này
+// Mục lục bên trái: máy tính ẩn/hiện và nhớ lựa chọn trên thiết bị này.
+// Điện thoại không dùng thanh bên: các mục Module và Khác ở thanh dưới mở một ngăn riêng (#sheet).
 const narrow = () => matchMedia("(max-width:820px)").matches;
 const setSideOff = off => {
   document.documentElement.classList.toggle("side-off", off);
   $("#sideEdge").setAttribute("aria-expanded", String(!off));
 };
 const toggleSide = () => {
-  if (narrow()) { const open = $("#side").classList.toggle("open"); return $("#sideEdge").setAttribute("aria-expanded", String(open)); }
   const off = !document.documentElement.classList.contains("side-off");
   setSideOff(off);
   try { off ? localStorage.setItem("ykkb_side", "off") : localStorage.removeItem("ykkb_side"); } catch {}
 };
-$("#sideEdge").onclick = toggleSide; $("#bnMenu").onclick = toggleSide;
+const sheet = $("#sheet");
+function closeSheet() {
+  sheet.hidden = true; sheet.dataset.mode = "";
+  const more = $("#sbmore"); if (more.parentNode !== $("#side")) $("#side").insertBefore(more, $("#build"));   // trả mục Khác về thanh bên
+  $("#bnMenu").classList.remove("open"); $("#bnMore").classList.remove("open");
+  $("#bnMenu").setAttribute("aria-expanded", "false"); $("#bnMore").setAttribute("aria-expanded", "false");
+}
+function openSheet(mode) {
+  if (!sheet.hidden && sheet.dataset.mode === mode) return closeSheet();
+  closeSheet(); sheet.dataset.mode = mode;
+  sheet.innerHTML = `<div class="sheethead"><span>${mode === "module" ? "Module" : "Khác"}</span><button class="sheetx" type="button" aria-label="Đóng">✕</button></div><div class="sheetbody"></div>`;
+  const body = sheet.querySelector(".sheetbody");
+  if (mode === "module") body.innerHTML = MOD_HTML; else { body.appendChild($("#sbmore")); const b = document.createElement("p"); b.className = "meta"; b.id = "buildM"; b.textContent = window.BUILD ? "Bản dựng: " + window.BUILD : ""; body.appendChild(b); }
+  sheet.hidden = false; sheet.scrollTop = 0;
+  const btn = $(mode === "module" ? "#bnMenu" : "#bnMore"); btn.classList.add("open"); btn.setAttribute("aria-expanded", "true");
+}
+sheet.addEventListener("click", e => { if (e.target.closest(".sheetx") || e.target.closest("a")) closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !sheet.hidden) closeSheet(); });
+matchMedia("(max-width:820px)").addEventListener("change", e => { if (!e.matches) closeSheet(); });
+$("#sideEdge").onclick = toggleSide; $("#bnMenu").onclick = () => openSheet("module"); $("#bnMore").onclick = () => openSheet("more");
 $("#bnSearch").onclick = e => { e.stopPropagation(); focusSearch(); };
 // cỡ chữ và giao diện (lưu trên từng thiết bị)
 const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } }, lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
@@ -576,7 +597,9 @@ function modSection(mod, k, openId) {
       }).join("") + `</section>` +
       `<section><h2>Nguồn theo từng bài chung</h2><div class="tw"><table><thead><tr><th>Bài</th><th>Nguồn</th></tr></thead><tbody>${ns.filter(n => n.kind === "foundation").map(n => `<tr><td><a href="#/n/${n.id}">${esc(n.short || n.title)}</a></td><td>${esc(n.source || "")}</td></tr>`).join("")}</tbody></table></div></section>`;
   } else if (type === "notes") {   // mục gồm các bài; "openAll": true trong _module.json thì mở sẵn để đọc liền
-    body = gen.length ? allBtn + noteToggles(gen, openSet) : "<p class='meta'>Chưa có.</p>";
+    // mục chỉ có một bài: hiện nội dung luôn, không cần thanh mở/đóng
+    body = gen.length === 1 ? `<section id="t-${gen[0].id}"><h2>${esc(gen[0].short || gen[0].title)}</h2>${md(gen[0].body)}</section>`
+      : gen.length ? allBtn + noteToggles(gen, openSet) : "<p class='meta'>Chưa có.</p>";
   } else if (type === "cards") {
     const withCards = ns.map(n => ({ n, c: cardsOf(n) })).filter(x => x.c.length);
     const total = withCards.reduce((s, x) => s + x.c.length, 0);
@@ -805,7 +828,7 @@ document.addEventListener("change", e => { const sel = e.target.closest("select.
 function route() {
   cancelAnimationFrame(raf);
   window.scrollTo(0, 0);   // chuyển trang luôn bắt đầu từ đầu trang (mục/bài có điểm đến sẽ tự cuộn sau)
-  $("#main").style.maxWidth = ""; $("#side").classList.remove("open");
+  $("#main").style.maxWidth = ""; closeSheet();
   let h = decodeURIComponent(location.hash.slice(1)) || "/";
   if (h === "/pareto") h = `/m/${curMod()}/${secByType(curMod(), "summary")}`;
   const m = h.match(/^\/n\/([^/]+)(?:\/(\d+))?$/), mm = h.match(/^\/m\/([^/]+)\/(\d+)$/);
@@ -822,12 +845,21 @@ function route() {
   else if (h === "/graph") graph(); else if (cd) cards(cd[1] || "", cd[2] === "all"); else home();
   const navKey = kh ? "khung" : h === "/graph" ? "graph" : cd ? "cards" : lb ? "lib" : (!m && !mm) ? "home" : "";
   document.querySelectorAll("[data-nav]").forEach(x => x.classList.toggle("on", x.dataset.nav === navKey));
+  $("#bnMenu").classList.toggle("on", !!(mm || m)); $("#bnMore").classList.toggle("on", navKey === "khung" || navKey === "graph");
   const inMod = !!(mm || m);   // thanh mục của chuyên khoa chỉ hiện khi đang trong một chuyên khoa
   $("#modbar").hidden = !inMod; document.documentElement.classList.toggle("no-modbar", !inMod);
   renderModbar(modActive);
   tree(m && m[1], sec || (m && +m[2]) || 0);
   const bd = $("#build"); if (bd) bd.textContent = window.BUILD ? "Bản dựng: " + window.BUILD : "";
+  stickyTables();
   badge();
+}
+// bảng dài (trên 8 dòng): cuộn trong khung cao tối đa 70% màn hình để dòng tiêu đề luôn nhìn thấy
+function stickyTables() {
+  $("#main").querySelectorAll("table").forEach(t => {
+    if (!t.tHead || t.rows.length < 9) return;
+    (t.parentElement.classList.contains("tw") ? t.parentElement : t).classList.add("tall");
+  });
 }
 addEventListener("hashchange", route);
 route();
