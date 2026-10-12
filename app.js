@@ -152,7 +152,8 @@ function blocks(L) {
         h.push(`<details class="fold selfcheck"><summary>${inline(m[2])} <small>${cnt} câu</small></summary>${blocks(L.slice(i + 1, j))}</details>`);
         i = j; continue;
       }
-      h.push(`<h${m[1].length + 1}>${inline(m[2])}</h${m[1].length + 1}>`); i++; continue;
+      const lv = m[1].length === 3 ? 3 : m[1].length + 1;   // ### là h3 (như ##), các cấp khác giữ nguyên
+      h.push(`<h${lv}>${inline(m[2])}</h${lv}>`); i++; continue;
     }
     if (/^---+$/.test(t)) { closeLists(); h.push("<hr>"); i++; continue; }
     if (t.startsWith("|")) {
@@ -226,10 +227,10 @@ document.addEventListener("click", e => {
   box.querySelectorAll(":scope > .tabpanel").forEach(x => x.classList.toggle("on", x.dataset.t === k));
 });
 
-// Mục lục bài: đánh id cho các tiêu đề ### (h4) để cuộn tới; không đổi địa chỉ trang
+// Mục lục bài: đánh id cho các tiêu đề ### (h3) để cuộn tới; không đổi địa chỉ trang
 function withToc(html) {
   const items = [];
-  const out = html.replace(/<h4>(.*?)<\/h4>/g, (_, t) => { const id = "sec-" + items.length; items.push({ id, t }); return `<h4 id="${id}">${t}</h4>`; });
+  const out = html.replace(/<h3>(.*?)<\/h3>/g, (_, t) => { const id = "sec-" + items.length; items.push({ id, t }); return `<h3 id="${id}">${t}</h3>`; });
   return { html: out, items };
 }
 function tocBox(items) {
@@ -280,12 +281,22 @@ function libItems(cat) {
       const sa = sectionOfNote(a), sb = sectionOfNote(b);
       return sa - sb || groupList(mod, sa).indexOf(a.group || "Khác") - groupList(mod, sb).indexOf(b.group || "Khác") || (a.order || 99) - (b.order || 99);
     });
-    return { mod, notes, di: diseases().filter(d => d.module === mod), tabs };
+    return { mod, notes, di: diseases().filter(d => d.module === mod && !d.tong), tabs };   // bài gom vào bài tổng hợp chỉ hiện qua thẻ tổng hợp
   }).filter(x => x.notes.length || (x.di.length && (cat === "benhhoc" || x.tabs.length)));
 }
-const libCount = cat => cat === "trieuchung" ? sympCount() : libItems(cat).reduce((c, x) => c + x.notes.length + ((cat === "benhhoc" || x.tabs.length) ? x.di.length : 0), 0);
+const libCount = cat => cat === "trieuchung" ? sympCount() : libItems(cat).reduce((c, x) => c + x.notes.length + ((cat === "benhhoc" || x.tabs.length) ? x.di.length : 0), 0) + (cat === "benhhoc" ? NOTES.filter(n => n.kind === "tong").length : 0);
 // các tab của từng bệnh thuộc một loại (ví dụ Điều trị = tab 7 của mọi bệnh)
 const diseaseChips = (di, tabs, mod) => `<div class="rgrid">${di.map(d => { const { secs } = diseaseParts(d); const have = tabs.filter(t => secs[t]); return have.length ? `<div class="rcard"><b>${esc(d.short || d.title)}</b>${have.map(t => `<a class="chip wide" href="#/n/${d.id}/${t}">${dnum(t, mod)} ${esc(SECNAME[t])}</a>`).join("")}</div>` : ""; }).join("")}</div>`;
+// Bài tổng hợp (kind: tong) gom các bài bệnh có `tong: <id>` của hai module: thư viện chỉ hiện một thẻ, không tách nội và ngoại
+function tongCards() {
+  const ts = NOTES.filter(n => n.kind === "tong");
+  if (!ts.length) return "";
+  return `<section><h2>Nội khoa và ngoại khoa</h2><div class="dgrid">${ts.map(t => `<article class="dcard"><a class="dtitle" href="#/n/${t.id}">${esc(t.short || t.title)}</a><div class="dchips">${tongLinks(t).map(l => `<a class="chip wide" href="${l.href}">${esc(l.label)}</a>`).join("")}</div></article>`).join("")}</div></section>`;
+}
+// TODO(human): các đường dẫn hiện trên thẻ tổng hợp, trỏ tới hai bài gốc. Hiện trả về rỗng nên thẻ chỉ có tên bệnh và liên kết tới bài tổng hợp.
+function tongLinks(t) {
+  return [];
+}
 // Triệu chứng học xếp theo LÝ DO ĐẾN KHÁM, không theo bệnh: mỗi vấn đề của Khung 128 (đau bụng, nôn ói, vàng da…)
 // dẫn tới các bài tiếp cận và các bệnh cần nghĩ tới. Liên kết lấy từ `khung:` trong frontmatter của bài và của bệnh.
 function sympRows() {
@@ -339,7 +350,7 @@ function libPage(cat) {
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
     <header class="cover" style="--c:var(--${col})"><h1>${esc(title)}</h1><p>${esc(desc)}</p></header>
-    <div class="modpage" style="--c:var(--${col})">${body}</div>`;
+    <div class="modpage" style="--c:var(--${col})">${cat === "benhhoc" ? tongCards() : ""}${body}</div>`;
   window.scrollTo(0, 0);
 }
 let MOD_HTML = "";   // danh sách module (cho ngăn Module trên điện thoại)
@@ -412,7 +423,7 @@ function renderResults() {
     const sec = pos >= 0 ? secAt(n, pos) : 0;
     const href = `#/n/${n.id}${sec ? "/" + sec : ""}`;
     const sc = secOf(n.module, sectionOfNote(n));
-    const where = n.kind === "disease" ? (sec ? `${dnum(sec, n.module)} ${SECNAME[sec]}` : (sc.title || "Bệnh học")) : (n.kind === "overview" ? "Tổng quan" : (sc.title || "Nền tảng"));
+    const where = n.kind === "tong" ? "Nội và ngoại khoa" : n.kind === "disease" ? (sec ?`${dnum(sec, n.module)} ${SECNAME[sec]}` : (sc.title || "Bệnh học")) : (n.kind === "overview" ? "Tổng quan" : (sc.title || "Nền tảng"));
     const snip = pos >= 0 ? esc(plain(n.body.slice(Math.max(0, pos - 40), pos + 90))) : "";
     return `<a href="${href}"><b>${esc(n.short || n.title)}</b> <span class="where">${esc(where)}</span>${snip ? `<small>…${snip}…</small>` : ""}</a>`;
   }).join("") : '<div class="none">Không có kết quả.</div>';
@@ -475,7 +486,10 @@ function applyPrefs() {
   if (th === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = th;
   $("#setPanel").querySelectorAll("[data-fs]").forEach(b => b.classList.toggle("on", Math.abs(parseFloat(b.dataset.fs) - fs) < .01));
   $("#setPanel").querySelectorAll("[data-th]").forEach(b => b.classList.toggle("on", b.dataset.th === th));
+  const L = window.YKKB_LOCK, row = $("#setToRow");   // hỏi lại mật khẩu sau bao lâu (chỉ có ý nghĩa với bản mã hóa)
+  if (L && L.enc) { row.hidden = false; const sel = $("#setTo"); if (!sel.options.length) sel.innerHTML = L.options.map(([m, t]) => `<option value="${m}">${t}</option>`).join(""); sel.value = String(L.get()); }
 }
+$("#setTo").addEventListener("change", e => window.YKKB_LOCK && window.YKKB_LOCK.set(e.target.value));
 $("#setPanel").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.fs) lsSet("ykkb_fs", b.dataset.fs);
@@ -544,7 +558,7 @@ function home() {
       <div class="callout warn"><div class="ct">Lưu ý – bẫy thi</div><p>Chỗ dễ nhầm và nơi các nguồn khác nhau.</p></div>
       <div class="callout red"><div class="ct">Cấp cứu – nguy hiểm</div><p>Dấu hiệu cần xử trí hoặc chuyển tuyến ngay.</p></div>
     </div>
-    <p>Ô nguồn như <span class="src">Y5 tr.12</span> cho biết ý lấy từ trang nào của tài liệu nào. Ô <span class="src">Notion</span> là phần bổ sung từ ghi chú chép lại giáo trình cũ, chỉ dùng khi giáo trình mới không có; khi hai nguồn khác nhau, bài theo nguồn mới hơn và ghi rõ chỗ khác. Chữ "tài liệu không nêu" nghĩa là nguồn đã dùng không trả lời điểm đó.</p>
+    <p>Ô nguồn như <span class="src">Y5 tr.12</span> cho biết ý lấy từ trang nào của tài liệu nào. Ô <span class="src">Notion: tên giáo trình</span> là phần bổ sung từ ghi chú chép lại giáo trình cũ (tên giáo trình lấy từ thuộc tính trên Notion), chỉ dùng khi giáo trình mới không có; khi hai nguồn khác nhau, bài theo nguồn mới hơn và ghi rõ chỗ khác. Chữ "tài liệu không nêu" nghĩa là nguồn đã dùng không trả lời điểm đó.</p>
   </section>
   <section><h2>Chuyên khoa</h2>${mods.map(article).join("")}</section>
   ${recent.length ? `<section><h2>Tiếp tục</h2><div class="rgrid">${recent.map(r => `<a class="rcard" href="#/n/${r.id}${r.sec ? "/" + r.sec : ""}"><small>${r.sec ? dnum(r.sec, r.n.module) + " · " + SECNAME[r.sec] : esc(r.n.group || (r.n.kind === "overview" ? "Tổng quan" : "Bài"))}</small><b>${esc(r.n.short || r.n.title)}</b></a>`).join("")}</div></section>` : ""}
@@ -646,6 +660,7 @@ function foldBody(body, prefix) {
 function diseasePage(n, sec) {
   const { pre, secs } = diseaseParts(n);
   const have = SECS.filter(([num]) => secs[num]).map(([num]) => num);
+  if (!have.length && !secs[9]) return tongPage(n);   // bài khai báo kind: disease nhưng chưa có mục "## N.": đọc liền một trang, không báo lỗi
   const isSummary = +sec === 9 && secs[9];
   sec = isSummary ? 9 : (secs[sec] ? sec : have[0]);
   const khung = (n.khung || []).map(k => `<a class="chip wide" href="#/khung/${k}">Khung STT ${k}</a>`).join("");
@@ -664,10 +679,22 @@ function diseasePage(n, sec) {
   return sec;
 }
 
+// Bài tổng hợp: đọc liền một trang, không có tab bệnh; các bài gốc nằm ở hai module
+function tongPage(n) {
+  pushRecent(n.id, 0);
+  const cont = withToc(md(relabel(n.body)));
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: "Bệnh học", href: "#/lib/benhhoc" }, { t: n.short || n.title }])}
+    <header class="cover" style="--c:var(--benh)"><h1>${esc(n.title)}</h1><div class="meta">${n.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div></header>
+    <div class="notepage" style="--c:var(--benh)">${tocBox(cont.items)}${cont.html}</div>
+    ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
+  window.scrollTo(0, 0);
+}
+
 function note(id, sec) {
   const n = byId[id];
   if (!n) { $("#main").innerHTML = "<h1>Không tìm thấy bài</h1>"; return; }
   if (n.kind === "disease") return diseasePage(n, +sec || 0);
+  if (n.kind === "tong") return tongPage(n);
   const k = sectionOfNote(n), mod = n.module, sp = secOf(mod, k);
   pushRecent(id, 0);
   if (n.kind === "foundation" && ["groups", "notes"].includes(sp.type)) return modSection(mod, k, id);

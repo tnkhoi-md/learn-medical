@@ -43,6 +43,7 @@
             <span class="seg"><button data-fs="0.9">A−</button><button data-fs="1">A</button><button data-fs="1.12">A+</button><button data-fs="1.25">A++</button></span></div>
           <div class="srow"><span>Giao diện</span>
             <span class="seg"><button data-th="auto">Tự động</button><button data-th="light">Sáng</button><button data-th="dark">Tối</button></span></div>
+          <div class="srow" id="setToRow" hidden><label for="setTo">Hỏi lại mật khẩu sau</label><select id="setTo" aria-label="Thời gian trước khi hỏi lại mật khẩu"></select></div>
         </div>
       </details>
     </nav>
@@ -67,6 +68,7 @@
     <p class="meta">Nội dung được mã hóa. Nhập mật khẩu để mở.</p>
     <input id="lock-pw" type="password" placeholder="Mật khẩu" autocomplete="current-password">
     <label class="lockrem"><input id="lock-rem" type="checkbox" checked> Ghi nhớ trên thiết bị này</label>
+    <label class="lockrem">Hỏi lại mật khẩu sau <select id="lock-to"></select></label>
     <button id="lock-go" class="b p">Mở</button>
     <p id="lock-msg" class="lockmsg"></p>
   </div>

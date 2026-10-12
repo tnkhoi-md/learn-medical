@@ -23,26 +23,27 @@
   --c-ext:#b84509;--b-ext:#fff1e6;      /* ngoài tài liệu của bạn */
   --c-note:#4f5f58;--b-note:#eef2ef;    /* ghi chú */
   --hl:#fff1a8;
+  --h4:#1d4f7a;                          /* tiêu đề mục nhỏ (h4) */
   --hdr:56px;--mbar:46px;--hdr2:calc(var(--hdr) + var(--mbar));--fs:1;
 }
 /* ---------- 2. Bảng màu (tối) ---------- */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1613;--panel:#152019;--ink:#e3eee8;--mute:#9bb1a6;--line:#24342c;
-  --brand:#4cc38a;--brand-d:#8ee0b8;--brand-bg:#15302a;--th:#246b4d;--teal:#5fc4cb;
-  --nen:#60a5fa;--trieuchung:#22d3ee;--benh:#fb923c;--cls:#a78bfa;--dieutri:#5eead4;--phacdo:#f87171;
-  --s1:#94a3b8;--s2:#60a5fa;--s3:#22d3ee;--s4:#a78bfa;--s5:#fb923c;--s6:#f87171;--s7:#f472b6;--s8:#fbbf24;--s9:#a1a1aa;--s10:#4ade80;
-  --c-key:#6fd6a4;--b-key:#15302a;--c-tip:#6fd0d6;--b-tip:#14302f;--c-warn:#f5c061;--b-warn:#352a12;
-  --c-red:#ff8f85;--b-red:#3a1c1b;--c-doc:#93b8ff;--b-doc:#172845;--c-ext:#ffb37a;--b-ext:#3a2612;
-  --c-note:#b5c4bc;--b-note:#1f2a24;--hl:#5a4b00;
+  --bg:#161d1a;--panel:#1d2723;--ink:#d6dfd9;--mute:#a3b4ac;--line:#33433c;
+  --brand:#6fcf9b;--brand-d:#a6e6c4;--brand-bg:#1f3a32;--th:#2c6e52;--teal:#7cc9cf;
+  --nen:#8bb8f0;--trieuchung:#5fd0e4;--benh:#f5a66b;--cls:#b7a4f0;--dieutri:#72dcc9;--phacdo:#f08a8a;
+  --s1:#a6b3c4;--s2:#8bb8f0;--s3:#5fd0e4;--s4:#b7a4f0;--s5:#f5a66b;--s6:#f08a8a;--s7:#f09ac8;--s8:#f2cc6b;--s9:#b4b4bc;--s10:#7fdc9a;
+  --c-key:#8fdcb4;--b-key:#1f3a32;--c-tip:#8ad6dc;--b-tip:#1d3635;--c-warn:#f2c673;--b-warn:#3a3118;
+  --c-red:#f5a39c;--b-red:#40241f;--c-doc:#a9c8ff;--b-doc:#1f2f4d;--c-ext:#ffc49a;--b-ext:#3d2c1c;
+  --c-note:#c2cfc8;--b-note:#27322d;--hl:#5c4f14;--h4:#a9d4f5;
 }}
 :root[data-theme="dark"]{
-  --bg:#0e1613;--panel:#152019;--ink:#e3eee8;--mute:#9bb1a6;--line:#24342c;
-  --brand:#4cc38a;--brand-d:#8ee0b8;--brand-bg:#15302a;--th:#246b4d;--teal:#5fc4cb;
-  --nen:#60a5fa;--trieuchung:#22d3ee;--benh:#fb923c;--cls:#a78bfa;--dieutri:#5eead4;--phacdo:#f87171;
-  --s1:#94a3b8;--s2:#60a5fa;--s3:#22d3ee;--s4:#a78bfa;--s5:#fb923c;--s6:#f87171;--s7:#f472b6;--s8:#fbbf24;--s9:#a1a1aa;--s10:#4ade80;
-  --c-key:#6fd6a4;--b-key:#15302a;--c-tip:#6fd0d6;--b-tip:#14302f;--c-warn:#f5c061;--b-warn:#352a12;
-  --c-red:#ff8f85;--b-red:#3a1c1b;--c-doc:#93b8ff;--b-doc:#172845;--c-ext:#ffb37a;--b-ext:#3a2612;
-  --c-note:#b5c4bc;--b-note:#1f2a24;--hl:#5a4b00;
+  --bg:#161d1a;--panel:#1d2723;--ink:#d6dfd9;--mute:#a3b4ac;--line:#33433c;
+  --brand:#6fcf9b;--brand-d:#a6e6c4;--brand-bg:#1f3a32;--th:#2c6e52;--teal:#7cc9cf;
+  --nen:#8bb8f0;--trieuchung:#5fd0e4;--benh:#f5a66b;--cls:#b7a4f0;--dieutri:#72dcc9;--phacdo:#f08a8a;
+  --s1:#a6b3c4;--s2:#8bb8f0;--s3:#5fd0e4;--s4:#b7a4f0;--s5:#f5a66b;--s6:#f08a8a;--s7:#f09ac8;--s8:#f2cc6b;--s9:#b4b4bc;--s10:#7fdc9a;
+  --c-key:#8fdcb4;--b-key:#1f3a32;--c-tip:#8ad6dc;--b-tip:#1d3635;--c-warn:#f2c673;--b-warn:#3a3118;
+  --c-red:#f5a39c;--b-red:#40241f;--c-doc:#a9c8ff;--b-doc:#1f2f4d;--c-ext:#ffc49a;--b-ext:#3d2c1c;
+  --c-note:#c2cfc8;--b-note:#27322d;--hl:#5c4f14;--h4:#a9d4f5;
 }
 
 /* ---------- Màu tab bệnh: 5.1–5.7 và ★ Tóm tắt, mỗi tab một màu riêng ----------
@@ -59,8 +60,9 @@ a{color:var(--brand-d);text-underline-offset:3px}
 p{margin:.5em 0}
 h1{margin:.1em 0 .3em;font-size:28px;line-height:1.25;font-weight:800;letter-spacing:-.01em}
 main h2{margin:1.6em 0 .6em;padding-bottom:6px;border-bottom:1.5px dashed var(--line);font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-d)}
-main h3{margin:1.3em 0 .4em;padding-left:10px;border-left:4px solid var(--brand);font-size:18px;font-weight:800}
-main h4{margin:1.5em 0 .5em;padding-bottom:6px;border-bottom:1.5px dashed var(--line);font-size:17px;font-weight:800;color:var(--ink)}
+main h3{margin:1.3em 0 .4em;padding-bottom:6px;border-bottom:1.5px dashed var(--line);font-size:18px;font-weight:800;color:var(--h4)}
+main h3::before{content:"";display:inline-block;width:9px;height:9px;margin:0 9px 1px 0;border-radius:3px;background:var(--c,var(--brand))}
+main h4{margin:1.5em 0 .5em;padding-bottom:6px;border-bottom:1.5px dashed var(--line);font-size:17px;font-weight:800;color:var(--h4)}
 main h4::before{content:"";display:inline-block;width:9px;height:9px;margin:0 9px 1px 0;border-radius:3px;background:var(--c,var(--brand))}
 main h5{margin:1.1em 0 .3em;font-size:15.5px;font-weight:800;color:var(--teal)}
 ul,ol{padding-left:22px;margin:4px 0}
@@ -157,8 +159,10 @@ main{min-width:0;width:100%;max-width:860px;padding:22px clamp(18px,4vw,44px) 36
 .crumb a:hover{color:var(--brand-d)}
 .crumb i{font-style:normal;opacity:.6}
 .crumb span:last-child{font-weight:700;color:var(--ink)}
-.cover{margin:0 0 14px;padding:20px 22px;border:1px solid var(--line);border-left:6px solid var(--c,var(--brand));border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--c,var(--brand)) 13%,var(--panel)),var(--panel) 70%)}
-.cover h1{margin:6px 0 8px}
+/* Khung tiêu đề chuyên đề/ bài: nền loang nhẹ theo màu chuyên đề, dải màu trên, tiêu đề cùng tông */
+.cover{position:relative;overflow:hidden;margin:0 0 16px;padding:24px 26px 22px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(160deg,color-mix(in srgb,var(--c,var(--brand)) 15%,var(--panel)) 0%,var(--panel) 62%)}
+.cover::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:linear-gradient(90deg,var(--c,var(--brand)),color-mix(in srgb,var(--c,var(--brand)) 40%,transparent))}
+.cover h1{margin:6px 0 8px;color:color-mix(in srgb,var(--c,var(--brand)) 72%,var(--ink))}
 .cover .meta{margin:0}
 .cover p{margin:6px 0 0;color:var(--mute)}
 .modpage,.notepage{--c:var(--brand)}
@@ -280,6 +284,7 @@ main section>h2{margin-top:0}
 .spechead{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
 .sdot{width:12px;height:36px;border-radius:6px;background:var(--brand)}
 .spechead h3{margin:0;padding:0;border:0;font-size:20px}
+.spechead h3::before{content:none;display:none}
 .spechead small{color:var(--mute)}
 .specact{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
 .dgrid{--c:var(--brand);display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:12px}
@@ -339,6 +344,7 @@ details.kitem[open]>summary{border-bottom:1px solid var(--line)}
 .lockbox h1{margin:0 0 4px;font-size:26px}
 .lockbox input[type=password]{width:100%;margin:12px 0 8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:17px}
 .lockrem{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 14px;font-size:14px;color:var(--mute)}
+.lockrem select,.srow select{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px}
 .lockbox .b{width:100%;padding:12px;font-size:17px}
 .lockmsg{min-height:1.2em;margin:10px 0 0;font-size:14px;color:var(--c-red)}
 
