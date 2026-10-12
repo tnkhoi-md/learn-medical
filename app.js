@@ -165,8 +165,28 @@ function blocks(L) {
         .replace(/\{([rgbop])\|([^}]*)\}/g, (_, col, t) => "{" + col + "\u0001" + t + "}")
         .replace(/\[\[[^\]]*\]\]/g, m => m.replace(/\|/g, "\u0001"))
         .split("|").map(c => c.replace(/\u0001/g, "|").trim());
-      h.push('<div class="tw"><table><thead><tr>' + cells(rows[0]).map(c => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>" +
-        rows.slice(2).map(r => "<tr>" + cells(r).map(c => `<td>${inline(c)}</td>`).join("") + "</tr>").join("") + "</tbody></table></div>");
+      // Gộp ô: "<<" gộp ngang với ô bên trái, "^^" gộp dọc với ô phía trên (không gộp qua dòng tiêu đề)
+      const head = cells(rows[0]), body = rows.slice(2).map(cells), W = head.length;
+      const grid = [head, ...body].map(r => Array.from({ length: W }, (_, x) => (r[x] !== undefined ? r[x] : "")));
+      const sp = grid.map(r => r.map(() => ({ c: 1, r: 1, hide: false })));
+      grid.forEach((row, y) => row.forEach((v, x) => {
+        if (v === "<<") { let k = x - 1; while (k >= 0 && row[k] === "<<") k--; if (k >= 0) { sp[y][k].c++; sp[y][x].hide = true; } }
+        if (v === "^^") { let k = y - 1; while (k >= 1 && grid[k][x] === "^^") k--; if (k >= 1) { sp[k][x].r++; sp[y][x].hide = true; } else grid[y][x] = ""; }
+      }));
+      const td = (y, x, tag) => {
+        const s = sp[y][x];
+        if (s.hide) return "";
+        const v = grid[y][x] === "<<" ? "" : grid[y][x];
+        const a = (s.c > 1 ? ` colspan="${s.c}"` : "") + (s.r > 1 ? ` rowspan="${s.r}" class="mg"` : "");
+        return `<${tag}${a}>${inline(v)}</${tag}>`;
+      };
+      const bodyHtml = grid.slice(1).map((_, y) => "<tr>" + Array.from({ length: W }, (_, x) => td(y + 1, x, "td")).join("") + "</tr>").join("");
+      // Chú thích viết tắt: dòng "Viết tắt: …" ngay sau bảng (có thể cách một dòng trắng)
+      let note = "", q = i;
+      while (q < L.length && L[q].trim() === "") q++;
+      if (q < L.length && /^Viết tắt:/.test(L[q].trim())) { note = L[q].trim().replace(/^Viết tắt:\s*/, ""); i = q + 1; }
+      h.push('<div class="tw"><table><thead><tr>' + Array.from({ length: W }, (_, x) => td(0, x, "th")).join("") + "</tr></thead><tbody>" +
+        bodyHtml + "</tbody></table></div>" + (note ? `<div class="tnote"><b>Viết tắt:</b> ${inline(note)}</div>` : ""));
       continue;
     }
     if (l.startsWith(">")) {

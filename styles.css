@@ -181,7 +181,7 @@ main{min-width:0;width:100%;max-width:860px;padding:22px clamp(18px,4vw,44px) 36
 
 /* ---------- 9. Bảng: đầu màu đậm, dòng so le ---------- */
 table{display:block;overflow-x:auto;width:100%;margin:12px 0;border:1px solid var(--line);border-radius:12px;border-collapse:separate;border-spacing:0;font-size:14px}
-th,td{min-width:100px;padding:7px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th,td{min-width:36px;padding:7px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
 th{background:var(--th);color:#fff;font-size:14px;font-weight:700}
 tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--panel) 94%,var(--brand-bg))}
 tbody tr:last-child td{border-bottom:0}
@@ -190,6 +190,9 @@ tbody tr:last-child td{border-bottom:0}
 /* bảng dài: khung cuộn riêng, dòng tiêu đề dính trên cùng khi cuộn */
 .tall{max-height:min(70vh,620px);overflow:auto;overscroll-behavior:contain}
 .tall th{position:sticky;top:0;z-index:2}
+/* ô gộp (^^ gộp dọc, << gộp ngang) và chú thích viết tắt ngay dưới bảng */
+td.mg{vertical-align:middle;font-weight:700;background:color-mix(in srgb,var(--panel) 88%,var(--brand-bg))}
+.tnote{margin:-6px 0 14px;padding:5px 10px;font-size:13px;line-height:1.55;color:var(--mute);border-left:3px solid var(--line)}
 
 /* ---------- 10. Tab, thẻ gập, mục lục bài ---------- */
 .tabs{margin:14px 0;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
