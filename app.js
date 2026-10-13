@@ -102,6 +102,122 @@ function cardsOf(n) {
 
 function md(src) { return blocks(src.split("\n")); }
 
+// Công cụ tính điểm: @@calc Tên … @@item Tên mục (chọn một) / @@checks Tên nhóm (tích nhiều) / @@bands (mức kết quả) … @@end
+//   tùy chọn:  "- điểm | nhãn"      mức kết quả:  "- từ..đến | diễn giải | màu (r,g,o,p,b; không bắt buộc)"
+let calcN = 0;
+function calcBlock(title, lines) {
+  const id = "calc" + (++calcN), parts = [], bands = [], plain = s => s.replace(/\{[rgbop]\|([^}]*)\}/g, "$1").replace(/\*\*/g, "");
+  const fin = [], groups = [];
+  let cur = null, mode = "opt", grp = null, m;
+  for (const x of lines) {
+    const s = x.trim();
+    if ((m = s.match(/^@@(item|checks)\s+(.+)$/))) { cur = { kind: m[1], name: m[2], opts: [] }; parts.push(cur); mode = "opt"; continue; }
+    if (/^@@bands/.test(s)) { mode = "band"; cur = null; continue; }
+    if ((m = s.match(/^@@(rules|res)\b\s*(.*)$/))) { grp = { t: m[2], rules: [] }; groups.push(grp); mode = "rule"; cur = null; continue; }
+    if ((m = s.match(/^@@in\s+(.+)$/))) { const a = m[1].split("|").map(z => z.trim()), r = (a[3] || "").match(/^(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)$/); fin.push({ k: "in", id: a[0], name: a[1], unit: a[2] || "", lo: r ? r[1] : "", hi: r ? r[2] : "", opt: a[4] === "?" }); cur = null; mode = "opt"; continue; }
+    if ((m = s.match(/^@@sel\s+(.+)$/))) { const a = m[1].split("|").map(z => z.trim()); cur = { k: "sel", id: a[0], name: a[1], opts: [] }; fin.push(cur); mode = "opt"; continue; }
+    if ((m = s.match(/^@@out\s+(.+)$/))) { const a = m[1].split("|").map(z => z.trim()); fin.push({ k: "out", id: a[0], name: a[1], unit: a[2] || "", dec: +a[3] || 0, expr: a.slice(4).join("|") }); cur = null; mode = "opt"; continue; }
+    if (!s.startsWith("-")) continue;
+    if (mode === "rule") {
+      if (!grp) { grp = { t: "", rules: [] }; groups.push(grp); }
+      const a = s.replace(/^-\s*/, "").split("|").map(z => z.trim());
+      if (a.length >= 2) grp.rules.push({ e: a[0], txt: plain(a[1]), c: /^[rgbop]$/.test(a[2] || "") ? a[2] : "" });
+    } else if (mode === "band") {
+      if ((m = s.match(/^-\s*(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)\s*\|\s*(.+?)(?:\s*\|\s*([rgbop]))?\s*$/))) bands.push({ lo: +m[1], hi: +m[2], txt: plain(m[3]), c: m[4] || "" });
+    } else if (cur && (m = s.match(/^-\s*(-?[\d.]+)\s*\|\s*(.+)$/))) cur.opts.push({ v: +m[1], t: m[2] });
+  }
+  if (fin.length) {
+    const field = f => f.k === "in"
+      ? `<label class="calc-in"><span>${inline(f.name)}${f.opt ? ` <em class="calc-opt">(tùy chọn)</em>` : ""}</span><input type="number" step="any" inputmode="decimal" data-var="${f.id}" data-label="${esc(f.name)}" data-lo="${f.lo}" data-hi="${f.hi}" data-opt="${f.opt ? 1 : ""}"><small>${esc(f.unit)}${f.lo ? ` (${f.lo}–${f.hi})` : ""}</small></label>`
+      : `<fieldset class="calc-sel" data-label="${esc(f.name)}"><legend>${inline(f.name)}</legend>` + f.opts.map(o => `<label><input type="radio" name="${id}-${f.id}" data-var="${f.id}" value="${o.v}"><span>${inline(o.t)}</span></label>`).join("") + `</fieldset>`;
+    const outs = fin.filter(f => f.k === "out").map(f => `<div class="calc-line" data-var="${f.id}" data-label="${esc(f.name)}" data-dec="${f.dec}" data-expr="${esc(f.expr)}"><span>${inline(f.name)}</span><b class="calc-val">–</b><small>${esc(f.unit)}</small></div>`).join("");
+    const res = groups.map((g, k) => `<div class="calc-res" data-g="${k}">${g.t ? `<b class="calc-gt">${inline(g.t)}</b>` : ""}<span class="calc-msg">–</span></div>`).join("");
+    return `<div class="calc calc-f" data-groups="${esc(JSON.stringify(groups))}"><div class="calc-head"><span>🧮 ${inline(title)}</span><button type="button" class="calc-reset">Đặt lại</button></div>` +
+      fin.filter(f => f.k !== "out").map(field).join("") + (outs ? `<div class="calc-vals">${outs}</div>` : "") +
+      `<div class="calc-outf"><div class="calc-top"></div>${res}</div></div>`;
+  }
+  const max = parts.reduce((a, p) => a + (p.kind === "item" ? Math.max(...p.opts.map(o => o.v)) : p.opts.reduce((b, o) => b + Math.max(o.v, 0), 0)), 0);
+  const req = parts.filter(p => p.kind === "item").length;
+  const body = parts.map((p, k) => `<fieldset class="calc-item${p.kind === "checks" ? " checks" : ""}"><legend>${inline(p.name)}</legend>` +
+    p.opts.map(o => `<label><input type="${p.kind === "item" ? "radio" : "checkbox"}" name="${id}-${k}" value="${o.v}"><b>${p.kind === "checks" && o.v > 0 ? "+" : ""}${o.v}</b><span>${inline(o.t)}</span></label>`).join("") + `</fieldset>`).join("");
+  return `<div class="calc" data-req="${req}" data-bands="${esc(JSON.stringify(bands))}"><div class="calc-head"><span>🧮 ${inline(title)}</span><button type="button" class="calc-reset">Đặt lại</button></div>${body}` +
+    `<div class="calc-out"><div class="calc-score"><b class="calc-total">0</b><small>/ ${max} điểm</small></div><div class="calc-res" aria-live="polite">Chọn các mục để tính điểm</div></div></div>`;
+}
+const CALC_FN = { min: Math.min, max: Math.max, abs: Math.abs, log: Math.log, log10: Math.log10, sqrt: Math.sqrt };
+function calcEval(expr, vars) {
+  if (!/^[\w\s.+\-*\/%()<>=!&|,]+$/.test(expr)) return NaN;
+  try { return new Function(...Object.keys(vars), ...Object.keys(CALC_FN), "return (" + expr + ")")(...Object.values(vars), ...Object.values(CALC_FN)); } catch (_) { return NaN; }
+}
+const calcRefs = e => e.match(/[A-Za-z_]\w*/g) || [];
+function calcFormula(c) {
+  const groups = JSON.parse(c.dataset.groups || "[]"), vars = {}, label = {}, expr = {}, missing = [];
+  let range = "";
+  c.querySelectorAll("input[type=number][data-var]").forEach(i => {
+    const k = i.dataset.var, raw = i.value.trim().replace(",", "."), v = raw === "" ? NaN : parseFloat(raw);
+    label[k] = i.dataset.label; vars[k] = v;
+    if (isNaN(v)) { if (!i.dataset.opt) missing.push(label[k]); return; }
+    if (i.dataset.lo !== "" && (v < +i.dataset.lo || v > +i.dataset.hi)) range = `${label[k]} ngoài khoảng ${i.dataset.lo}–${i.dataset.hi}`;
+  });
+  c.querySelectorAll("fieldset.calc-sel").forEach(f => {
+    const k = f.querySelector("input").dataset.var, r = f.querySelector("input:checked");
+    label[k] = f.dataset.label; vars[k] = r ? +r.value : NaN;
+    if (!r) missing.push(label[k]);
+  });
+  c.querySelectorAll(".calc-line").forEach(l => { label[l.dataset.var] = l.dataset.label; expr[l.dataset.var] = l.dataset.expr; });
+  // Các nhãn còn thiếu mà biểu thức cần (đi qua cả các mục tính trung gian)
+  const need = (e, seen = new Set()) => calcRefs(e).flatMap(x => {
+    if (seen.has(x) || !(x in label)) return [];
+    seen.add(x);
+    if (!(x in expr)) return isNaN(vars[x]) ? [label[x]] : [];
+    return need(expr[x], seen);
+  });
+  c.querySelectorAll(".calc-line").forEach(l => {
+    const k = l.dataset.var, val = l.querySelector(".calc-val"), dec = +l.dataset.dec;
+    if (need(expr[k]).length) { vars[k] = NaN; val.textContent = "–"; return; }
+    const v = calcEval(expr[k], vars); vars[k] = v;
+    val.textContent = isFinite(v) ? (Math.round(v * 10 ** dec) / 10 ** dec).toLocaleString("vi-VN", { maximumFractionDigits: dec }) : "không tính được";
+  });
+  c.querySelector(".calc-top").textContent = missing.length ? `Còn ${missing.length} mục bắt buộc chưa nhập: ${missing.join(", ")}` : range;
+  c.querySelectorAll(".calc-res").forEach(el => {
+    const g = groups[+el.dataset.g], msg = el.querySelector(".calc-msg");
+    // Quy tắc được xét theo thứ tự; gặp quy tắc còn thiếu dữ liệu trước mức khớp thì chưa kết luận được
+    const pend = [];
+    let hit = null;
+    for (const r of g.rules) {
+      const nd = need(r.e);
+      if (nd.length) { pend.push(...nd); continue; }
+      if (calcEval(r.e, vars)) { hit = r; break; }
+    }
+    el.className = "calc-res";
+    if (pend.length) { msg.textContent = "Cần nhập: " + [...new Set(pend)].join(", "); return; }
+    if (!hit) { msg.textContent = "Không khớp mức nào đã khai báo"; return; }
+    el.className = "calc-res" + (hit.c ? " k-" + hit.c : "");
+    msg.textContent = hit.txt;
+  });
+}
+function calcUpdate(c) {
+  if (c.classList.contains("calc-f")) return calcFormula(c);
+  const bands = JSON.parse(c.dataset.bands || "[]"), req = +c.dataset.req;
+  let total = 0, done = 0;
+  c.querySelectorAll("fieldset").forEach(f => {
+    if (f.classList.contains("calc-sel")) return;
+    if (f.classList.contains("checks")) f.querySelectorAll("input:checked").forEach(i => { total += +i.value; });
+    else { const r = f.querySelector("input:checked"); if (r) { total += +r.value; done++; } }
+  });
+  c.querySelector(".calc-total").textContent = String(Math.round(total * 100) / 100);
+  const res = c.querySelector(".calc-res");
+  if (done < req) { res.className = "calc-res"; res.textContent = `Còn ${req - done} mục chưa chọn`; return; }
+  const b = bands.find(x => total >= x.lo && total <= x.hi);
+  res.className = "calc-res" + (b && b.c ? " k-" + b.c : "");
+  res.textContent = b ? b.txt : "Tổng điểm nằm ngoài các mức đã khai báo";
+}
+document.addEventListener("change", e => { const c = e.target.closest(".calc"); if (c) calcUpdate(c); });
+document.addEventListener("input", e => { if (e.target.type !== "number") return; const c = e.target.closest(".calc"); if (c) calcUpdate(c); });
+document.addEventListener("click", e => {
+  const b = e.target.closest(".calc-reset"); if (!b) return;
+  const c = b.closest(".calc"); c.querySelectorAll("input").forEach(i => { i.checked = false; if (i.type === "number") i.value = ""; }); calcUpdate(c);
+});
+
 function blocks(L) {
   const h = [];
   let i = 0;
@@ -113,7 +229,7 @@ function blocks(L) {
     let d = 1;
     for (let k = from; k < L.length; k++) {
       const t = L[k].trim();
-      if (/^@@(tabs|fold)/.test(t)) d++;
+      if (/^@@(tabs|fold|calc)/.test(t)) d++;
       else if (t === "@@end" && --d === 0) return k;
     }
     return L.length;
@@ -129,11 +245,17 @@ function blocks(L) {
       for (const x of inner) {
         const tx = x.trim();
         if (d === 0 && (m = tx.match(/^@@tab\s+(.+)$/))) { tabs.push({ name: m[1], lines: [] }); continue; }
-        if (/^@@(tabs|fold)/.test(tx)) d++; else if (tx === "@@end") d--;
+        if (/^@@(tabs|fold|calc)/.test(tx)) d++; else if (tx === "@@end") d--;
         if (tabs.length) tabs[tabs.length - 1].lines.push(x);
       }
       h.push(`<div class="tabs"><div class="tabbar">${tabs.map((x, k) => `<button class="tabbtn${k ? "" : " on"}" data-t="${k}">${inline(x.name)}</button>`).join("")}</div>` +
         tabs.map((x, k) => `<div class="tabpanel${k ? "" : " on"}" data-t="${k}">${blocks(x.lines)}</div>`).join("") + `</div>`);
+      i = end + 1; continue;
+    }
+    if ((m = t.match(/^@@calc\s+(.+)$/))) {
+      closeLists();
+      const end = findEnd(i + 1);
+      h.push(calcBlock(m[1], L.slice(i + 1, end)));
       i = end + 1; continue;
     }
     if ((m = t.match(/^@@fold(!?)\s+(.+)$/))) {
@@ -673,7 +795,7 @@ function foldBody(body, prefix) {
   const L = body.split("\n"), re = new RegExp("^@@fold!?\\s+" + prefix, "i"), i = L.findIndex(l => re.test(l.trim()));
   if (i < 0) return "";
   let d = 1, j = i + 1;
-  for (; j < L.length; j++) { const t = L[j].trim(); if (/^@@(tabs|fold)/.test(t)) d++; else if (t === "@@end" && --d === 0) break; }
+  for (; j < L.length; j++) { const t = L[j].trim(); if (/^@@(tabs|fold|calc)/.test(t)) d++; else if (t === "@@end" && --d === 0) break; }
   return L.slice(i + 1, j).join("\n");
 }
 
