@@ -45,7 +45,7 @@ window.renderKhung = function (main, focus) {
   if (!K) { main.innerHTML = "<h1>Chưa có dữ liệu</h1><p>Chạy <code>python3 tools/build_khung.py</code>.</p>"; return; }
   const q = K.qd22, bk = K.book, nOnco = K.items.filter(i => i.onco).length, nBook = K.items.filter(i => i.book.length).length;
   main.innerHTML = `
-  <h1>Khung kiến thức thi hành nghề — 128 vấn đề cốt lõi</h1>
+  <h1>Khung kiến thức thi hành nghề — 129 vấn đề cốt lõi</h1>
   <p class="meta">Tổng hợp từ hai nguồn. Mỗi vấn đề có đủ các phần như trong sách và ghi rõ nguồn.</p>
   <div class="srcs">
     <div class="box"><b>Khung thi: ${esc(q.source.short)}</b><br>${esc(q.source.title)}.<br><small>${esc(q.source.about)}</small><br><small>${esc(q.source.note)}</small><br><small>File: ${esc(q.source.file)}</small></div>
@@ -61,7 +61,7 @@ window.renderKhung = function (main, focus) {
   ${q.competencies.map(c => `<tr><td>${c.no}</td><td>${esc(c.group)}</td><td>${esc(c.name)}</td><td>${c.min ?? ""}</td><td>${c.max ?? ""}</td></tr>`).join("")}</tbody></table>
   <p class="meta">${esc(q.competencyNote)}</p>
 
-  <h2>Danh mục 128 vấn đề</h2>
+  <h2>Danh mục ${K.items.length} vấn đề</h2>
   <div class="kctl">
     <input id="kq" type="search" placeholder="Tìm trong tiêu đề và nội dung…">
     <select id="kg"><option value="">Tất cả hệ</option>${q.groups.map(g => `<option value="${g.id}">${g.id}. ${esc(g.name)}</option>`).join("")}</select>
@@ -71,7 +71,7 @@ window.renderKhung = function (main, focus) {
   <p class="meta" id="kcount"></p>
   <div id="klist">${q.groups.map(g => `<section class="kgrp" data-g="${g.id}"><h2>${g.id}. ${esc(g.name)} <small>trọng số ${g.min}–${g.max}</small></h2>${K.items.filter(i => i.group === g.id).map(itemHtml).join("")}</section>`).join("")}</div>
   ${K.unmatchedBook.length ? `<h2>Sách chưa ghép với QĐ 22</h2><p class="meta">Các mục của sách không có vấn đề cùng tên trong QĐ 22 (hoặc đã được gộp/đổi tên). Bạn kiểm tra và chỉnh trong <code>data/mapping-manual.json</code>.</p><ul>${K.unmatchedBook.map(u => `<li>Sách mục ${u.no}: ${esc(u.title)} (tr. ${u.bookPage})</li>`).join("")}</ul>` : ""}
-  <p class="meta">Đã có nội dung sách cho ${nBook}/128 vấn đề. Dữ liệu OCR từ bản scan nên có thể còn lỗi chính tả; luôn đối chiếu bản gốc khi cần số liệu chính xác.</p>`;
+  <p class="meta">Đã có nội dung sách cho ${nBook}/${K.items.length} vấn đề. Dữ liệu OCR từ bản scan nên có thể còn lỗi chính tả; luôn đối chiếu bản gốc khi cần số liệu chính xác.</p>`;
 
   const $ = s => main.querySelector(s);
   const apply = () => {
@@ -83,7 +83,7 @@ window.renderKhung = function (main, focus) {
       if (t && ok) d.open = true;
     });
     main.querySelectorAll(".kgrp").forEach(s => s.style.display = [...s.querySelectorAll(".kitem")].some(d => d.style.display !== "none") ? "" : "none");
-    $("#kcount").textContent = `Hiển thị ${n}/128 vấn đề`;
+    $("#kcount").textContent = `Hiển thị ${n}/${K.items.length} vấn đề`;
   };
   ["input", "change"].forEach(e => main.querySelector(".kctl").addEventListener(e, apply));
   let all = false;

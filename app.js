@@ -668,7 +668,7 @@ function diseaseGrid(ds, mod = curMod()) {
 function home() {
   const ds = diseases(), mods = Object.keys(MODULES), cm = curMod();   // cm: chuyên khoa xem gần nhất
   const fo = NOTES.filter(n => n.kind === "foundation").length;
-  const nKhung = window.KHUNG ? window.KHUNG.items.length : 128;
+  const nKhung = window.KHUNG ? window.KHUNG.items.length : 129;
   const recent = (store.get(RK, []) || []).map(r => ({ ...r, n: byId[r.id] })).filter(r => r.n).slice(0, 4);
   const due = dueCards().length, sumN = secByType(cm, "summary"), cardN = secByType(cm, "cards");
   const article = mod => {
