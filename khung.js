@@ -45,8 +45,7 @@ window.renderKhung = function (main, focus) {
   if (!K) { main.innerHTML = "<h1>Chưa có dữ liệu</h1><p>Chạy <code>python3 tools/build_khung.py</code>.</p>"; return; }
   const q = K.qd22, bk = K.book, nOnco = K.items.filter(i => i.onco).length, nBook = K.items.filter(i => i.book.length).length;
   main.innerHTML = `
-  <h1>Khung kiến thức thi hành nghề — 129 vấn đề cốt lõi</h1>
-  <p class="meta">Tổng hợp từ hai nguồn. Mỗi vấn đề có đủ các phần như trong sách và ghi rõ nguồn.</p>
+  ${window.pageHead({ c: "var(--s3)", kicker: "Khác · Đề cương ôn thi CCHN YKQGQ", title: "Khung kiến thức thi hành nghề — 129 vấn đề cốt lõi", desc: "Tổng hợp từ hai nguồn. Mỗi vấn đề có đủ các phần như trong sách và ghi rõ nguồn." })}
   <div class="srcs">
     <div class="box"><b>Khung thi: ${esc(q.source.short)}</b><br>${esc(q.source.title)}.<br><small>${esc(q.source.about)}</small><br><small>${esc(q.source.note)}</small><br><small>File: ${esc(q.source.file)}</small></div>
     <div class="box"><b>Nội dung: sách ĐH Y Dược TP.HCM</b><br>${esc(bk.title)}<br><small>${esc(bk.editors)}. ${esc(bk.publisher)}.<br>${esc(bk.decision)}.<br>${esc(bk.pageNote)}</small><br><small>File: ${esc(bk.file)}</small></div>

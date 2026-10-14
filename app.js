@@ -377,13 +377,16 @@ function withToc(html) {
 }
 function tocBox(items) {
   if (items.length < 3) return "";
-  return `<details class="toc" open><summary>Nội dung mục</summary><ol>${items.map(x => `<li><a href="#${x.id}" data-jump="${x.id}">${x.t.replace(/<\/?a[^>]*>/g, "")}</a></li>`).join("")}</ol></details>`;
+  return `<details class="toc"${narrow() ? "" : " open"}><summary>Nội dung mục</summary><ol>${items.map(x => `<li><a href="#${x.id}" data-jump="${x.id}">${x.t.replace(/<\/?a[^>]*>/g, "")}</a></li>`).join("")}</ol></details>`;
 }
 document.addEventListener("click", e => {
   const a = e.target.closest("a[data-jump]"); if (!a) return;
   e.preventDefault();
+  document.body.classList.remove("tocpop");
   const t = document.getElementById(a.dataset.jump); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+$("#tocFab").onclick = () => { const t = $("#main details.toc"); if (!t) return; t.open = true; document.body.classList.toggle("tocpop"); };
+document.addEventListener("click", e => { if (document.body.classList.contains("tocpop") && !e.target.closest("details.toc,#tocFab")) document.body.classList.remove("tocpop"); });
 
 // ---- thanh bên: mục lục thu gọn theo khung 1–9 ----
 const diseases = () => NOTES.filter(n => n.kind === "disease").sort((a, b) => (a.order || 99) - (b.order || 99));
@@ -462,7 +465,7 @@ function symptomPage(L) {
   }).join("")}</section>`).join("");
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
-    <header class="cover" style="--c:var(--${col})"><h1>${esc(title)}</h1><p>Bệnh nhân đến khám vì một lý do: đau bụng, đau đầu, nôn ói, vàng da… Chọn lý do đến khám để đọc cách tiếp cận, hỏi bệnh tiếp, rồi xem các bệnh cần nghĩ tới. Các vấn đề theo Khung 128 của kỳ thi.</p></header>
+    ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: `${esc(title)}`, desc: `Bệnh nhân đến khám vì một lý do: đau bụng, đau đầu, nôn ói, vàng da… Chọn lý do đến khám để đọc cách tiếp cận, hỏi bệnh tiếp, rồi xem các bệnh cần nghĩ tới. Các vấn đề theo Khung 128 của kỳ thi.` })}
     <div class="symctl"><input id="symq" type="search" placeholder="Lọc theo lý do đến khám: đau bụng, ho, vàng da…" autocomplete="off"><label><input type="checkbox" id="symall"> Hiện cả vấn đề chưa có bài (${nEmpty})</label></div>
     <div class="modpage" style="--c:var(--${col})">${list}
       ${gen.length ? `<section class="symgen"><h2>Hỏi bệnh, khám và bệnh án</h2><p class="meta">Kỹ năng và khái quát dùng chung cho mọi lý do đến khám.</p><div class="rgrid">${gen.map(n => `<a class="rcard" href="#/n/${n.id}"><small>${modTag(n.module)}</small><b>${esc(n.short || n.title)}</b></a>`).join("")}</div></section>` : ""}</div>`;
@@ -477,7 +480,7 @@ function symptomPage(L) {
 function libIndex() {
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập" }])}
-    <header class="cover" style="--c:var(--brand)"><h1>Thư viện học tập</h1><p>Tra cứu theo loại kiến thức, gom từ mọi chuyên khoa. Muốn học theo trình tự của một chuyên khoa thì vào mục Module.</p></header>
+    ${pageHead({ c: `var(--brand)`, title: `Thư viện học tập`, desc: `Tra cứu theo loại kiến thức, gom từ mọi chuyên khoa. Muốn học theo trình tự của một chuyên khoa thì vào mục Module.` })}
     <div class="rgrid libgrid">${LIBS.map(([k, t, d, col]) => `<a class="rcard lib" style="--c:var(--${col})" href="#/lib/${k}"><small>${libCount(k)} mục</small><b>${esc(t)}</b><span>${esc(d)}</span></a>`).join("")}</div>`;
   window.scrollTo(0, 0);
 }
@@ -491,7 +494,7 @@ function libPage(cat) {
   </section>`).join("") || `<p class="meta">Chưa có bài nào thuộc loại này.</p>`;
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
-    <header class="cover" style="--c:var(--${col})"><h1>${esc(title)}</h1><p>${esc(desc)}</p></header>
+    ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: `${esc(title)}`, desc: `${esc(desc)}` })}
     <div class="modpage" style="--c:var(--${col})">${cat === "benhhoc" ? tongCards() : ""}${body}</div>`;
   window.scrollTo(0, 0);
 }
@@ -625,6 +628,10 @@ function applyPrefs() {
   const fs = parseFloat(lsGet("ykkb_fs")) || 1, th = lsGet("ykkb_theme") || "auto";
   setSideOff(!narrow() && lsGet("ykkb_side") === "off");
   document.documentElement.style.setProperty("--fs", fs);
+  const w = lsGet("ykkb_w") || "std", dn = lsGet("ykkb_d") || "std";
+  document.documentElement.dataset.w = w; document.documentElement.dataset.d = dn;
+  $("#setPanel").querySelectorAll("[data-w]").forEach(b => b.classList.toggle("on", b.dataset.w === w));
+  $("#setPanel").querySelectorAll("[data-d]").forEach(b => b.classList.toggle("on", b.dataset.d === dn));
   if (th === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = th;
   $("#setPanel").querySelectorAll("[data-fs]").forEach(b => b.classList.toggle("on", Math.abs(parseFloat(b.dataset.fs) - fs) < .01));
   $("#setPanel").querySelectorAll("[data-th]").forEach(b => b.classList.toggle("on", b.dataset.th === th));
@@ -636,6 +643,8 @@ $("#setPanel").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.fs) lsSet("ykkb_fs", b.dataset.fs);
   if (b.dataset.th) lsSet("ykkb_theme", b.dataset.th === "auto" ? null : b.dataset.th);
+  if (b.dataset.w) lsSet("ykkb_w", b.dataset.w);
+  if (b.dataset.d) lsSet("ykkb_d", b.dataset.d);
   applyPrefs();
 });
 applyPrefs();
@@ -647,6 +656,14 @@ function pushRecent(id, sec) {
   list.unshift({ id, sec: sec || 0, t: Date.now() });
   store.set(RK, list.slice(0, 8));
 }
+// Đầu trang chung cho mọi trang nội dung: nhãn mục, tên, mô tả, huy hiệu, hành động
+const pageHead = ({ c, kicker = "", title, desc = "", badges = "", actions = "" }) =>
+  `<header class="cover" style="--c:${c}">${kicker ? `<div class="kicker">${kicker}</div>` : ""}<h1>${title}</h1>${desc ? `<p class="lede">${desc}</p>` : ""}${badges ? `<div class="badges">${badges}</div>` : ""}${actions ? `<div class="actions">${actions}</div>` : ""}</header>`;
+window.pageHead = pageHead;
+let CBN = null;   // thẻ ôn nhóm theo bài
+const cardsBy = id => (CBN || (CBN = allCards.reduce((m, c) => ((m[c.note] = m[c.note] || []).push(c), m), {})))[id] || [];
+const cardBtn = id => { const l = cardsBy(id); if (!l.length) return ""; const d = cardStat(l).due; return `<a class="btn" href="#/cards/${id}">Ôn thẻ · ${l.length}${d ? ` (${d} cần ôn)` : ""}</a>`; };
+const tagBadges = (tags, max = 4) => { const t = tags || []; return t.slice(0, max).map(x => `<span class="tag">${esc(x)}</span>`).join("") + (t.length > max ? `<span class="tag more" title="${esc(t.slice(max).join(", "))}">+${t.length - max}</span>` : ""); };
 const crumb = parts => `<nav class="crumb">${parts.map((p, i) => p.href ? `<a href="${p.href}">${esc(p.t)}</a>` : `<span>${esc(p.t)}</span>`).join('<i>›</i>')}</nav>`;
 
 // ---- thẻ ôn tập (Leitner đơn giản) ----
@@ -659,9 +676,9 @@ function badge() { const el = $("#dueBadge"); if (el) el.textContent = dueCards(
 // ---- trang ----
 function hasPareto(d) { return /^## 9\.[^\n]*Pareto/m.test(d.body); }
 function diseaseGrid(ds, mod = curMod()) {
-  return `<div class="dgrid">${ds.map(d => { const { secs } = diseaseParts(d); return `<article class="dcard"><a class="dtitle" href="#/n/${d.id}/3">${esc(d.short || d.title)}</a>
+  return `<div class="dgrid">${ds.map(d => { const { secs } = diseaseParts(d), nc = cardsBy(d.id).length; return `<article class="dcard"><a class="dtitle" href="#/n/${d.id}/3">${esc(d.short || d.title)}</a>
       <div class="dchips">${SECS.map(([n, t, c]) => secs[n] ? `<a class="chip" style="--c:var(--${c})" href="#/n/${d.id}/${n}" title="${dnum(n, mod)} ${esc(t)}">${dnum(n, mod)}</a>` : `<span class="chip off" title="${dnum(n, mod)} ${esc(t)} (chưa có)">${dnum(n, mod)}</span>`).join("")}</div>
-      <div class="dfoot">${hasPareto(d) ? `<a class="pill9" href="#/n/${d.id}/9">★ Tóm tắt</a>` : '<span class="meta">Tóm tắt: chưa có</span>'}${(d.khung || []).map(k => `<a class="chip wide" href="#/khung/${k}">STT ${k}</a>`).join("")}</div></article>`; }).join("")}</div>
+      <div class="dfoot">${hasPareto(d) ? `<a class="pill9" href="#/n/${d.id}/9">★ Tóm tắt</a>` : '<span class="meta">Chưa có tóm tắt</span>'}${nc ? `<a class="dcards" href="#/cards/${d.id}">${nc} thẻ</a>` : ""}</div></article>`; }).join("")}</div>
     <p class="legend2 meta">${SECS.map(([n, t, c]) => `<span><i class="dot" style="background:var(--${c})"></i>${dnum(n, mod)} ${esc(t)}</span>`).join("")}</p>`;
 }
 
@@ -715,7 +732,7 @@ function openByDefault(flat, openId) {
 }
 function noteToggles(list, openSet) {
   return list.map(n => `<details class="fold note-t" id="t-${n.id}"${openSet.has(n.id) ? " open" : ""}>
-      <summary>${esc(n.short || n.title)}</summary>
+      <summary>${esc(n.short || n.title)}${cardsBy(n.id).length ? ` <small class="nmeta">${cardsBy(n.id).length} thẻ</small>` : ""}</summary>
       ${md(n.body)}
     </details>`).join("");
 }
@@ -728,6 +745,7 @@ function modSection(mod, k, openId) {
   const groups = type === "groups" ? groupList(mod, k) : [];
   const flat = type === "groups" ? groups.flatMap(g => gen.filter(n => (n.group || "Khác") === g)) : gen;
   const openSet = sp.openAll ? new Set(gen.map(n => n.id)) : openByDefault(flat, openId);
+  const nBadge = type === "diseases" || type === "summary" ? `${di.length} bệnh` : gen.length ? `${gen.length} bài` : "";
   const allBtn = gen.length ? `<p><button class="btn" data-act="toggleall" data-scope="details.note-t">Mở / đóng tất cả</button></p>` : "";
   const byDisease = (secNums) => `<div class="rgrid">${di.map(d => `<div class="rcard"><b>${esc(d.short || d.title)}</b>${secNums.map(s => `<a class="chip wide" href="#/n/${d.id}/${s}">${dnum(s, mod)} ${esc(SECNAME[s])}</a>`).join("")}</div>`).join("")}</div>`;
   let body = "";
@@ -765,7 +783,7 @@ function modSection(mod, k, openId) {
   }
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }])}
-    <header class="cover" style="--c:var(--s${secC(mod, k)})"><h1>${k}. ${esc(title)}</h1><p>${esc(desc)}</p></header>
+    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · Mục ${k}`, title: `${k}. ${esc(title)}`, desc: esc(desc), badges: nBadge ? `<span class="tag">${nBadge}</span>` : "" })}
     <div class="modpage" style="--c:var(--s${secC(mod, k)})">${body}</div>`;
   const target = openId && document.getElementById("t-" + openId), grp = jumpTo && document.getElementById(jumpTo);
   jumpTo = null;
@@ -799,23 +817,30 @@ function foldBody(body, prefix) {
   return L.slice(i + 1, j).join("\n");
 }
 
+// nút "Trước / Tiếp" giữa các tab của một bệnh (đọc liền bằng một ngón tay)
+function pagerOf(n, have, secs, sec) {
+  const order = [...have, ...(secs[9] ? [9] : [])], i = order.indexOf(sec);
+  if (order.length < 2 || i < 0) return "";
+  const nm = num => num === 9 ? "★ Tóm tắt" : `${dnum(num)} ${SECS.find(x => x[0] === num)[1]}`;
+  const link = (k, cls, lab) => k >= 0 && k < order.length ? `<a class="pg ${cls}" href="#/n/${n.id}/${order[k]}"><small>${lab}</small><b>${nm(order[k])}</b></a>` : "<span></span>";
+  return `<nav class="pager" aria-label="Chuyển tab">${link(i - 1, "prev", "← Trước")}${link(i + 1, "next", "Tiếp →")}</nav>`;
+}
 function diseasePage(n, sec) {
   const { pre, secs } = diseaseParts(n);
   const have = SECS.filter(([num]) => secs[num]).map(([num]) => num);
   if (!have.length && !secs[9]) return tongPage(n);   // bài khai báo kind: disease nhưng chưa có mục "## N.": đọc liền một trang, không báo lỗi
   const isSummary = +sec === 9 && secs[9];
   sec = isSummary ? 9 : (secs[sec] ? sec : have[0]);
-  const khung = (n.khung || []).map(k => `<a class="chip wide" href="#/khung/${k}">Khung STT ${k}</a>`).join("");
+  const khung = (n.khung || []).length ? `<span class="stt"><small>Khung STT</small>${n.khung.map(k => `<a class="chip wide" href="#/khung/${k}">${k}</a>`).join("")}</span>` : "";
   pushRecent(n.id, sec);
   const mod = n.module, dk = secByType(mod, "diseases") || 5, body = isSummary ? summaryOnly(secs[9].body) : secs[sec].body;
   const col = `var(--${SECCOL[sec]})`, cont = withToc(md(relabel(body)));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${dk} ${secOf(mod, dk).title}`, href: `#/m/${mod}/${dk}` }])}
-    <header class="cover" style="--c:var(--s${secC(mod, dk)})">
-    <h1>${esc(n.title)}</h1>
-    <div class="meta">${n.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")} ${khung}</div></header>
+    ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: esc(n.title), badges: tagBadges(n.tags) + khung, actions: cardBtn(n.id) })}
     <div class="dtabs">${SECS.filter(([num]) => secs[num]).map(([num, t, c]) => `<a class="dt${num === sec ? " on" : ""}" style="--c:var(--${c})" href="#/n/${n.id}/${num}"><b>${dnum(num)}</b> ${t}</a>`).join("")}${secs[9] ? `<a class="dt sum${isSummary ? " on" : ""}" href="#/n/${n.id}/9">★ Tóm tắt</a>` : ""}</div>
     ${!isSummary && sec === have[0] && pre.trim() ? `<div class="pre">${md(relabel(pre))}</div>` : ""}
     <div class="notepage" style="--c:${col}">${tocBox(cont.items)}${cont.html}</div>
+    ${pagerOf(n, have, secs, +sec)}
     ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
   window.scrollTo(0, 0);
   return sec;
@@ -826,7 +851,7 @@ function tongPage(n) {
   pushRecent(n.id, 0);
   const cont = withToc(md(relabel(n.body)));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: "Bệnh học", href: "#/lib/benhhoc" }, { t: n.short || n.title }])}
-    <header class="cover" style="--c:var(--benh)"><h1>${esc(n.title)}</h1><div class="meta">${n.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div></header>
+    ${pageHead({ c: "var(--benh)", kicker: "Thư viện học tập · Bệnh học", title: esc(n.title), badges: tagBadges(n.tags), actions: cardBtn(n.id) })}
     <div class="notepage" style="--c:var(--benh)">${tocBox(cont.items)}${cont.html}</div>
     ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
   window.scrollTo(0, 0);
@@ -842,10 +867,9 @@ function note(id, sec) {
   if (n.kind === "foundation" && ["groups", "notes"].includes(sp.type)) return modSection(mod, k, id);
   const cont = withToc(md(n.body));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, ...(k > 1 ? [{ t: `${k} ${sp.title}`, href: `#/m/${mod}/${k}` }] : [{ t: "1 Tổng quan" }])])}
-    <header class="cover" style="--c:var(--s${secC(mod, k)})">
-    <h1>${esc(n.title)}</h1>
-    <div class="meta">${n.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}${n.source ? ` Nguồn: ${esc(n.source)}` : ""}</div></header>
-    <div class="notepage" style="--c:var(--s${secC(mod, k)})">${tocBox(cont.items)}${cont.html}</div>`;
+    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title), badges: tagBadges(n.tags), actions: cardBtn(n.id) })}
+    <div class="notepage" style="--c:var(--s${secC(mod, k)})">${tocBox(cont.items)}${cont.html}</div>
+    ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
   window.scrollTo(0, 0);
 }
 
@@ -871,7 +895,7 @@ function cardsHome() {
   }).join("");
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn thẻ" }])}
-    <header class="cover" style="--c:var(--s10)"><h1>Ôn thẻ theo bệnh học</h1><p>Mỗi bệnh là một bộ thẻ tự kiểm tra. Chọn bệnh để ôn các thẻ của bệnh đó, hoặc ôn gộp mọi thẻ cần ôn. Thẻ được nhắc lại theo quãng 10 phút, 1, 3, 7 và 21 ngày tùy mức bạn nhớ.</p></header>
+    ${pageHead({ c: `var(--s10)`, kicker: "Tự kiểm tra", title: `Ôn thẻ theo bệnh học`, desc: `Mỗi bệnh là một bộ thẻ tự kiểm tra. Chọn bệnh để ôn các thẻ của bệnh đó, hoặc ôn gộp mọi thẻ cần ôn. Thẻ được nhắc lại theo quãng 10 phút, 1, 3, 7 và 21 ngày tùy mức bạn nhớ.` })}
     <div class="cstats"><div><b>${st.total}</b><span>thẻ</span></div><div><b>${st.due}</b><span>cần ôn</span></div><div><b>${st.nw}</b><span>chưa học</span></div><div><b>${st.mastered}</b><span>đã thuộc</span></div></div>
     <div class="cact"><a class="btn p" href="#/cards/${cardsMod ? "mod:" + cardsMod : "_due"}">Ôn tất cả thẻ cần ôn${cardsMod ? " của " + esc(MODULES[cardsMod] || cardsMod) : ""} (${cardStat(cardPool(cardsMod ? "mod:" + cardsMod : "_due")).due})</a>
       ${Object.keys(MODULES).length > 1 ? `<span class="seg"><button data-cmod="" class="${cardsMod ? "" : "on"}">Tất cả</button>${Object.keys(MODULES).map(m => `<button data-cmod="${m}" class="${cardsMod === m ? "on" : ""}">${esc(MODULES[m] || m)}</button>`).join("")}</span>` : ""}</div>
@@ -941,7 +965,7 @@ const groupOf = id => (byId[id] && byId[id].disease) || "chung";
 let graphFilter = "";
 function graph() {
   $("#main").style.maxWidth = "none";
-  $("#main").innerHTML = `<h1>Sơ đồ liên kết</h1><div class="legend meta">${LAYERS.map(([k, n]) => `<span><i class="dot" style="background:${css(k)}"></i>${n.split(" (")[0]}</span>`).join("")}</div>
+  $("#main").innerHTML = `${pageHead({ c: "var(--brand)", kicker: "Khác", title: "Sơ đồ liên kết", desc: "Mỗi nút là một bài, mỗi đường nối là một liên kết giữa hai bài." })}<div class="legend meta">${LAYERS.map(([k, n]) => `<span><i class="dot" style="background:${css(k)}"></i>${n.split(" (")[0]}</span>`).join("")}</div>
     <p class="meta"><select id="gf">${GROUPS.map(([k, n]) => `<option value="${k}" ${k === graphFilter ? "selected" : ""}>${n}</option>`).join("")}</select> Rê chuột vào một nút để xem tên và các bài liên kết; bấm để mở bài.</p><canvas id="cv"></canvas>`;
   $("#gf").onchange = e => { graphFilter = e.target.value; cancelAnimationFrame(raf); graph(); };
   const cv = $("#cv"), ctx = cv.getContext("2d"), dpr = devicePixelRatio || 1;
@@ -984,14 +1008,18 @@ function graph() {
 
 // ---- thanh module: Ung bướu › 1 … 5 ----
 function renderModbar(active) {
-  const mod = curMod(), mods = Object.keys(MODULES);
+  const mod = curMod(), mods = Object.keys(MODULES), secs = secsOf(mod), cur = secs.find(x => x.n === active);
+  const pick = `<select class="secpick" aria-label="Chọn mục" style="--c:var(--s${cur ? cur.c || cur.n : 1})">${cur ? "" : '<option value="" selected disabled>Chọn mục…</option>'}${secs.map(x => `<option value="${x.n}"${x.n === active ? " selected" : ""}>${x.n}. ${esc(x.title)}</option>`).join("")}</select>`;
   $("#modbar").innerHTML = (mods.length > 1
       ? `<select class="modpick" aria-label="Chọn chuyên khoa">${mods.map(m => `<option value="${m}"${m === mod ? " selected" : ""}>${esc(MODULES[m] || m)}</option>`).join("")}</select>`
-      : `<a class="modname" href="#/m/${mod}/1">${esc(MODULES[mod] || mod)}<i>›</i></a>`) +
-    secsOf(mod).map(s => `<a class="modsec${s.n === active ? " on" : ""}" style="--c:var(--s${s.c || s.n})" href="#/m/${mod}/${s.n}"><b>${s.n}</b>${esc(s.title)}</a>`).join("");
+      : `<a class="modname" href="#/m/${mod}/1">${esc(MODULES[mod] || mod)}<i>›</i></a>`) + pick +
+    secs.map(x => `<a class="modsec${x.n === active ? " on" : ""}" style="--c:var(--s${x.c || x.n})" href="#/m/${mod}/${x.n}"><b>${x.n}</b>${esc(x.title)}</a>`).join("");
   const on = $("#modbar .modsec.on"); if (on) on.scrollIntoView({ inline: "center", block: "nearest" });   // khổ hẹp: cuộn tới mục đang chọn
 }
-document.addEventListener("change", e => { const sel = e.target.closest("select.modpick"); if (sel) location.hash = `#/m/${sel.value}/1`; });
+document.addEventListener("change", e => {
+  const sel = e.target.closest("select.modpick"); if (sel) location.hash = `#/m/${sel.value}/1`;
+  const sp = e.target.closest("select.secpick"); if (sp && sp.value) location.hash = `#/m/${curMod()}/${sp.value}`;
+});
 
 // ---- định tuyến ----
 function route() {
@@ -1021,8 +1049,22 @@ function route() {
   tree(m && m[1], sec || (m && +m[2]) || 0);
   const bd = $("#build"); if (bd) bd.textContent = window.BUILD ? "Bản dựng: " + window.BUILD : "";
   stickyTables();
+  document.body.classList.remove("tocpop"); $("#tocFab").hidden = !($("#main details.toc") && narrow());
   badge();
 }
+// vuốt ngang để chuyển tab của một bệnh (điện thoại, máy tính bảng); bỏ qua khi đang cuộn bảng, chọn chữ hay chạm vào ô nhập
+(() => {
+  let sx = 0, sy = 0, ok = false;
+  document.addEventListener("touchstart", e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; ok = e.touches.length === 1 && !e.target.closest(".tw,table,pre,canvas,input,textarea,select,.dtabs,.tall,#sheet,#results,details.toc,.kctl"); }, { passive: true });
+  document.addEventListener("touchend", e => {
+    if (!ok) return; ok = false;
+    const on = document.querySelector(".dtabs .dt.on"); if (!on) return;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) < 90 || Math.abs(dy) > 45 || String(getSelection()).length) return;
+    const to = dx < 0 ? on.nextElementSibling : on.previousElementSibling;
+    if (to && to.matches("a.dt")) location.hash = to.getAttribute("href");
+  }, { passive: true });
+})();
 // bảng dài (trên 8 dòng): cuộn trong khung cao tối đa 70% màn hình để dòng tiêu đề luôn nhìn thấy
 function stickyTables() {
   $("#main").querySelectorAll("table").forEach(t => {

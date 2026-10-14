@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/mark-192.png">
 <link rel="stylesheet" href="styles.css">
-<script>try{var t=localStorage.getItem("ykkb_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;var f=parseFloat(localStorage.getItem("ykkb_fs"));if(f)document.documentElement.style.setProperty("--fs",f)}catch(e){}</script>
+<script>try{var t=localStorage.getItem("ykkb_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;var f=parseFloat(localStorage.getItem("ykkb_fs"));if(f)document.documentElement.style.setProperty("--fs",f);var w=localStorage.getItem("ykkb_w"),d=localStorage.getItem("ykkb_d");if(w)document.documentElement.dataset.w=w;if(d)document.documentElement.dataset.d=d}catch(e){}</script>
 </head>
 <body>
 <header class="top">
@@ -41,6 +41,10 @@
         <div id="setPanel">
           <div class="srow"><span>Cỡ chữ</span>
             <span class="seg"><button data-fs="0.9">A−</button><button data-fs="1">A</button><button data-fs="1.12">A+</button><button data-fs="1.25">A++</button></span></div>
+          <div class="srow"><span>Cột đọc</span>
+            <span class="seg"><button data-w="narrow">Hẹp</button><button data-w="std">Vừa</button><button data-w="wide">Rộng</button></span></div>
+          <div class="srow"><span>Mật độ</span>
+            <span class="seg"><button data-d="std">Thoáng</button><button data-d="compact">Gọn</button></span></div>
           <div class="srow"><span>Giao diện</span>
             <span class="seg"><button data-th="auto">Tự động</button><button data-th="light">Sáng</button><button data-th="dark">Tối</button></span></div>
           <div class="srow" id="setToRow" hidden><label for="setTo">Hỏi lại mật khẩu sau</label><select id="setTo" aria-label="Thời gian trước khi hỏi lại mật khẩu"></select></div>
@@ -61,6 +65,7 @@
   <a href="#/cards" data-nav="cards"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="13" height="10" rx="2"/><path d="M8 19.5h12.5V9"/></svg></i><span>Ôn thẻ</span></a>
   <button id="bnMore" aria-expanded="false"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></i><span>Khác</span></button>
 </nav>
+<button id="tocFab" class="tocfab" type="button" hidden aria-label="Mục lục bài" title="Mục lục bài"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></button>
 <div id="sheet" hidden></div>
 <div id="lock" hidden>
   <div class="lockbox">
