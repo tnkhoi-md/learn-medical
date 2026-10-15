@@ -405,10 +405,10 @@ details.kitem[open]>summary{border-bottom:1px solid var(--line)}
 @media (min-width:821px){
   details.toc ol{columns:2;column-gap:24px}
   details.toc li{break-inside:avoid}
-  /* máy tính: ẩn mục lục bên trái để nội dung rộng hơn, giữ bố cục căn giữa */
+  /* máy tính: ẩn mục lục bên trái thì nội dung giãn ra theo phần trống đó (rộng hơn cột đọc ~25%), căn giữa */
   html.side-off .layout{grid-template-columns:minmax(0,1fr)}
   html.side-off aside{display:none}
-  html.side-off main{margin:0 auto}
+  html.side-off main{margin:0 auto;max-width:calc(var(--mw) * 1.25)}
 }
 @media (hover:none){
   .tabbtn,.dt,:is(#tree,#sheet) a,:is(#tree,#sheet) details>summary,.modsec{min-height:36px}
