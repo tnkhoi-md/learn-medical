@@ -1,13 +1,5 @@
 (() => {
 const NOTES = window.NOTES || [], MODULES = window.MODULES || {}, MODSPEC = window.MODSPEC || {};
-const LAYERS = [
-  ["nen", "Nền tảng (sinh học PT, giải phẫu, sinh lý)"],
-  ["trieuchung", "Triệu chứng – tiếp cận"],
-  ["benh", "Bệnh học – lâm sàng"],
-  ["cls", "Cận lâm sàng – chẩn đoán"],
-  ["dieutri", "Điều trị"],
-  ["phacdo", "Phác đồ Bộ Y tế"],
-];
 // Khung các mục của một chuyên khoa (module)
 // Các tab của trang bệnh (số nội bộ trong file: 3–9; 10 = "Theo dõi" tách từ mục 8 khi hiển thị)
 // Màu của từng tab bệnh (--t1…--t7, --tsum): mỗi tab một màu riêng, không trùng nhau
@@ -375,10 +367,12 @@ function withToc(html) {
   const out = html.replace(/<h3>(.*?)<\/h3>/g, (_, t) => { const id = "sec-" + items.length; items.push({ id, t }); return `<h3 id="${id}">${t}</h3>`; });
   return { html: out, items };
 }
+// Mục lục luôn đóng khi mở bài, trên mọi trang và mọi khổ màn hình (bấm "Nội dung mục" để mở)
 function tocBox(items) {
   if (items.length < 3) return "";
-  return `<details class="toc"${narrow() ? "" : " open"}><summary>Nội dung mục</summary><ol>${items.map(x => `<li><a href="#${x.id}" data-jump="${x.id}">${x.t.replace(/<\/?a[^>]*>/g, "")}</a></li>`).join("")}</ol></details>`;
+  return `<details class="toc"><summary>Nội dung mục</summary><ol>${items.map(x => `<li><a href="#${x.id}" data-jump="${x.id}">${x.t.replace(/<\/?a[^>]*>/g, "")}</a></li>`).join("")}</ol></details>`;
 }
+document.addEventListener("click", e => { if (e.target.closest(".pager .up")) window.scrollTo({ top: 0, behavior: "smooth" }); });
 document.addEventListener("click", e => {
   const a = e.target.closest("a[data-jump]"); if (!a) return;
   e.preventDefault();
@@ -389,7 +383,7 @@ $("#tocFab").onclick = () => { const t = $("#main details.toc"); if (!t) return;
 document.addEventListener("click", e => { if (document.body.classList.contains("tocpop") && !e.target.closest("details.toc,#tocFab")) document.body.classList.remove("tocpop"); });
 
 // ---- thanh bên: mục lục thu gọn theo khung 1–9 ----
-const diseases = () => NOTES.filter(n => n.kind === "disease").sort((a, b) => (a.order || 99) - (b.order || 99));
+const diseases = () => NOTES.filter(n => n.kind === "disease").sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 // Nhóm bài của mục kiểu "groups": thứ tự, tiêu đề trang và tên ở thanh bên khai báo trong _module.json
 const groupsOf = mod => ((secsOf(mod).find(s => s.type === "groups") || {}).groups || []);
 const gKey = g => typeof g === "string" ? g : g.key;
@@ -410,6 +404,11 @@ const LIBS = [
   ["capcuu", "Cấp cứu", "Nhận diện nhanh và xử trí ban đầu các tình huống cấp cứu.", "s6", []],
   ["dieutri", "Điều trị", "Nguyên tắc và phương pháp điều trị.", "s10", [7, 10]],
   ["phongngua", "Phòng ngừa", "Phòng ngừa, tầm soát, tiên lượng và theo dõi.", "s2", [8]],
+  ["khoahoccoban", "Khoa học cơ sở", "Sinh học, hóa sinh và nền tảng cơ bản làm cơ sở cho lâm sàng.", "s1", []],
+  ["duocly", "Dược lý (dự kiến)", "Cơ chế, liều dùng và tác dụng phụ của thuốc. Đang xây dựng.", "s7", []],
+  ["dinhduong", "Dinh dưỡng (dự kiến)", "Nhu cầu dinh dưỡng, can thiệp và theo dõi theo đối tượng và theo bệnh. Đang xây dựng.", "s8", []],
+  ["thamkham", "Thăm khám", "Cách hỏi bệnh và khám lâm sàng theo từng hệ cơ quan.", "s9", []],
+  ["trogiatri", "Giá trị bình thường (dự kiến)", "Ngưỡng xét nghiệm và chỉ số huyết học, sinh hóa, huyết động, kèm nguồn trang cho từng con số. Đang xây dựng.", "s11", []],
 ];
 function libOf(n) {
   if (n.lib) return n.lib;
@@ -419,12 +418,14 @@ function libOf(n) {
   const g = sp.type === "groups" ? (sp.groups || []).find(x => gKey(x) === (n.group || "Khác")) : null;
   return (g && g.lib) || sp.lib || "";
 }
+// Bài tự kiểm tra không hiện trong thư viện (vẫn còn trong từng module)
+const isSelfTest = n => /^tự kiểm tra/i.test(n.short || "") || /^tự kiểm tra/i.test(n.title || "");
 function libItems(cat) {
   const tabs = (LIBS.find(l => l[0] === cat) || [])[4] || [];
   return Object.keys(MODULES).map(mod => {
-    const notes = NOTES.filter(n => n.module === mod && n.kind === "foundation" && libOf(n) === cat).sort((a, b) => {
+    const notes = NOTES.filter(n => n.module === mod && n.kind === "foundation" && libOf(n) === cat && !isSelfTest(n)).sort((a, b) => {
       const sa = sectionOfNote(a), sb = sectionOfNote(b);
-      return sa - sb || groupList(mod, sa).indexOf(a.group || "Khác") - groupList(mod, sb).indexOf(b.group || "Khác") || (a.order || 99) - (b.order || 99);
+      return sa - sb || groupList(mod, sa).indexOf(a.group || "Khác") - groupList(mod, sb).indexOf(b.group || "Khác") || (a.order ?? 99) - (b.order ?? 99);
     });
     return { mod, notes, di: diseases().filter(d => d.module === mod && !d.tong), tabs };   // bài gom vào bài tổng hợp chỉ hiện qua thẻ tổng hợp
   }).filter(x => x.notes.length || (x.di.length && (cat === "benhhoc" || x.tabs.length)));
@@ -477,19 +478,39 @@ function symptomPage(L) {
   $("#symq").oninput = apply; $("#symall").onchange = apply; apply();
   window.scrollTo(0, 0);
 }
+// Biểu tượng cho từng thư viện (đường nét 24×24)
+const LIB_ICON = {
+  trieuchung: '<path d="M3 12h4l2.5-5 4 10 2.5-5H21"/>',
+  benhhoc: '<circle cx="12" cy="12" r="4.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>',
+  cls: '<path d="M9 3h6M10 3v6l-5 9.5A2 2 0 0 0 6.8 21h10.4a2 2 0 0 0 1.8-2.5L14 9V3"/><path d="M7.5 15h9"/>',
+  capcuu: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+  dieutri: '<rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-40 12 12)"/><path d="M9.5 9.5l5 5"/>',
+  phongngua: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  khoahoccoban: '<ellipse cx="12" cy="12" rx="9" ry="4"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(-60 12 12)"/><circle cx="12" cy="12" r="1.6"/>',
+  duocly: '<path d="M4.5 19.5l15-15a4.2 4.2 0 0 1 6 6l-15 15a4.2 4.2 0 0 1-6-6z"/><path d="M9 9l6 6"/>',
+  dinhduong: '<path d="M12 7c0-2.5 1.5-4 4-4 0 2.5-1.5 4-4 4z"/><path d="M12 7C7 7 4 10 4 14.5 4 18.5 7.5 21 12 21s8-2.5 8-6.5C20 10 17 7 12 7z"/>',
+  thamkham: '<path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v2a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="11" r="2"/>',
+  trogiatri: '<path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-4"/><path d="M12 6v2M5.6 9.6l1.4 1.4M18.4 9.6l-1.4 1.4"/>',
+};
 function libIndex() {
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập" }])}
     ${pageHead({ c: `var(--brand)`, title: `Thư viện học tập`, desc: `Tra cứu theo loại kiến thức, gom từ mọi chuyên khoa. Muốn học theo trình tự của một chuyên khoa thì vào mục Module.` })}
-    <div class="rgrid libgrid">${LIBS.map(([k, t, d, col]) => `<a class="rcard lib" style="--c:var(--${col})" href="#/lib/${k}"><small>${libCount(k)} mục</small><b>${esc(t)}</b><span>${esc(d)}</span></a>`).join("")}</div>`;
+    <div class="rgrid libgrid">${LIBS.map(([k, t, d, col]) => `<a class="rcard lib lcard" style="--c:var(--${col})" href="#/lib/${k}"><span class="lico" aria-hidden="true"><svg viewBox="0 0 24 24">${LIB_ICON[k]}</svg></span><small>${libCount(k)} mục</small><b>${esc(t)}</b><span>${esc(d)}</span></a>`).join("")}</div>`;
   window.scrollTo(0, 0);
+}
+// Bài trong một chuyên khoa, xếp theo từng mục lớn (Đại cương, Hệ máu…), mỗi mục một tiêu đề
+function secBlocks(mod, notes) {
+  const bySec = {};
+  notes.forEach(n => { const k = sectionOfNote(n); bySec[k] = bySec[k] || []; bySec[k].push(n); });
+  return Object.keys(bySec).map(Number).sort((a, b) => a - b).map(k => `<h3>${esc(secOf(mod, k).title)}</h3><div class="rgrid">${bySec[k].map(n => `<a class="rcard" href="#/n/${n.id}">${n.group ? `<small>${esc(gSide(mod, n.group))}</small>` : ""}<b>${esc(n.short || n.title)}</b></a>`).join("")}</div>`).join("");
 }
 function libPage(cat) {
   const L = LIBS.find(l => l[0] === cat); if (!L) return libIndex();
   if (cat === "trieuchung") return symptomPage(L);
   const [, title, desc, col] = L, items = libItems(cat);
   const body = items.map(({ mod, notes, di, tabs }) => `<section><h2>${esc(MODULES[mod] || mod)}</h2>
-    ${notes.length ? `<div class="rgrid">${notes.map(n => `<a class="rcard" href="#/n/${n.id}"><small>${esc(secOf(mod, sectionOfNote(n)).title)}${n.group ? " · " + esc(gSide(mod, n.group)) : ""}</small><b>${esc(n.short || n.title)}</b></a>`).join("")}</div>` : ""}
+    ${secBlocks(mod, notes)}
     ${cat === "benhhoc" ? (di.length ? `<h3>Từng bệnh</h3>${diseaseGrid(di, mod)}` : "") : (tabs.length && di.length ? `<h3>Theo từng bệnh</h3>${diseaseChips(di, tabs, mod)}` : "")}
   </section>`).join("") || `<p class="meta">Chưa có bài nào thuộc loại này.</p>`;
   $("#main").style.maxWidth = "1080px";
@@ -506,7 +527,7 @@ function tree(cur, sec) {
     const ns = NOTES.filter(n => n.module === mod), di = diseases().filter(n => n.module === mod);
     const isHere = mod === here;
     const link = (n, s, label, c) => `<a href="#/n/${n.id}${s ? "/" + s : ""}" class="${n.id === cur && (!s || +s === sec) ? "on" : ""}"${c ? ` style="--c:var(--${c})"` : ""}>${esc(label || n.short || n.title)}</a>`;
-    const gen = k => ns.filter(n => n.kind === "foundation" && sectionOfNote(n) === k).sort((x, y) => (x.order || 99) - (y.order || 99));
+    const gen = k => ns.filter(n => n.kind === "foundation" && sectionOfNote(n) === k).sort((x, y) => (x.order ?? 99) - (y.order ?? 99));
     const isDis = !!(curN && curN.kind === "disease" && curN.module === mod), open = c => c ? " open" : "";
     const sub = (s, body, isOpen) => `<details${open(isOpen)} style="--c:var(--s${secC(mod, s.n)})"><summary><b>${s.n}</b> ${esc(s.title)}</summary>${body}</details>`;
     const top = (s, on) => `<a class="top ${on ? "on" : ""}" style="--c:var(--s${secC(mod, s.n)})" href="#/m/${mod}/${s.n}"><b>${s.n}</b> ${esc(s.title)}</a>`;
@@ -534,7 +555,7 @@ function tree(cur, sec) {
 // ---- thanh công cụ: tìm kiếm, cài đặt hiển thị, điều hướng dưới (điện thoại) ----
 const noDia = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 const plain = s => s.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, k, label) => label || k).replace(/\{\{\+?[^}]*\}\}/g, "").replace(/==|\*\*|\{[rgbop]\|/g, "").replace(/[{}>@#|\[\]!`]/g, " ").replace(/\s+/g, " ").trim();
-NOTES.forEach(n => { n._t = noDia(n.title + " " + (n.short || "")); n._g = noDia(n.tags.join(" ")); n._b = noDia(n.body); });
+NOTES.forEach(n => { n._t = noDia(n.title + " " + (n.short || "")); n._tr = (n.title + " " + (n.short || "")).toLowerCase(); n._g = noDia(n.tags.join(" ")); n._b = noDia(n.body); });
 function secAt(n, pos) {
   if (n.kind !== "disease") return 0;
   let s = 0, m; const re = /^## (\d)\./gm;
@@ -545,33 +566,83 @@ function secAt(n, pos) {
   }
   return s;
 }
+// Tìm kiếm theo ý: bỏ từ nối, mở rộng bằng từ đồng nghĩa lâm sàng, chấm điểm theo độ phủ của câu hỏi
+const SEARCH_STOP = new Set(["khi", "cua", "va", "bi", "co", "la", "o", "tren", "duoi", "toi", "minh", "nen", "sao", "vi", "nao", "khong", "cho", "voi", "mot", "nhung", "cac", "nguoi", "the", "gi", "thi", "lam", "duoc", "can", "nhu"]);
+const SEARCH_SYN = {   // cụm dân gian → thuật ngữ trong bài
+  "kho tho": ["khó thở", "suy hô hấp", "hô hấp", "thở nhanh", "dyspnea"],
+  "dau nguc": ["đau ngực", "nhồi máu", "thiếu máu cơ tim", "thuyên tắc phổi"],
+  "dau bung": ["đau bụng", "bụng cấp", "viêm ruột thừa", "viêm túi mật"],
+  "hon me": ["hôn mê", "tri giác", "glasgow"],
+  "phu": ["phù", "suy tim", "cổ trướng"],
+  "chay mau": ["chảy máu", "xuất huyết", "đông máu"],
+  "sot": ["sốt", "nhiễm trùng", "viêm"],
+  "ho": ["ho", "ho đờm", "viêm phế quản"],
+  "dau dau": ["đau đầu", "thần kinh"],
+  "tim dap": ["hồi hộp", "nhịp nhanh", "rối loạn nhịp"],
+  "suy than": ["suy thận", "creatinin", "lọc cầu thận"],
+};
+const wordRe = t => new RegExp("(^|[^a-z0-9])" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + (t.length <= 3 ? "($|[^a-z0-9])" : ""));   // từ ngắn khớp nguyên từ; từ dài khớp theo đầu từ
 function runSearch(raw) {
-  const terms = noDia(raw.trim()).split(/\s+/).filter(Boolean);
-  if (!terms.length) return [];
-  return NOTES.map(n => {
-    let sc = 0, first = -1;
-    for (const t of terms) {
-      const it = n._t.includes(t), ig = n._g.includes(t), ib = n._b.indexOf(t);
-      if (!it && !ig && ib < 0) return null;
-      sc += (it ? 6 : 0) + (ig ? 3 : 0) + (ib >= 0 ? 1 : 0);
+  const q = noDia(raw.trim());
+  if (!q) return { notes: [], sections: [], tools: [] };
+  const syn = Object.entries(SEARCH_SYN).filter(([k]) => wordRe(k).test(q));
+  const terms = [...new Set(q.split(/\s+/).filter(t => t && !SEARCH_STOP.has(t) && t.length > 1))];
+  const tRe = terms.map(wordRe);
+  const rawW = raw.trim().toLowerCase().split(/\s+/);   // "đau" và "đầu" cùng không dấu: nếu người dùng gõ dấu thì phân biệt theo dấu
+  const accOK = (t, tr) => { const ws = rawW.filter(w => noDia(w) === t); return !ws.length || ws.some(w => tr.includes(w)); };
+  const groups = syn.map(([, arr]) => arr.map(x => ({ x: noDia(x), re: wordRe(noDia(x)) })));
+  const phrase = terms.join(" ");
+  const notes = NOTES.map(n => {
+    if (!terms.length && !groups.length) return null;
+    let got = 0, sc = 0, first = -1, strong = false; const why = [];
+    terms.forEach((t, i) => {
+      const re = tRe[i], it = re.test(n._t) && accOK(t, n._tr), ig = re.test(n._g), ib = n._b.search(re);
+      if (it || ig || ib >= 0) got++;
+      if (it) sc += 6; else if (ig) sc += 3; else if (ib >= 0) sc += 1;
       if (ib >= 0 && first < 0) first = ib;
-    }
-    return { n, sc, pos: first };
-  }).filter(Boolean).sort((a, b) => b.sc - a.sc).slice(0, 10);
+      if (it || ig) { why.push(t); strong = true; }
+    });
+    let gHit = 0;
+    groups.forEach(g => {
+      const hitT = g.find(o => o.re.test(n._t) || o.re.test(n._g)), hitB = g.find(o => o.re.test(n._b));
+      if (hitT) strong = true;
+      if (hitT || hitB) { gHit++; sc += hitT ? 6 : 3; if (first < 0 && hitB) first = n._b.search(hitB.re); }
+    });
+    const need = terms.length <= 2 ? terms.length : Math.ceil(terms.length / 2);
+    if (terms.length && got < need && gHit === 0) return null;
+    if (!terms.length && gHit === 0) return null;
+    if (terms.length === 1 && terms[0].length <= 5 && !strong) return null;   // từ ngắn chỉ có trong nội dung thì bỏ, tránh nhiễu
+    if (phrase && n._b.includes(phrase)) sc += 5;
+    if (phrase && n._t.includes(phrase)) sc += 10;
+    const cov = terms.length ? got / terms.length : 1;
+    return { n, sc: (sc + gHit * 2) * (0.5 + cov / 2), pos: first, why: why.slice(0, 3) };
+  }).filter(Boolean).sort((a, b) => b.sc - a.sc).slice(0, 12);
+  const sections = [];
+  if (terms.length || groups.length) Object.keys(MODULES).forEach(m => secsOf(m).forEach(sp => {
+    if (sp.type === "overview" || sp.type === "sources") return;
+    const t = noDia(sp.title), tr = sp.title.toLowerCase();
+    const allTerms = terms.length && terms.every((x, i) => tRe[i].test(t) && accOK(x, tr));
+    if (allTerms || groups.some(g => g.some(o => o.re.test(t)))) sections.push({ m, sp });
+  }));
+  const tools = terms.length ? CC.filter(t => terms.some((x, i) => tRe[i].test(noDia(t.title + " " + t.desc)) && accOK(x, (t.title + " " + t.desc).toLowerCase()))).slice(0, 3) : [];
+  return { notes, sections: sections.slice(0, 5), tools };
 }
 function renderResults() {
   const box = $("#results"), q = $("#q").value;
   if (!q.trim()) { box.hidden = true; box.innerHTML = ""; return; }
-  const hits = runSearch(q);
+  const { notes: hits, sections, tools } = runSearch(q);
   box.hidden = false;
-  box.innerHTML = hits.length ? hits.map(({ n, pos }) => {
+  const secHtml = sections.map(({ m, sp }) => `<a class="sechit" href="#/m/${m}/${sp.n}"><b>${esc(sp.title)}</b> <span class="where">${esc(MODULES[m] || m)}</span></a>`).join("");
+  const toolHtml = tools.map(t => `<a class="sechit" href="#/congcu/${t.id}"><b>${esc(t.title)}</b> <span class="where">Công cụ tính điểm</span></a>`).join("");
+  box.innerHTML = (toolHtml ? `<div class="sechdr">Công cụ</div>${toolHtml}` : "") + (secHtml ? `<div class="sechdr">Mục</div>${secHtml}` : "") + (hits.length ? (secHtml || toolHtml ? '<div class="sechdr">Bài</div>' : "") + hits.map(({ n, pos, why }) => {
     const sec = pos >= 0 ? secAt(n, pos) : 0;
     const href = `#/n/${n.id}${sec ? "/" + sec : ""}`;
     const sc = secOf(n.module, sectionOfNote(n));
     const where = n.kind === "tong" ? "Nội và ngoại khoa" : n.kind === "disease" ? (sec ?`${dnum(sec, n.module)} ${SECNAME[sec]}` : (sc.title || "Bệnh học")) : (n.kind === "overview" ? "Tổng quan" : (sc.title || "Nền tảng"));
     const snip = pos >= 0 ? esc(plain(n.body.slice(Math.max(0, pos - 40), pos + 90))) : "";
-    return `<a href="${href}"><b>${esc(n.short || n.title)}</b> <span class="where">${esc(where)}</span>${snip ? `<small>…${snip}…</small>` : ""}</a>`;
-  }).join("") : '<div class="none">Không có kết quả.</div>';
+    const reason = why && why.length ? `<em class="why">khớp: ${esc(why.join(", "))}</em>` : "";
+    return `<a href="${href}"><b>${esc(n.short || n.title)}</b> <span class="where">${esc(where)}</span>${reason}${snip ? `<small>…${snip}…</small>` : ""}</a>`;
+  }).join("") : (secHtml || toolHtml ? "" : '<div class="none">Không có kết quả. Thử dùng từ khóa ngắn hơn, ví dụ "khó thở" hoặc "tim".</div>'));
 }
 const qEl = $("#q");
 qEl.addEventListener("input", renderResults);
@@ -613,7 +684,7 @@ function openSheet(mode) {
   closeSheet(); sheet.dataset.mode = mode;
   sheet.innerHTML = `<div class="sheethead"><span>${mode === "module" ? "Module" : "Khác"}</span><button class="sheetx" type="button" aria-label="Đóng">✕</button></div><div class="sheetbody"></div>`;
   const body = sheet.querySelector(".sheetbody");
-  if (mode === "module") body.innerHTML = MOD_HTML; else { body.appendChild($("#sbmore")); const b = document.createElement("p"); b.className = "meta"; b.id = "buildM"; b.textContent = window.BUILD ? "Bản dựng: " + window.BUILD : ""; body.appendChild(b); }
+  if (mode === "module") body.innerHTML = MOD_HTML; else { body.appendChild($("#sbmore")); }
   sheet.hidden = false; sheet.scrollTop = 0;
   const btn = $(mode === "module" ? "#bnMenu" : "#bnMore"); btn.classList.add("open"); btn.setAttribute("aria-expanded", "true");
 }
@@ -632,6 +703,8 @@ function applyPrefs() {
   document.documentElement.dataset.w = w; document.documentElement.dataset.d = dn;
   $("#setPanel").querySelectorAll("[data-w]").forEach(b => b.classList.toggle("on", b.dataset.w === w));
   $("#setPanel").querySelectorAll("[data-d]").forEach(b => b.classList.toggle("on", b.dataset.d === dn));
+  document.documentElement.dataset.gl = lsGet("ykkb_gl") || "off";
+  $("#setPanel").querySelectorAll("[data-gl]").forEach(b => b.classList.toggle("on", b.dataset.gl === document.documentElement.dataset.gl));
   if (th === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = th;
   $("#setPanel").querySelectorAll("[data-fs]").forEach(b => b.classList.toggle("on", Math.abs(parseFloat(b.dataset.fs) - fs) < .01));
   $("#setPanel").querySelectorAll("[data-th]").forEach(b => b.classList.toggle("on", b.dataset.th === th));
@@ -643,6 +716,7 @@ $("#setPanel").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.fs) lsSet("ykkb_fs", b.dataset.fs);
   if (b.dataset.th) lsSet("ykkb_theme", b.dataset.th === "auto" ? null : b.dataset.th);
+  if (b.dataset.gl) { lsSet("ykkb_gl", b.dataset.gl); route(); }
   if (b.dataset.w) lsSet("ykkb_w", b.dataset.w);
   if (b.dataset.d) lsSet("ykkb_d", b.dataset.d);
   applyPrefs();
@@ -662,8 +736,6 @@ const pageHead = ({ c, kicker = "", title, desc = "", badges = "", actions = "" 
 window.pageHead = pageHead;
 let CBN = null;   // thẻ ôn nhóm theo bài
 const cardsBy = id => (CBN || (CBN = allCards.reduce((m, c) => ((m[c.note] = m[c.note] || []).push(c), m), {})))[id] || [];
-const cardBtn = id => { const l = cardsBy(id); if (!l.length) return ""; const d = cardStat(l).due; return `<a class="btn" href="#/cards/${id}">Ôn thẻ · ${l.length}${d ? ` (${d} cần ôn)` : ""}</a>`; };
-const tagBadges = (tags, max = 4) => { const t = tags || []; return t.slice(0, max).map(x => `<span class="tag">${esc(x)}</span>`).join("") + (t.length > max ? `<span class="tag more" title="${esc(t.slice(max).join(", "))}">+${t.length - max}</span>` : ""); };
 const crumb = parts => `<nav class="crumb">${parts.map((p, i) => p.href ? `<a href="${p.href}">${esc(p.t)}</a>` : `<span>${esc(p.t)}</span>`).join('<i>›</i>')}</nav>`;
 
 // ---- thẻ ôn tập (Leitner đơn giản) ----
@@ -739,13 +811,12 @@ function noteToggles(list, openSet) {
 
 // Trang giới thiệu của từng mục trên thanh công cụ (2–5); openId mở sẵn một bài khi đi từ #/n/<id>
 function modSection(mod, k, openId) {
-  const sp = secOf(mod, k), { title, desc, type } = sp;
+  const sp = secOf(mod, k), { title, type } = sp;
   const ns = NOTES.filter(n => n.module === mod), di = diseases().filter(n => n.module === mod);
-  const gen = ns.filter(n => n.kind === "foundation" && sectionOfNote(n) === k).sort((x, y) => (x.order || 99) - (y.order || 99));
+  const gen = ns.filter(n => n.kind === "foundation" && sectionOfNote(n) === k).sort((x, y) => (x.order ?? 99) - (y.order ?? 99));
   const groups = type === "groups" ? groupList(mod, k) : [];
   const flat = type === "groups" ? groups.flatMap(g => gen.filter(n => (n.group || "Khác") === g)) : gen;
   const openSet = sp.openAll ? new Set(gen.map(n => n.id)) : openByDefault(flat, openId);
-  const nBadge = type === "diseases" || type === "summary" ? `${di.length} bệnh` : gen.length ? `${gen.length} bài` : "";
   const allBtn = gen.length ? `<p><button class="btn" data-act="toggleall" data-scope="details.note-t">Mở / đóng tất cả</button></p>` : "";
   const byDisease = (secNums) => `<div class="rgrid">${di.map(d => `<div class="rcard"><b>${esc(d.short || d.title)}</b>${secNums.map(s => `<a class="chip wide" href="#/n/${d.id}/${s}">${dnum(s, mod)} ${esc(SECNAME[s])}</a>`).join("")}</div>`).join("")}</div>`;
   let body = "";
@@ -781,9 +852,8 @@ function modSection(mod, k, openId) {
       <p><b>${total}</b> thẻ trong <b>${withCards.length}</b> bài · <a class="btn p" href="#/cards">Bắt đầu ôn thẻ (lặp lại ngắn quãng)</a></p>` +
       withCards.map(({ n, c }) => `<details class="fold"><summary>${esc(n.short || n.title)} <small>${c.length} thẻ</small></summary>${c.map(x => `<details class="card"><summary>${inline(x.q)}</summary><div>${inline(x.a)}</div></details>`).join("")}</details>`).join("");
   }
-  $("#main").style.maxWidth = "1080px";
-  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }])}
-    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · Mục ${k}`, title: `${k}. ${esc(title)}`, desc: esc(desc), badges: nBadge ? `<span class="tag">${nBadge}</span>` : "" })}
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${k} ${title}` }])}
+    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · ${k} ${esc(title)}`, title: `${k}. ${esc(title)}` })}
     <div class="modpage" style="--c:var(--s${secC(mod, k)})">${body}</div>`;
   const target = openId && document.getElementById("t-" + openId), grp = jumpTo && document.getElementById(jumpTo);
   jumpTo = null;
@@ -823,7 +893,7 @@ function pagerOf(n, have, secs, sec) {
   if (order.length < 2 || i < 0) return "";
   const nm = num => num === 9 ? "★ Tóm tắt" : `${dnum(num)} ${SECS.find(x => x[0] === num)[1]}`;
   const link = (k, cls, lab) => k >= 0 && k < order.length ? `<a class="pg ${cls}" href="#/n/${n.id}/${order[k]}"><small>${lab}</small><b>${nm(order[k])}</b></a>` : "<span></span>";
-  return `<nav class="pager" aria-label="Chuyển tab">${link(i - 1, "prev", "← Trước")}${link(i + 1, "next", "Tiếp →")}</nav>`;
+  return `<nav class="pager" aria-label="Chuyển tab">${link(i - 1, "prev", "← Trước")}<button type="button" class="pg up" aria-label="Lên đầu trang"><span aria-hidden="true">↑</span><b>Lên đầu trang</b></button>${link(i + 1, "next", "Tiếp →")}</nav>`;
 }
 function diseasePage(n, sec) {
   const { pre, secs } = diseaseParts(n);
@@ -836,7 +906,7 @@ function diseasePage(n, sec) {
   const mod = n.module, dk = secByType(mod, "diseases") || 5, body = isSummary ? summaryOnly(secs[9].body) : secs[sec].body;
   const col = `var(--${SECCOL[sec]})`, cont = withToc(md(relabel(body)));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${dk} ${secOf(mod, dk).title}`, href: `#/m/${mod}/${dk}` }])}
-    ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: esc(n.title), badges: tagBadges(n.tags) + khung, actions: cardBtn(n.id) })}
+    ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: esc(n.title), badges: khung })}
     <div class="dtabs">${SECS.filter(([num]) => secs[num]).map(([num, t, c]) => `<a class="dt${num === sec ? " on" : ""}" style="--c:var(--${c})" href="#/n/${n.id}/${num}"><b>${dnum(num)}</b> ${t}</a>`).join("")}${secs[9] ? `<a class="dt sum${isSummary ? " on" : ""}" href="#/n/${n.id}/9">★ Tóm tắt</a>` : ""}</div>
     ${!isSummary && sec === have[0] && pre.trim() ? `<div class="pre">${md(relabel(pre))}</div>` : ""}
     <div class="notepage" style="--c:${col}">${tocBox(cont.items)}${cont.html}</div>
@@ -851,7 +921,7 @@ function tongPage(n) {
   pushRecent(n.id, 0);
   const cont = withToc(md(relabel(n.body)));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: "Bệnh học", href: "#/lib/benhhoc" }, { t: n.short || n.title }])}
-    ${pageHead({ c: "var(--benh)", kicker: "Thư viện học tập · Bệnh học", title: esc(n.title), badges: tagBadges(n.tags), actions: cardBtn(n.id) })}
+    ${pageHead({ c: "var(--benh)", kicker: "Thư viện học tập · Bệnh học", title: esc(n.title) })}
     <div class="notepage" style="--c:var(--benh)">${tocBox(cont.items)}${cont.html}</div>
     ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
   window.scrollTo(0, 0);
@@ -866,8 +936,8 @@ function note(id, sec) {
   pushRecent(id, 0);
   if (n.kind === "foundation" && ["groups", "notes"].includes(sp.type)) return modSection(mod, k, id);
   const cont = withToc(md(n.body));
-  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, ...(k > 1 ? [{ t: `${k} ${sp.title}`, href: `#/m/${mod}/${k}` }] : [{ t: "1 Tổng quan" }])])}
-    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title), badges: tagBadges(n.tags), actions: cardBtn(n.id) })}
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${k} ${sp.title}`, href: `#/m/${mod}/${k}` }])}
+    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title) })}
     <div class="notepage" style="--c:var(--s${secC(mod, k)})">${tocBox(cont.items)}${cont.html}</div>
     ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
   window.scrollTo(0, 0);
@@ -884,7 +954,7 @@ function cardsHome() {
   const deck = (n, col) => { const s = cardStat(byNote[n.id]); return `<div class="deck" style="--c:var(--${col})"><a class="dmain" href="#/cards/${n.id}"><b>${esc(n.short || n.title)}</b><span class="dmeta">${s.total} thẻ · ${s.due ? `<em>${s.due} cần ôn</em>` : "đã ôn xong"}</span><span class="dbar"><i style="width:${Math.round(100 * s.mastered / s.total)}%"></i></span></a><a class="dall" href="#/cards/${n.id}/all" title="Ôn lại cả bộ, kể cả thẻ chưa đến hạn">Ôn lại cả bộ</a></div>`; };
   const sections = mods.map(mod => {
     const ns = NOTES.filter(n => n.module === mod && byNote[n.id]);
-    const dis = ns.filter(n => n.kind === "disease").sort((a, b) => (a.order || 99) - (b.order || 99));
+    const dis = ns.filter(n => n.kind === "disease").sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
     const fo = ns.filter(n => n.kind !== "disease");
     const lib = LIBS.map(([k, t]) => [t, fo.filter(n => libOf(n) === k)]).concat([["Bài khác", fo.filter(n => !libOf(n))]]).filter(([, l]) => l.length);
     const dueMod = cardStat(allCards.filter(c => byId[c.note].module === mod)).due;
@@ -953,57 +1023,301 @@ document.addEventListener("keydown", e => {   // phím tắt khi đang ôn: Spac
 
 // ---- sơ đồ liên kết ----
 let raf = 0;
-const GROUPS = [
-  ["", "Tất cả"],
-  ["chung", "Chỉ bài chung (nền tảng, tiếp cận)"],
-  ["vu", "Chung + Ung thư vú"],
-  ["cotucung", "Chung + Ung thư cổ tử cung"],
-  ["daitruc", "Chung + Ung thư đại trực tràng"],
-  ["phoi", "Chung + Ung thư phổi"],
-];
-const groupOf = id => (byId[id] && byId[id].disease) || "chung";
-let graphFilter = "";
-function graph() {
-  $("#main").style.maxWidth = "none";
-  $("#main").innerHTML = `${pageHead({ c: "var(--brand)", kicker: "Khác", title: "Sơ đồ liên kết", desc: "Mỗi nút là một bài, mỗi đường nối là một liên kết giữa hai bài." })}<div class="legend meta">${LAYERS.map(([k, n]) => `<span><i class="dot" style="background:${css(k)}"></i>${n.split(" (")[0]}</span>`).join("")}</div>
-    <p class="meta"><select id="gf">${GROUPS.map(([k, n]) => `<option value="${k}" ${k === graphFilter ? "selected" : ""}>${n}</option>`).join("")}</select> Rê chuột vào một nút để xem tên và các bài liên kết; bấm để mở bài.</p><canvas id="cv"></canvas>`;
-  $("#gf").onchange = e => { graphFilter = e.target.value; cancelAnimationFrame(raf); graph(); };
-  const cv = $("#cv"), ctx = cv.getContext("2d"), dpr = devicePixelRatio || 1;
-  const W = cv.clientWidth, H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
-  const col = Object.fromEntries(LAYERS.map(([k]) => [k, css(k)]));
-  const ly = Object.fromEntries(LAYERS.map(([k], i) => [k, (i + .5) / LAYERS.length]));
-  const keep = n => !graphFilter || (graphFilter === "chung" ? groupOf(n.id) === "chung" : (groupOf(n.id) === "chung" || groupOf(n.id) === graphFilter));
-  const list = NOTES.filter(keep);
-  const nodes = list.map((n, i) => ({ n, x: W / 2 + Math.cos(i * 2.4) * (W / 3), y: H * ly[n.layer] + Math.sin(i) * 30, vx: 0, vy: 0 }));
-  const idx = Object.fromEntries(nodes.map((o, i) => [o.n.id, i]));
-  const edges = list.filter(n => n.kind !== "overview").flatMap(n => (out[n.id] || []).filter(t => t in idx).map(t => [idx[n.id], idx[t]]));
-  const nb = nodes.map(() => new Set());
-  edges.forEach(([i, j]) => { nb[i].add(j); nb[j].add(i); });
-  const rep = 90000 / Math.max(1, Math.sqrt(nodes.length) * 4);
-  let hov = -1, ticks = 0;
-  const step = () => {
-    for (const a of nodes) for (const b of nodes) if (a !== b) {
-      let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 40; const f = rep / d2;
-      a.vx += dx / Math.sqrt(d2) * f; a.vy += dy / Math.sqrt(d2) * f;
+// Lưu đồ dạng đồ thị: xếp theo tầng từ trên xuống, cạnh ngược (vòng lặp) đi vòng bên phải
+function fcLayout(g) {
+  const idx = Object.fromEntries(g.nodes.map((n, i) => [n.id, i])), out = {}, inc = {};
+  g.nodes.forEach(n => { out[n.id] = []; inc[n.id] = []; });
+  const back = new Set(), state = {};
+  const dfs = u => { state[u] = 1; out[u].forEach(e => { if (state[e[1]] === 1) back.add(e); else if (!state[e[1]]) dfs(e[1]); }); state[u] = 2; };
+  g.edges.forEach(e => out[e[0]].push(e));
+  dfs(g.start);
+  const fwd = g.edges.filter(e => !back.has(e));
+  fwd.forEach(e => inc[e[1]].push(e[0]));
+  const rank = { [g.start]: 0 }, order = [g.start];
+  let changed = true;
+  while (changed) { changed = false; fwd.forEach(([a, b]) => { if (a in rank && (rank[b] === undefined || rank[b] < rank[a] + 1)) { rank[b] = rank[a] + 1; changed = true; } }); }
+  const maxR = Math.max(...Object.values(rank));
+  const layers = Array.from({ length: maxR + 1 }, () => []);
+  g.nodes.forEach(n => { if (rank[n.id] !== undefined) layers[rank[n.id]].push(n.id); });
+  for (let pass = 0; pass < 4; pass++) for (let r = 1; r <= maxR; r++) {
+    const pos = Object.fromEntries(layers.flat().map((id, i) => [id, i]));
+    layers[r].sort((a, b) => { const bc = id => { const ps = inc[id]; return ps.length ? ps.reduce((s, p) => s + (pos[p] ?? 0), 0) / ps.length : 0; }; return bc(a) - bc(b); });
+  }
+  const wrap = (t, n) => { const words = t.split(" "), lines = []; let cur = ""; words.forEach(w => { if ((cur + " " + w).trim().length > n && cur) { lines.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); if (cur) lines.push(cur); return lines; };
+  const box = {};
+  g.nodes.forEach(n => {
+    const lines = wrap(n.t, 24), w = Math.max(150, Math.min(230, Math.max(...lines.map(l => l.length)) * 7.4 + 30));
+    box[n.id] = { n, lines, w, h: lines.length * 18 + (n.k === "dec" ? 26 : 24) };
+  });
+  const GAPX = 36, GAPY = 46, rowH = layers.map(L => Math.max(0, ...L.map(id => box[id].h)));
+  const layerW = layers.map(L => L.reduce((s, id) => s + box[id].w, 0) + GAPX * (L.length - 1));
+  const W = Math.max(...layerW, 300) + 90, rowY = []; let y = 24;
+  for (let r = 0; r <= maxR; r++) { rowY[r] = y; y += rowH[r] + GAPY; }
+  layers.forEach((L, r) => { let x = (W - layerW[r]) / 2; L.forEach(id => { const b = box[id]; b.x = x; b.y = rowY[r] + (rowH[r] - b.h) / 2; x += b.w + GAPX; }); });
+  return { box, W, H: y + 10, back: [...back], fwd, idx };
+}
+function luudoGraph(g) {
+  const { box, W, H, back, fwd } = fcLayout(g), cx = b => b.x + b.w / 2, cy = b => b.y + b.h / 2;
+  const edgeSvg = e => {
+    const a = box[e[0]], b = box[e[1]];
+    const goLeft = cx(b) < cx(a) - 1, lx = cx(a) + (goLeft ? -8 : 8), lab = e[2] ? `<text class="fc-lab" text-anchor="${goLeft ? "end" : "start"}" x="${lx.toFixed(1)}" y="${(a.y + a.h + 14).toFixed(1)}">${esc(e[2])}</text>` : "";
+    if (back.includes(e)) {
+      const xr = Math.max(a.x + a.w, b.x + b.w) + 26, y1 = cy(a), y2 = cy(b);
+      return `<path class="fc-edge fc-back" d="M${a.x + a.w},${y1} H${xr} V${y2} H${b.x + b.w}" marker-end="url(#fc-arr)"/><text class="fc-lab" x="${xr + 6}" y="${(y1 + y2) / 2}">lặp lại</text>`;
     }
-    for (const [i, j] of edges) { const a = nodes[i], b = nodes[j], dx = b.x - a.x, dy = b.y - a.y; a.vx += dx * .004; a.vy += dy * .004; b.vx -= dx * .004; b.vy -= dy * .004; }
-    for (const o of nodes) { o.vy += (H * ly[o.n.layer] - o.y) * .03; o.vx += (W / 2 - o.x) * .0006; o.x = Math.max(30, Math.min(W - 30, o.x + (o.vx *= .6))); o.y = Math.max(20, Math.min(H - 20, o.y + (o.vy *= .6))); }
+    const ym = (a.y + a.h + b.y) / 2;
+    return `<path class="fc-edge" d="M${cx(a)},${a.y + a.h} V${ym} H${cx(b)} V${b.y}" marker-end="url(#fc-arr)"/>${lab}`;
   };
-  const draw = () => {
-    if (ticks++ < 400) step();
-    ctx.clearRect(0, 0, W, H);
-    const line = css("line"), ink = css("ink"), acc = css("accent");
-    for (const [i, j] of edges) { const a = nodes[i], b = nodes[j], on = hov === i || hov === j; ctx.strokeStyle = on ? acc : line; ctx.globalAlpha = hov < 0 || on ? 1 : .35; ctx.lineWidth = on ? 2 : 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-    ctx.globalAlpha = 1; ctx.font = "13px system-ui"; ctx.textAlign = "center";
-    nodes.forEach((o, i) => { const near = hov >= 0 && (i === hov || nb[hov].has(i)); ctx.globalAlpha = hov < 0 || near ? 1 : .35; ctx.fillStyle = col[o.n.layer]; ctx.beginPath(); ctx.arc(o.x, o.y, i === hov ? 9 : 6, 0, 7); ctx.fill(); });
-    ctx.globalAlpha = 1;
-    nodes.forEach((o, i) => { if (hov >= 0 && (i === hov || nb[hov].has(i))) { const t = o.n.title.length > 40 ? o.n.title.slice(0, 39) + "…" : o.n.title, w = ctx.measureText(t).width + 8; ctx.fillStyle = css("panel"); ctx.globalAlpha = .92; ctx.fillRect(o.x - w / 2, o.y + 9, w, 18); ctx.globalAlpha = 1; ctx.fillStyle = ink; ctx.fillText(t, o.x, o.y + 22); } });
-    raf = requestAnimationFrame(draw);
+  const nodeSvg = n => {
+    const b = box[n.id], x = b.x, y = b.y, w = b.w, h = b.h;
+    const cls = n.k === "dec" ? "fc-dec" : n.k === "start" ? "fc-start" : n.k === "proc" ? "fc-proc" : `fc-leaf tone-${n.tone || "ok"}`;
+    const shape = n.k === "start" ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>` : n.k === "dec" ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" stroke-dasharray="5 3"/>` : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10"/>`;
+    const text = b.lines.map((l, i) => `<tspan x="${cx(b)}" dy="${i ? 18 : 0}">${esc(l)}</tspan>`).join("");
+    const t = `<text class="fc-txt" x="${cx(b)}" y="${y + (h - b.lines.length * 18) / 2 + 13}" text-anchor="middle">${text}</text>`;
+    const inner = `<g class="fc-node ${cls}">${shape}${t}</g>`;
+    return n.bai && n.bai.length && byId[n.bai[0]] ? `<a href="#/n/${n.bai[0]}">${inner}</a>` : inner;
   };
-  const pick = e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; return nodes.findIndex(o => (o.x - x) ** 2 + (o.y - y) ** 2 < 150); };
-  cv.onmousemove = e => { hov = pick(e); cv.style.cursor = hov >= 0 ? "pointer" : "default"; };
-  cv.onclick = e => { const i = pick(e); if (i >= 0) location.hash = "#/n/" + nodes[i].n.id; };
-  draw();
+  return `<div class="fcwrap"><svg class="fc" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Lưu đồ"><defs><marker id="fc-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${g.edges.map(edgeSvg).join("")}${g.nodes.map(nodeSvg).join("")}</svg></div>`;
+}
+// Lưu đồ tiếp cận: cây câu hỏi Có/Không, lá là kết luận và các bài liên quan (nội dung lấy từ bài đã có)
+const LUUDO = [
+  { id: "kho-tho", title: "Khó thở (dự kiến)", desc: "Phân biệt khó thở cấp và mạn, nhận biết dấu hiệu nguy hiểm trước, rồi định hướng nguyên nhân. Có nhánh gộp và vòng lặp khi thiếu dữ kiện.", graph: {
+    start: "s",
+    nodes: [
+      { id: "s", k: "start", t: "Khó thở" },
+      { id: "b1", k: "dec", t: "Có dấu hiệu nguy hiểm: thở rít, tím tái, không nói trọn câu?" },
+      { id: "c1", k: "leaf", tone: "red", t: "Xử trí cấp cứu ngay", bai: ["suy-ho-hap-cap"] },
+      { id: "d1", k: "dec", t: "Khởi phát trong vài giờ đến vài ngày?" },
+      { id: "e1", k: "dec", t: "Đau ngực, ngất, đau kiểu màng phổi?" },
+      { id: "f1", k: "leaf", tone: "red", t: "Nghĩ thuyên tắc phổi hoặc tràn khí màng phổi", bai: ["kls-thang-thuyen-tac-phoi"] },
+      { id: "g1", k: "dec", t: "Có ran rít hoặc thì thở ra kéo dài?" },
+      { id: "h1", k: "leaf", tone: "warn", t: "Nghĩ hen hoặc đợt cấp COPD", bai: ["kho-tho-man"] },
+      { id: "i1", k: "leaf", tone: "warn", t: "Nghĩ viêm phổi hoặc suy tim cấp", bai: ["suy-ho-hap-cap"] },
+      { id: "j1", k: "dec", t: "Có tiền sử suy tim hoặc phù chân?" },
+      { id: "k1", k: "leaf", tone: "warn", t: "Nghĩ suy tim", bai: ["kho-tho-man"] },
+      { id: "l1", k: "dec", t: "Hút thuốc lá hoặc ho đờm kéo dài?" },
+      { id: "m1", k: "leaf", tone: "warn", t: "Nghĩ COPD hoặc giãn phế quản", bai: ["kho-tho-man"] },
+      { id: "n1", k: "leaf", tone: "warn", t: "Nghĩ bệnh phổi kẽ, thiếu máu, lo âu, nguyên nhân khác" },
+      { id: "o1", k: "proc", t: "Cận lâm sàng nền: X-quang ngực, ECG, siêu âm tim, BNP", bai: ["kho-tho-man"] },
+      { id: "p1", k: "dec", t: "Đã xác định được nguyên nhân?" },
+      { id: "q1", k: "leaf", tone: "ok", t: "Điều trị theo bài bệnh tương ứng" },
+      { id: "r1", k: "proc", t: "Khai thác lại bệnh sử, khám lại, theo dõi" },
+    ],
+    edges: [
+      ["s", "b1"], ["b1", "c1", "Có"], ["b1", "d1", "Không"],
+      ["d1", "e1", "Có"], ["d1", "j1", "Không"],
+      ["e1", "f1", "Có"], ["e1", "g1", "Không"],
+      ["g1", "h1", "Có"], ["g1", "i1", "Không"],
+      ["j1", "k1", "Có"], ["j1", "l1", "Không"],
+      ["l1", "m1", "Có"], ["l1", "n1", "Không"],
+      ["k1", "o1"], ["m1", "o1"], ["n1", "o1"],
+      ["o1", "p1"], ["p1", "q1", "Có"], ["p1", "r1", "Không"], ["r1", "j1"],
+    ] } },
+];
+// Vẽ cây lưu đồ bằng danh sách lồng nhau; nút câu hỏi là khung chữ, nhánh có nhãn Có/Không, lá là kết luận
+function luudoNode(n) {
+  if (n.q) return `<div class="lq">${esc(n.q)}</div><ul>${luudoBranch("Có", n.yes)}${luudoBranch("Không", n.no)}</ul>`;
+  const links = (n.bai || []).map(id => byId[id] ? `<a class="lbai" href="#/n/${id}">${esc(byId[id].short || byId[id].title)}</a>` : "").join("");
+  return `<div class="lleaf tone-${n.tone || "ok"}"><span>${esc(n.r)}</span>${links ? `<div class="lbais">${links}</div>` : ""}</div>`;
+}
+const luudoBranch = (label, n) => `<li><span class="lbr">${label}</span>${luudoNode(n)}</li>`;
+function luudo(id) {
+  $("#main").style.maxWidth = "880px";
+  const list = LUUDO.map(x => `<a class="rcard lib" style="--c:var(--s11)" href="#/luudo/${x.id}"><small>Lưu đồ</small><b>${esc(x.title)}</b><span>${esc(x.desc)}</span></a>`).join("");
+  const one = LUUDO.find(x => x.id === id);
+  $("#main").innerHTML = one
+    ? `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Lưu đồ tiếp cận (dự kiến)", href: "#/luudo" }, { t: one.title }])}
+       ${pageHead({ c: "var(--s11)", kicker: "Lưu đồ tiếp cận", title: esc(one.title), desc: esc(one.desc) })}
+       ${one.graph ? luudoGraph(one.graph) : `<div class="luudo">${luudoNode(one.tree)}</div>`}
+       <p class="meta">Lưu đồ chỉ là gợi ý ban đầu. Chi tiết và nguồn nằm trong từng bài.</p>`
+    : `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Lưu đồ tiếp cận (dự kiến)" }])}
+       ${pageHead({ c: "var(--s11)", kicker: "Khác", title: "Lưu đồ tiếp cận (dự kiến)", desc: "Cây câu hỏi Có/Không để định hướng chẩn đoán ban đầu, bấm vào kết luận để mở bài." })}
+       <div class="rgrid libgrid">${list}</div>`;
+  window.scrollTo(0, 0);
+}
+// ---- công cụ tính điểm lâm sàng: nhập số, kết quả tính ngay; công thức theo tài liệu gốc của từng thang ----
+const CC = [
+  { id: "bmi", title: "BMI", desc: "Chỉ số khối cơ thể: cân nặng chia bình phương chiều cao.", bai: "kls-thang-dinh-duong", src: "Ngưỡng WHO. Người châu Á có ngưỡng thừa cân và béo phì thấp hơn; xem bài liên quan.",
+    fields: [{ k: "w", t: "num", label: "Cân nặng", unit: "kg", min: 1, max: 300, step: 0.1 }, { k: "h", t: "num", label: "Chiều cao", unit: "cm", min: 50, max: 250, step: 1 }],
+    calc: v => { if (!v.w || !v.h) return null; const b = v.w / ((v.h / 100) ** 2); return { val: b.toFixed(1), unit: "kg/m²", label: b < 18.5 ? "Thiếu cân" : b < 25 ? "Bình thường" : b < 30 ? "Thừa cân" : "Béo phì" }; } },
+  { id: "egfr", title: "eGFR (CKD-EPI 2021)", desc: "Độ lọc cầu thận ước tính từ creatinin huyết thanh, không dùng hệ số chủng tộc.", bai: "kls-thang-chuc-nang-than", src: "CKD-EPI 2021 (Inker và cộng sự, NEJM 2021).",
+    fields: [{ k: "scr", t: "num", label: "Creatinin huyết thanh", unit: "mg/dL", min: 0.1, max: 20, step: 0.01 }, { k: "age", t: "num", label: "Tuổi", unit: "năm", min: 18, max: 120, step: 1 }, { k: "sex", t: "opt", label: "Giới", opts: [["Nữ", "f"], ["Nam", "m"]] }],
+    calc: v => { if (!v.scr || !v.age) return null; const f = v.sex === "f", k = f ? 0.7 : 0.9, a = f ? -0.241 : -0.302; const e = 142 * Math.min(v.scr / k, 1) ** a * Math.max(v.scr / k, 1) ** -1.2 * 0.9938 ** v.age * (f ? 1.012 : 1); const g = e >= 90 ? "G1" : e >= 60 ? "G2" : e >= 45 ? "G3a" : e >= 30 ? "G3b" : e >= 15 ? "G4" : "G5"; return { val: e.toFixed(0), unit: "mL/phút/1,73 m²", label: `Giai đoạn ${g}` }; } },
+  { id: "wells", title: "Wells (thuyên tắc phổi)", desc: "Xác suất lâm sàng thuyên tắc phổi, theo các tiêu chí lâm sàng.", bai: "kls-thang-thuyen-tac-phoi", src: "Wells và cộng sự (2000, 2001). Thang ba mức và hai mức đều được dùng; hiển thị cả hai.",
+    fields: [
+      { k: "dvt", t: "chk", label: "Dấu hiệu lâm sàng của huyết khối tĩnh mạch sâu", pts: 3 },
+      { k: "pe", t: "chk", label: "Chẩn đoán thuyên tắc phổi là giả thuyết hàng đầu", pts: 3 },
+      { k: "hr", t: "chk", label: "Nhịp tim trên 100 lần/phút", pts: 1.5 },
+      { k: "imm", t: "chk", label: "Bất động từ 3 ngày trở lên hoặc phẫu thuật trong 4 tuần", pts: 1.5 },
+      { k: "prev", t: "chk", label: "Tiền sử huyết khối tĩnh mạch sâu hoặc thuyên tắc phổi", pts: 1.5 },
+      { k: "hemo", t: "chk", label: "Ho ra máu", pts: 1 },
+      { k: "ca", t: "chk", label: "Ung thư đang điều trị hoặc trong 6 tháng", pts: 1 }],
+    calc: v => { const pts = ["dvt", "pe", "hr", "imm", "prev", "hemo", "ca"].reduce((s, k) => s + (v[k] ? (CC_WELLS[k]) : 0), 0); return { val: pts.toFixed(1), unit: "điểm", label: `Ba mức: ${pts > 6 ? "cao" : pts >= 2 ? "trung bình" : "thấp"} · Hai mức: ${pts > 4 ? "có thể thuyên tắc phổi" : "khó có thuyên tắc phổi"}` }; } },
+  { id: "chads", title: "CHA₂DS₂-VASc", desc: "Nguy cơ đột quỵ ở người bệnh rung nhĩ không do van tim.", bai: "kls-thang-rung-nhi", src: "Lip và cộng sự (2010); khuyến cáo rung nhĩ hiện hành.",
+    fields: [
+      { k: "chf", t: "chk", label: "Suy tim hoặc rối loạn chức năng thất trái", pts: 1 },
+      { k: "htn", t: "chk", label: "Tăng huyết áp", pts: 1 },
+      { k: "age", t: "opt", label: "Tuổi", opts: [["Dưới 65", 0], ["65–74", 1], ["75 trở lên", 2]] },
+      { k: "dm", t: "chk", label: "Đái tháo đường", pts: 1 },
+      { k: "stroke", t: "chk", label: "Đột quỵ, TIA hoặc thuyên tắc hệ thống trước đó", pts: 2 },
+      { k: "vasc", t: "chk", label: "Bệnh mạch máu (nhồi máu cơ tim, bệnh động mạch ngoại biên, mảng xơ động mạch chủ)", pts: 1 },
+      { k: "fem", t: "chk", label: "Giới nữ", pts: 1 }],
+    calc: v => { const pts = (v.chf ? 1 : 0) + (v.htn ? 1 : 0) + Number(v.age || 0) + (v.dm ? 1 : 0) + (v.stroke ? 2 : 0) + (v.vasc ? 1 : 0) + (v.fem ? 1 : 0); return { val: String(pts), unit: "điểm", label: pts === 0 ? "Nguy cơ thấp (nam)" : pts === 1 ? "Cân nhắc chống đông" : "Nên chống đông" }; } },
+  { id: "childpugh", title: "Child-Pugh", desc: "Mức độ suy gan ở xơ gan, theo năm yếu tố lâm sàng và cận lâm sàng.", bai: "kls-thang-chuc-nang-gan", src: "Pugh (1973) và các cải biên; kết quả chia nhóm A, B, C.",
+    fields: [
+      { k: "bil", t: "opt", label: "Bilirubin toàn phần", opts: [["Dưới 2 mg/dL", 1], ["2–3 mg/dL", 2], ["Trên 3 mg/dL", 3]] },
+      { k: "alb", t: "opt", label: "Albumin", opts: [["Trên 3,5 g/dL", 1], ["2,8–3,5 g/dL", 2], ["Dưới 2,8 g/dL", 3]] },
+      { k: "inr", t: "opt", label: "INR", opts: [["Dưới 1,7", 1], ["1,7–2,3", 2], ["Trên 2,3", 3]] },
+      { k: "asc", t: "opt", label: "Cổ trướng", opts: [["Không", 1], ["Ít, dễ kiểm soát", 2], ["Vừa đến nhiều", 3]] },
+      { k: "enc", t: "opt", label: "Bệnh não gan", opts: [["Không", 1], ["Độ 1–2", 2], ["Độ 3–4", 3]] }],
+    calc: v => { if (!v.bil || !v.alb || !v.inr || !v.asc || !v.enc) return null; const pts = [v.bil, v.alb, v.inr, v.asc, v.enc].reduce((s, x) => s + Number(x), 0); return { val: String(pts), unit: "điểm", label: pts <= 6 ? "Nhóm A" : pts <= 9 ? "Nhóm B" : "Nhóm C" }; } },
+];
+const CC_WELLS = { dvt: 3, pe: 3, hr: 1.5, imm: 1.5, prev: 1.5, hemo: 1, ca: 1 };
+function ccForm(t) {
+  const fields = t.fields.map(f => {
+    if (f.t === "num") return `<label class="cc-row"><span>${esc(f.label)}</span><span class="cc-in"><input type="number" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" inputmode="decimal"><small>${esc(f.unit)}</small></span></label>`;
+    if (f.t === "opt") return `<label class="cc-row"><span>${esc(f.label)}</span><select data-k="${f.k}"><option value="">Chọn…</option>${f.opts.map(([l, v]) => `<option value="${esc(String(v))}">${esc(l)}</option>`).join("")}</select></label>`;
+    return `<label class="cc-row cc-chk"><input type="checkbox" data-k="${f.k}"><span>${esc(f.label)}</span></label>`;
+  }).join("");
+  return `<div class="cc-form">${fields}</div><div class="cc-res" aria-live="polite"></div>`;
+}
+function ccRead(t, root) {
+  const v = {};
+  t.fields.forEach(f => {
+    const el = root.querySelector(`[data-k="${f.k}"]`); if (!el) return;
+    if (f.t === "num") v[f.k] = el.value === "" ? null : parseFloat(el.value);
+    else if (f.t === "opt") v[f.k] = el.value === "" ? null : (f.opts.find(([, x]) => String(x) === el.value) || [])[1] ?? el.value;
+    else v[f.k] = el.checked;
+  });
+  return v;
+}
+function ccResult(t, root) {
+  const r = t.calc(ccRead(t, root)), out = root.querySelector(".cc-res");
+  out.innerHTML = r ? `<div class="cc-val"><b>${esc(r.val)}</b> <small>${esc(r.unit)}</small></div><div class="cc-lab">${esc(r.label)}</div>` : `<div class="cc-lab cc-wait">Nhập đủ thông tin để xem kết quả.</div>`;
+}
+function congCu(id) {
+  $("#main").style.maxWidth = "880px";
+  const t = CC.find(x => x.id === id);
+  if (!t) {
+    $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Công cụ tính điểm" }])}
+      ${pageHead({ c: "var(--s11)", kicker: "Khác", title: "Công cụ tính điểm", desc: "Các thang điểm và công thức hay dùng. Nhập số, kết quả hiện ngay. Mỗi công cụ có nguồn và bài liên quan." })}
+      <div class="rgrid libgrid">${CC.map(x => `<a class="rcard lib" style="--c:var(--s11)" href="#/congcu/${x.id}"><small>Công cụ</small><b>${esc(x.title)}</b><span>${esc(x.desc)}</span></a>`).join("")}</div>`;
+    window.scrollTo(0, 0); return;
+  }
+  const bai = byId[t.bai];
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Công cụ tính điểm", href: "#/congcu" }, { t: t.title }])}
+    ${pageHead({ c: "var(--s11)", kicker: "Công cụ tính điểm", title: esc(t.title), desc: esc(t.desc) })}
+    <div class="cc" id="ccRoot">${ccForm(t)}</div>
+    <p class="meta">Nguồn: ${esc(t.src)}</p>
+    ${bai ? `<p class="meta">Bài liên quan: <a href="#/n/${bai.id}">${esc(bai.short || bai.title)}</a></p>` : ""}
+    <p class="meta">Công cụ hỗ trợ tra cứu, không thay thế đánh giá lâm sàng.</p>`;
+  const root = $("#ccRoot");
+  root.addEventListener("input", () => ccResult(t, root));
+  root.addEventListener("change", () => ccResult(t, root));
+  ccResult(t, root);
+  window.scrollTo(0, 0);
+}
+// ---- bản đồ tư duy của một module: gốc là module, nhánh là mục, lá là bài (tự dựng từ dữ liệu) ----
+function mindmap(mod) {
+  $("#main").style.maxWidth = "1080px";
+  if (!mod || !MODULES[mod]) {
+    $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Bản đồ module" }])}
+      ${pageHead({ c: "var(--s11)", kicker: "Khác", title: "Bản đồ module", desc: "Cấu trúc của từng chuyên khoa: mỗi nhánh là một mục, mỗi lá là một bài." })}
+      <div class="rgrid libgrid">${Object.keys(MODULES).map(m => `<a class="rcard lib" style="--c:var(--s11)" href="#/mindmap/${m}"><small>${NOTES.filter(n => n.module === m).length} bài</small><b>${esc(MODULES[m])}</b></a>`).join("")}</div>`;
+    window.scrollTo(0, 0); return;
+  }
+  const branch = sp => {
+    if (sp.type === "overview" || sp.type === "sources") return "";
+    const notes = NOTES.filter(n => n.module === mod && n.kind === "foundation" && sectionOfNote(n) === sp.n).sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+    const dis = sp.type === "diseases" ? diseases().filter(d => d.module === mod) : [];
+    const leaves = [...notes, ...dis];
+    return `<details class="mm-sec" open style="--c:var(--s${secC(mod, sp.n)})"><summary><b>${sp.n}</b> ${esc(sp.title)} <small>${leaves.length}</small></summary><ul>${leaves.map(n => `<li><a href="#/n/${n.id}">${esc(n.short || n.title)}</a></li>`).join("")}</ul></details>`;
+  };
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Bản đồ module", href: "#/mindmap" }, { t: MODULES[mod] }])}
+    ${pageHead({ c: "var(--s11)", kicker: "Bản đồ module", title: esc(MODULES[mod]), desc: "Bản đồ tự dựng từ các mục và bài của module. Bấm vào một bài để mở." })}
+    <div class="mm"><div class="mm-root">${esc(MODULES[mod])}</div><div class="mm-branches">${secsOf(mod).map(branch).join("")}</div></div>`;
+  window.scrollTo(0, 0);
+}
+// Thuật ngữ triệu chứng của module Ung bướu, giải thích bằng ngôn ngữ thường ngày (chế độ "Giải thích thuật ngữ")
+const GLOSS_MOD = "ung-buou";
+const GLOSS = [
+  ["chảy máu", "Máu chảy ra từ cơ thể một cách bất thường, ví dụ từ mũi, răng, âm đạo, đường tiêu hóa hoặc da."],
+  ["liệt", "Mất hoặc giảm khả năng cử động một phần cơ thể, do thần kinh hoặc cơ bị tổn thương."],
+  ["chèn ép", "Khối u đè lên các cấu trúc xung quanh làm chúng bị hẹp hoặc không hoạt động bình thường."],
+  ["khối u", "Một khối bất thường mọc ra từ mô, có thể lành tính hoặc ác tính. Có thể sờ thấy hoặc thấy trên hình ảnh."],
+  ["phù", "Sưng do dịch tích tụ trong mô, thường ấn vào thấy lõm và giữ lâu."],
+  ["khó thở", "Cảm giác thở không đủ hơi hoặc phải thở gắng sức, dù không làm việc nặng."],
+  ["sụt cân", "Cân nặng giảm nhiều mà không cố ý ăn kiêng hay tập luyện."],
+  ["thiếu máu", "Số lượng hồng cầu hoặc hemoglobin thấp, thường gây mệt, xanh xao và chóng mặt."],
+  ["ho ra máu", "Khạc máu từ đường thở. Khác với nôn ra máu, là máu từ dạ dày."],
+  ["tắc ruột", "Thức ăn và hơi không đi qua được ruột, gây đau bụng, nôn và bí trung đại tiện."],
+  ["núm vú", "Đầu núm vú. Thay đổi như lõm, tiết dịch hoặc lệch có thể cần khám."],
+  ["nuốt nghẹn", "Cảm giác vướng hoặc khó khi nuốt, nhất là với thức ăn đặc."],
+  ["vàng da", "Da và lòng trắng mắt ngả vàng, do bilirubin trong máu tăng."],
+  ["tiết dịch", "Dịch chảy ra từ núm vú hoặc một vết thương, cơ quan nào đó."],
+  ["táo bón", "Đi cầu ít hơn bình thường, phân cứng, khó đi."],
+  ["tiêu chảy", "Đi cầu lỏng hoặc nhiều lần hơn bình thường trong thời gian ngắn."],
+  ["hạch thượng đòn", "Hạch nổi ở hõm phía trên xương đòn, thường sờ thấy được dưới da."],
+  ["đau xương", "Đau âm ỉ ở xương, có thể tăng về đêm, không liên quan đến vận động."],
+  ["mót rặn", "Muốn đi đại tiện liên tục dù ruột đã rỗng. Khi rặn chỉ ra ít hoặc không ra."],
+  ["tiểu máu", "Nước tiểu có màu hồng hoặc đỏ do lẫn máu."],
+  ["khối ở vú", "Một khối sờ thấy trong vú. Không phải khối nào cũng là ung thư, nhưng cần khám."],
+  ["nhức đầu", "Đau vùng đầu. Đau đầu tăng dần hoặc kèm buồn nôn cần được khám sớm."],
+  ["mệt mỏi", "Cảm giác mệt kéo dài, nghỉ ngơi không hết."],
+  ["co giật", "Cơn co cứng hoặc giật không kiểm soát, thường do não bị kích thích."],
+  ["bí tiểu", "Không đi tiểu được dù bàng quang đã đầy."],
+  ["cổ trướng", "Bụng to ra do dịch tích tụ trong ổ bụng."],
+  ["tiểu khó", "Tiểu đau, tia nước yếu, hoặc phải rặn mới tiểu được."],
+  ["khàn giọng", "Giọng bị khản, đổi khác, thường do dây thanh âm bị ảnh hưởng."],
+  ["tiểu đêm", "Phải thức dậy ban đêm để đi tiểu."],
+];
+let glossOn = false;
+// Đánh dấu thuật ngữ trong phần nội dung bài (chỉ module Ung bướu, chỉ khi bật); chạm vào để xem nghĩa
+function glossApply() {
+  const box = document.querySelector("#main .notepage, #main .modpage");
+  if (!box || document.documentElement.dataset.gl !== "on") return;
+  const id = curNoteId(), n = id ? byId[id] : null, mod = n ? n.module : (location.hash.match(/^#\/m\/([^/]+)/) || [])[1];
+  if (mod !== GLOSS_MOD) return;
+  const seen = {};
+  GLOSS.forEach(([term, def]) => {
+    const re = new RegExp("(^|[^\\p{L}])(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?=[^\\p{L}]|$)", "giu");
+    const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, { acceptNode: x => x.parentElement && x.parentElement.closest("a,code,pre,abbr,.gl,.glpop,h1,h2,h3,h4,h5") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const tn of nodes) {
+      if (!re.test(tn.nodeValue)) continue;
+      re.lastIndex = 0;
+      const frag = document.createDocumentFragment(); let last = 0, m;
+      while ((m = re.exec(tn.nodeValue))) {
+        const start = m.index + m[1].length;
+        if (seen[term] >= 2) break;
+        frag.append(tn.nodeValue.slice(last, start));
+        const sp = document.createElement("span"); sp.className = "gl"; sp.dataset.def = def; sp.textContent = m[2];
+        frag.append(sp); last = start + m[2].length; seen[term] = (seen[term] || 0) + 1;
+      }
+      frag.append(tn.nodeValue.slice(last));
+      tn.replaceWith(frag);
+      re.lastIndex = 0;
+    }
+  });
+}
+document.addEventListener("click", e => {
+  const g = e.target.closest(".gl");
+  document.querySelectorAll(".glpop").forEach(p => p.remove());
+  if (!g) return;
+  const pop = document.createElement("div"); pop.className = "glpop"; pop.setAttribute("role", "note");
+  pop.innerHTML = `<b>${esc(g.textContent)}</b>${esc(g.dataset.def)}`;
+  g.after(pop);
+});
+// Biểu đồ lượng kiến thức: số bài của từng chuyên khoa và tổng quan
+function volume() {
+  $("#main").style.maxWidth = "";
+  const mods = Object.keys(MODULES), count = m => NOTES.filter(n => n.module === m).length;
+  const max = Math.max(1, ...mods.map(count)), total = NOTES.length, diseases = NOTES.filter(n => n.kind === "disease").length;
+  const rows = mods.map(m => `<div class="vrow"><span class="vname">${esc(MODULES[m] || m)}</span><span class="vbar"><i style="width:${(count(m) / max * 100).toFixed(1)}%"></i></span><b class="vnum">${count(m)}</b></div>`).join("");
+  $("#main").innerHTML = `${pageHead({ c: "var(--brand)", kicker: "Khác", title: "Lượng kiến thức", desc: "Số bài trong từng chuyên khoa của ứng dụng." })}
+    <div class="tiles vtiles"><div class="tile"><b>${total}</b><span>bài</span></div><div class="tile"><b>${diseases}</b><span>bài bệnh học</span></div><div class="tile"><b>${mods.length}</b><span>chuyên khoa</span></div></div>
+    <div class="vchart">${rows}</div>`;
+  window.scrollTo(0, 0);
 }
 
 // ---- thanh module: Ung bướu › 1 … 5 ----
@@ -1021,6 +1335,55 @@ document.addEventListener("change", e => {
   const sp = e.target.closest("select.secpick"); if (sp && sp.value) location.hash = `#/m/${curMod()}/${sp.value}`;
 });
 
+// ---- chế độ tập trung: đọc một bài và hẹn giờ Pomodoro ----
+const focus = { on: false, mode: 25, left: 25 * 60, timer: 0, audio: null };
+const fmtClock = sec => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+const modeLabel = () => focus.mode === 25 ? "Học 25 phút" : "Nghỉ 5 phút";
+function focusNeighbours(n) {
+  const k = sectionOfNote(n);
+  const list = NOTES.filter(x => x.module === n.module && x.kind === n.kind && sectionOfNote(x) === k).sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+  const i = list.findIndex(x => x.id === n.id);
+  return { prev: list[i - 1], next: list[i + 1] };
+}
+function focusUpdate(n) {
+  const { prev, next } = focusNeighbours(n);
+  const pv = $("#fbPrev"), nx = $("#fbNext");
+  pv.hidden = !prev; nx.hidden = !next;
+  if (prev) { pv.href = `#/n/${prev.id}`; pv.title = prev.short || prev.title; }
+  if (next) { nx.href = `#/n/${next.id}`; nx.title = next.short || next.title; }
+}
+function focusSet(on) {
+  focus.on = on;
+  document.documentElement.classList.toggle("focus", on);
+  if (!on) pomoReset();
+  $("#focusFab").hidden = on || !curNoteId();
+}
+const curNoteId = () => (location.hash.match(/^#\/n\/([^/]+)/) || [])[1] || "";
+function pomoRender() { $("#fbTime").textContent = fmtClock(focus.left); }
+function pomoReset() { clearInterval(focus.timer); focus.timer = 0; focus.left = focus.mode * 60; pomoRender(); $("#fbStart").textContent = "Bắt đầu"; }
+function pomoToggle() {
+  if (focus.timer) { clearInterval(focus.timer); focus.timer = 0; $("#fbStart").textContent = "Tiếp tục"; return; }
+  focus.timer = setInterval(() => {
+    focus.left--;
+    if (focus.left <= 0) {
+      clearInterval(focus.timer); focus.timer = 0;
+      focus.mode = focus.mode === 25 ? 5 : 25; focus.left = focus.mode * 60;
+      $("#fbMode").textContent = modeLabel(); $("#fbStart").textContent = "Bắt đầu";
+      beep();
+    }
+    pomoRender();
+  }, 1000);
+  $("#fbStart").textContent = "Tạm dừng";
+}
+function pomoMode() { focus.mode = focus.mode === 25 ? 5 : 25; $("#fbMode").textContent = modeLabel(); pomoReset(); }
+function beep() {
+  try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 660; g.gain.value = 0.15; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.6); } catch {}
+}
+$("#focusFab").onclick = () => { focusSet(true); window.scrollTo(0, 0); };
+$("#fbExit").onclick = () => focusSet(false);
+$("#fbStart").onclick = pomoToggle; $("#fbReset").onclick = pomoReset; $("#fbMode").onclick = pomoMode;
+pomoRender();
+
 // ---- định tuyến ----
 function route() {
   cancelAnimationFrame(raf);
@@ -1030,7 +1393,7 @@ function route() {
   if (h === "/pareto") h = `/m/${curMod()}/${secByType(curMod(), "summary")}`;
   const m = h.match(/^\/n\/([^/]+)(?:\/(\d+))?$/), mm = h.match(/^\/m\/([^/]+)\/(\d+)$/);
   let sec = 0, modActive = 0;
-  const kh = h.match(/^\/khung(?:\/(\d+))?$/), lb = h.match(/^\/lib(?:\/([^/]+))?$/), cd = h.match(/^\/cards(?:\/([^/]+)(?:\/(all))?)?$/);
+  const kh = h.match(/^\/khung(?:\/(\d+))?$/), lu = h.match(/^\/luudo(?:\/([^/]+))?$/), cc = h.match(/^\/congcu(?:\/([^/]+))?$/), mp = h.match(/^\/mindmap(?:\/([^/]+))?$/), lb = h.match(/^\/lib(?:\/([^/]+))?$/), cd = h.match(/^\/cards(?:\/([^/]+)(?:\/(all))?)?$/);
   if (kh) { $("#main").style.maxWidth = "1000px"; window.renderKhung($("#main"), kh[1]); }
   else if (mm) {
     const k = +mm[2], ov = NOTES.find(n => n.module === mm[1] && n.kind === "overview");
@@ -1039,17 +1402,23 @@ function route() {
   }
   else if (m) { sec = note(m[1], m[2]) || 0; modActive = byId[m[1]] ? sectionOfNote(byId[m[1]]) : 0; }
   else if (lb) { lb[1] ? libPage(lb[1]) : libIndex(); }
-  else if (h === "/graph") graph(); else if (cd) cards(cd[1] || "", cd[2] === "all"); else home();
-  const navKey = kh ? "khung" : h === "/graph" ? "graph" : cd ? "cards" : lb ? "lib" : (!m && !mm) ? "home" : "";
+  else if (h === "/volume") volume(); else if (lu) luudo(lu[1] || ""); else if (cc) congCu(cc[1] || ""); else if (mp) mindmap(mp[1] || ""); else if (cd) cards(cd[1] || "", cd[2] === "all"); else home();
+  const navKey = kh ? "khung" : lu ? "luudo" : cc ? "congcu" : mp ? "mindmap" : h === "/volume" ? "volume" : cd ? "cards" : lb ? "lib" : (!m && !mm) ? "home" : "";
   document.querySelectorAll("[data-nav]").forEach(x => x.classList.toggle("on", x.dataset.nav === navKey));
-  $("#bnMenu").classList.toggle("on", !!(mm || m)); $("#bnMore").classList.toggle("on", navKey === "khung" || navKey === "graph");
+  $("#bnMenu").classList.toggle("on", !!(mm || m)); $("#bnMore").classList.toggle("on", navKey === "khung" || navKey === "volume" || navKey === "luudo" || navKey === "congcu" || navKey === "mindmap");
   const inMod = !!(mm || m);   // thanh mục của chuyên khoa chỉ hiện khi đang trong một chuyên khoa
   $("#modbar").hidden = !inMod; document.documentElement.classList.toggle("no-modbar", !inMod);
   renderModbar(modActive);
   tree(m && m[1], sec || (m && +m[2]) || 0);
-  const bd = $("#build"); if (bd) bd.textContent = window.BUILD ? "Bản dựng: " + window.BUILD : "";
+  // chân trang: mã bản dựng và tên trang đang mở
+  const pb = $("#pfBuild"), pp = $("#pfPage");
+  const ver = (window.BUILD || "").match(/(\d{2})\/(\d{2})\/(\d{4})/);   // ngày dựng dd/mm/yyyy → phiên bản vyy.mm.dd
+  if (pb) pb.textContent = ver ? `v${ver[3].slice(2)}.${ver[2]}.${ver[1]}` : "";
+  if (pp) pp.textContent = ((document.querySelector("#main .cover h1") || document.querySelector("#main h1") || {}).textContent || "Trang chủ");
   stickyTables();
+  glossApply();
   document.body.classList.remove("tocpop"); $("#tocFab").hidden = !($("#main details.toc") && narrow());
+  if (m) focusUpdate(byId[m[1]]); if (!m && focus.on) focusSet(false); $("#focusFab").hidden = focus.on || !m;
   badge();
 }
 // vuốt ngang để chuyển tab của một bệnh (điện thoại, máy tính bảng); bỏ qua khi đang cuộn bảng, chọn chữ hay chạm vào ô nhập

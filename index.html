@@ -30,13 +30,22 @@
   </nav>
 </header>
 <div class="modbar" id="modbar"></div>
+<div id="focusBar" class="focusbar" role="toolbar" aria-label="Chế độ tập trung">
+  <a id="fbPrev" class="fb-nav" href="#/">‹ Trước</a>
+  <span class="fb-pomo"><b id="fbTime">25:00</b><button id="fbStart" class="fb-btn" type="button">Bắt đầu</button><button id="fbReset" class="fb-btn" type="button">Đặt lại</button><button id="fbMode" class="fb-btn" type="button">Học 25 phút</button></span>
+  <a id="fbNext" class="fb-nav" href="#/">Tiếp ›</a>
+  <button id="fbExit" class="fb-btn" type="button">Thoát</button>
+</div>
 <div class="layout">
   <aside id="side">
     <div id="tree"></div>
     <div class="sbh">Khác</div>
     <nav class="sbmore" id="sbmore">
       <a href="#/khung" data-nav="khung"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg><span>Đề cương ôn thi CCHN YKQGQ</span></a>
-      <a href="#/graph" data-nav="graph"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="12" cy="18" r="2"/><path d="M8 6.5l8 1M7 8l4 8M17 10l-4 6"/></svg><span>Sơ đồ liên kết kiến thức</span></a>
+      <a href="#/mindmap" data-nav="mindmap"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="9" r="2"/><circle cx="19" cy="17" r="2"/><path d="M9.6 10.8L7 7.2M9.6 13.2L7 16.8M14.6 10.8L17 9.8M14.6 13.2L17 16"/></svg><span>Bản đồ module</span></a>
+      <a href="#/congcu" data-nav="congcu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 12h1M12 12h1M15 12h1M9 16h1M12 16h1M15 16h1"/></svg><span>Công cụ tính điểm</span></a>
+      <a href="#/luudo" data-nav="luudo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="5" rx="1.5"/><rect x="3" y="16" width="6" height="5" rx="1.5"/><rect x="15" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v3M6 16v-2h12v2"/></svg><span>Lưu đồ tiếp cận (dự kiến)</span></a>
+      <a href="#/volume" data-nav="volume"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V12M12 20V5M19 20v-9"/></svg><span>Lượng kiến thức</span></a>
       <details class="sbset" id="sbSettings"><summary><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg><span>Cài đặt</span></summary>
         <div id="setPanel">
           <div class="srow"><span>Cỡ chữ</span>
@@ -45,18 +54,19 @@
             <span class="seg"><button data-w="narrow">Hẹp</button><button data-w="std">Vừa</button><button data-w="wide">Rộng</button></span></div>
           <div class="srow"><span>Mật độ</span>
             <span class="seg"><button data-d="std">Thoáng</button><button data-d="compact">Gọn</button></span></div>
+          <div class="srow"><span>Giải thích thuật ngữ</span>
+            <span class="seg"><button data-gl="off">Tắt</button><button data-gl="on">Bật</button></span></div>
           <div class="srow"><span>Giao diện</span>
             <span class="seg"><button data-th="auto">Tự động</button><button data-th="light">Sáng</button><button data-th="dark">Tối</button></span></div>
           <div class="srow" id="setToRow" hidden><label for="setTo">Hỏi lại mật khẩu sau</label><select id="setTo" aria-label="Thời gian trước khi hỏi lại mật khẩu"></select></div>
         </div>
       </details>
     </nav>
-    <p class="meta" id="build"></p>
   </aside>
   <main id="main"></main>
   <button id="sideEdge" class="edge" type="button" aria-label="Đóng hoặc mở thanh bên" aria-expanded="true" title="Đóng / mở thanh bên"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
 </div>
-<footer class="pfoot"><span>Học tập Y khoa · Tài liệu ôn tập cá nhân</span></footer>
+<footer class="pfoot" id="pfoot"><span>© TNKhoi.MD</span><span id="pfBuild"></span><span id="pfPage"></span></footer>
 <nav class="botnav" id="botnav">
   <a href="#/" data-nav="home"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6 10.5V19h12v-8.5"/></svg></i><span>Trang chủ</span></a>
   <button id="bnMenu" aria-expanded="false"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg></i><span>Module</span></button>
@@ -65,6 +75,7 @@
   <a href="#/cards" data-nav="cards"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="13" height="10" rx="2"/><path d="M8 19.5h12.5V9"/></svg></i><span>Ôn thẻ</span></a>
   <button id="bnMore" aria-expanded="false"><i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></i><span>Khác</span></button>
 </nav>
+<button id="focusFab" class="focusfab" type="button" hidden>Tập trung</button>
 <button id="tocFab" class="tocfab" type="button" hidden aria-label="Mục lục bài" title="Mục lục bài"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></button>
 <div id="sheet" hidden></div>
 <div id="lock" hidden>
