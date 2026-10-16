@@ -774,5 +774,19 @@ html.focus main{max-width:780px !important;margin:0 auto;padding-top:20px}
 
 /* ---------- Giải thích thuật ngữ ---------- */
 .gl{border-bottom:1.5px dotted var(--brand);cursor:help;border-radius:2px}
-.glpop{display:block;margin:4px 0 10px;max-width:420px;padding:10px 12px;border-radius:12px;border-left:4px solid var(--brand);background:var(--brand-bg);color:var(--ink);font-size:calc(14.5px * var(--fs));line-height:1.55}
-.glpop b{display:block;margin-bottom:2px;color:var(--brand-d)}
+.glpop{display:block;margin:2px 0 8px;max-width:380px;padding:2px 0 2px 8px;border-left:2px solid var(--line);color:var(--mute);font-size:12px;line-height:1.45}
+.glpop b{display:inline;margin-right:4px;color:var(--ink);font-weight:700}
+
+/* Diễn tiến bệnh: các giai đoạn nối tiếp bằng mũi tên */
+.stages{list-style:none;margin:10px 0 16px;padding:0;display:flex;flex-wrap:wrap;gap:10px 22px;counter-reset:stg}
+.stages li{counter-increment:stg;position:relative;flex:1 1 150px;min-width:140px;padding:10px 12px 10px 12px;border:1.5px solid color-mix(in srgb,var(--c-key) calc(100% - var(--k)*100%),var(--c-red) calc(var(--k)*100%));border-radius:12px;background:color-mix(in srgb,var(--panel) 88%,color-mix(in srgb,var(--c-key) calc(100% - var(--k)*100%),var(--c-red) calc(var(--k)*100%)) 12%);display:flex;flex-direction:column;gap:4px}
+.stages li::before{content:counter(stg);position:absolute;top:-9px;left:10px;min-width:18px;height:18px;border-radius:9px;background:var(--brand);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;padding:0 5px}
+.stages li:not(:last-child)::after{content:"\2192";position:absolute;right:-19px;top:50%;transform:translateY(-50%);font-weight:800;color:var(--mute)}
+.stages li b{font-size:14px}
+.stages li span{font-size:13px;line-height:1.45}
+.stages li small{font-size:12px;font-weight:800;color:var(--mute)}
+.fc-lab.fc-yes{fill:var(--c-key)}.fc-lab.fc-no{fill:var(--c-red)}
+
+/* Tên tiếng Anh của bệnh, hiện ngay sau tiêu đề */
+h1 .en{display:block;font-size:.5em;font-weight:500;opacity:.7;margin-top:2px}
+h2 .en,h3 .en,summary .en{font-size:.72em;font-weight:500;opacity:.7;margin-left:6px}

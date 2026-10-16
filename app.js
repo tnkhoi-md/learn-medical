@@ -1,5 +1,7 @@
 (() => {
-const NOTES = window.NOTES || [], MODULES = window.MODULES || {}, MODSPEC = window.MODSPEC || {};
+const NOTES = window.NOTES || [], MODULES = window.MODULES || {}, MODULES_EN = window.MODULES_EN || {}, MODSPEC = window.MODSPEC || {};
+// Tên module kèm tên tiếng Anh (nhỏ, sau tên Việt) khi có
+const modLabel = m => esc(MODULES[m] || m) + (MODULES_EN[m] ? ` <small class="en">${esc(MODULES_EN[m])}</small>` : "");
 // Khung các mục của một chuyên khoa (module)
 // Các tab của trang bệnh (số nội bộ trong file: 3–9; 10 = "Theo dõi" tách từ mục 8 khi hiển thị)
 // Màu của từng tab bệnh (--t1…--t7, --tsum): mỗi tab một màu riêng, không trùng nhau
@@ -210,6 +212,22 @@ document.addEventListener("click", e => {
   const c = b.closest(".calc"); c.querySelectorAll("input").forEach(i => { i.checked = false; if (i.type === "number") i.value = ""; }); calcUpdate(c);
 });
 
+// Sơ đồ tiếp cận trong bài: @@flow / dòng nút "id | start|dec|proc|ok|warn|red | chữ | [bài hoặc bài/mục]" / dòng cạnh "a -> b : nhãn" / @@end
+function flowBlock(lines) {
+  const nodes = [], edges = [];
+  const KIND = { start: { k: "start" }, dec: { k: "dec" }, proc: { k: "proc" }, ok: { k: "leaf", tone: "ok" }, warn: { k: "leaf", tone: "warn" }, red: { k: "leaf", tone: "red" } };
+  lines.forEach(x => {
+    const t = x.trim(); let m;
+    if ((m = t.match(/^(\w+)\s*->\s*(\w+)(?:\s*:\s*(.+))?$/))) edges.push(m[3] ? [m[1], m[2], m[3].trim()] : [m[1], m[2]]);
+    else if ((m = t.match(/^(\w+)\s*\|\s*(start|dec|proc|ok|warn|red)\s*\|\s*(.+?)(?:\s*\|\s*(\S+))?$/))) nodes.push({ id: m[1], ...KIND[m[2]], t: m[3], href: m[4] ? "#/n/" + m[4] : "" });
+  });
+  return nodes.length ? luudoGraph({ start: nodes[0].id, nodes, edges }) : "";
+}
+// Diễn tiến bệnh theo giai đoạn: @@stages / dòng "Tên | mô tả | mốc thời gian hoặc nhãn (tùy chọn)" / @@end
+function stagesBlock(lines) {
+  const items = lines.map(x => x.trim()).filter(Boolean).map(x => x.split(/\s+\|\s+/));
+  return `<ol class="stages">${items.map(([name, desc, tag], k) => `<li style="--k:${k / Math.max(1, items.length - 1)}"><b>${inline(name)}</b>${desc ? `<span>${inline(desc)}</span>` : ""}${tag ? `<small>${inline(tag)}</small>` : ""}</li>`).join("")}</ol>`;
+}
 function blocks(L) {
   const h = [];
   let i = 0;
@@ -221,7 +239,7 @@ function blocks(L) {
     let d = 1;
     for (let k = from; k < L.length; k++) {
       const t = L[k].trim();
-      if (/^@@(tabs|fold|calc)/.test(t)) d++;
+      if (/^@@(tabs|fold|calc|flow|stages)/.test(t)) d++;
       else if (t === "@@end" && --d === 0) return k;
     }
     return L.length;
@@ -237,11 +255,23 @@ function blocks(L) {
       for (const x of inner) {
         const tx = x.trim();
         if (d === 0 && (m = tx.match(/^@@tab\s+(.+)$/))) { tabs.push({ name: m[1], lines: [] }); continue; }
-        if (/^@@(tabs|fold|calc)/.test(tx)) d++; else if (tx === "@@end") d--;
+        if (/^@@(tabs|fold|calc|flow|stages)/.test(tx)) d++; else if (tx === "@@end") d--;
         if (tabs.length) tabs[tabs.length - 1].lines.push(x);
       }
       h.push(`<div class="tabs"><div class="tabbar">${tabs.map((x, k) => `<button class="tabbtn${k ? "" : " on"}" data-t="${k}">${inline(x.name)}</button>`).join("")}</div>` +
         tabs.map((x, k) => `<div class="tabpanel${k ? "" : " on"}" data-t="${k}">${blocks(x.lines)}</div>`).join("") + `</div>`);
+      i = end + 1; continue;
+    }
+    if (/^@@flow/.test(t)) {
+      closeLists();
+      const end = findEnd(i + 1);
+      h.push(flowBlock(L.slice(i + 1, end)));
+      i = end + 1; continue;
+    }
+    if (/^@@stages/.test(t)) {
+      closeLists();
+      const end = findEnd(i + 1);
+      h.push(stagesBlock(L.slice(i + 1, end)));
       i = end + 1; continue;
     }
     if ((m = t.match(/^@@calc\s+(.+)$/))) {
@@ -405,7 +435,7 @@ const LIBS = [
   ["dieutri", "Điều trị", "Nguyên tắc và phương pháp điều trị.", "s10", [7, 10]],
   ["phongngua", "Phòng ngừa", "Phòng ngừa, tầm soát, tiên lượng và theo dõi.", "s2", [8]],
   ["khoahoccoban", "Khoa học cơ sở", "Sinh học, hóa sinh và nền tảng cơ bản làm cơ sở cho lâm sàng.", "s1", []],
-  ["duocly", "Dược lý (dự kiến)", "Cơ chế, liều dùng và tác dụng phụ của thuốc. Đang xây dựng.", "s7", []],
+  ["duocly", "Dược lý", "Dược lý đại cương và các nhóm thuốc theo hệ: thần kinh tự chủ, tim mạch, hô hấp–tiêu hóa, thần kinh trung ương, nội tiết, kháng nhiễm, ung thư, độc chất.", "s7", []],
   ["dinhduong", "Dinh dưỡng (dự kiến)", "Nhu cầu dinh dưỡng, can thiệp và theo dõi theo đối tượng và theo bệnh. Đang xây dựng.", "s8", []],
   ["thamkham", "Thăm khám", "Cách hỏi bệnh và khám lâm sàng theo từng hệ cơ quan.", "s9", []],
   ["trogiatri", "Giá trị bình thường (dự kiến)", "Ngưỡng xét nghiệm và chỉ số huyết học, sinh hóa, huyết động, kèm nguồn trang cho từng con số. Đang xây dựng.", "s11", []],
@@ -509,7 +539,7 @@ function libPage(cat) {
   const L = LIBS.find(l => l[0] === cat); if (!L) return libIndex();
   if (cat === "trieuchung") return symptomPage(L);
   const [, title, desc, col] = L, items = libItems(cat);
-  const body = items.map(({ mod, notes, di, tabs }) => `<section><h2>${esc(MODULES[mod] || mod)}</h2>
+  const body = items.map(({ mod, notes, di, tabs }) => `<section><h2>${modLabel(mod)}</h2>
     ${secBlocks(mod, notes)}
     ${cat === "benhhoc" ? (di.length ? `<h3>Từng bệnh</h3>${diseaseGrid(di, mod)}` : "") : (tabs.length && di.length ? `<h3>Theo từng bệnh</h3>${diseaseChips(di, tabs, mod)}` : "")}
   </section>`).join("") || `<p class="meta">Chưa có bài nào thuộc loại này.</p>`;
@@ -542,7 +572,7 @@ function tree(cur, sec) {
       if (s.type === "notes" && s.tree === "list") return sub(s, `<a href="#/m/${mod}/${s.n}">${esc(s.overviewLabel || "Xem cả mục")}</a>` + gen(s.n).map(n => link(n)).join(""), on);
       return top(s, on);
     });
-    return `<details class="mod"${isHere ? " open" : ""}><summary>${esc(MODULES[mod] || mod)}</summary>
+    return `<details class="mod"${isHere ? " open" : ""}><summary>${modLabel(mod)}</summary>
       ${rows.join("\n      ")}
     </details>`;
   }).join("");
@@ -746,7 +776,7 @@ const dueCards = () => { const p = prog(), now = Date.now(); return allCards.fil
 function badge() { const el = $("#dueBadge"); if (el) el.textContent = dueCards().length || ""; }
 
 // ---- trang ----
-function hasPareto(d) { return /^## 9\.[^\n]*Pareto/m.test(d.body); }
+function hasPareto(d) { return /^## 9\.[^\n]*Tóm tắt/m.test(d.body); }
 function diseaseGrid(ds, mod = curMod()) {
   return `<div class="dgrid">${ds.map(d => { const { secs } = diseaseParts(d), nc = cardsBy(d.id).length; return `<article class="dcard"><a class="dtitle" href="#/n/${d.id}/3">${esc(d.short || d.title)}</a>
       <div class="dchips">${SECS.map(([n, t, c]) => secs[n] ? `<a class="chip" style="--c:var(--${c})" href="#/n/${d.id}/${n}" title="${dnum(n, mod)} ${esc(t)}">${dnum(n, mod)}</a>` : `<span class="chip off" title="${dnum(n, mod)} ${esc(t)} (chưa có)">${dnum(n, mod)}</span>`).join("")}</div>
@@ -762,7 +792,7 @@ function home() {
   const due = dueCards().length, sumN = secByType(cm, "summary"), cardN = secByType(cm, "cards");
   const article = mod => {
     const dsm = ds.filter(n => n.module === mod), fom = NOTES.filter(n => n.module === mod && n.kind === "foundation").length, sN = secByType(mod, "summary");
-    return `<article class="spec"><div class="spechead"><span class="sdot"></span><div><h3>${esc(MODULES[mod] || mod)}</h3><small>${dsm.length} bệnh · ${fom} bài chung</small></div>
+    return `<article class="spec"><div class="spechead"><span class="sdot"></span><div><h3>${modLabel(mod)}</h3><small>${dsm.length} bệnh · ${fom} bài chung</small></div>
       <div class="specact"><a class="btn p" href="#/m/${mod}/1">Tổng quan module</a>${sN ? `<a class="btn" href="#/m/${mod}/${sN}">Tóm tắt Pareto</a>` : ""}</div></div>
       <ol class="stepper">${secsOf(mod).map(s => `<li style="--c:var(--s${secC(mod, s.n)})"><a href="#/m/${mod}/${s.n}"><b>${s.n}</b>${esc(s.title)}</a></li>`).join("")}</ol>
     </article>`;
@@ -883,7 +913,7 @@ function foldBody(body, prefix) {
   const L = body.split("\n"), re = new RegExp("^@@fold!?\\s+" + prefix, "i"), i = L.findIndex(l => re.test(l.trim()));
   if (i < 0) return "";
   let d = 1, j = i + 1;
-  for (; j < L.length; j++) { const t = L[j].trim(); if (/^@@(tabs|fold|calc)/.test(t)) d++; else if (t === "@@end" && --d === 0) break; }
+  for (; j < L.length; j++) { const t = L[j].trim(); if (/^@@(tabs|fold|calc|flow|stages)/.test(t)) d++; else if (t === "@@end" && --d === 0) break; }
   return L.slice(i + 1, j).join("\n");
 }
 
@@ -905,8 +935,8 @@ function diseasePage(n, sec) {
   pushRecent(n.id, sec);
   const mod = n.module, dk = secByType(mod, "diseases") || 5, body = isSummary ? summaryOnly(secs[9].body) : secs[sec].body;
   const col = `var(--${SECCOL[sec]})`, cont = withToc(md(relabel(body)));
-  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${dk} ${secOf(mod, dk).title}`, href: `#/m/${mod}/${dk}` }])}
-    ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: esc(n.title), badges: khung })}
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${dk} ${secOf(mod, dk).title}`, href: `#/m/${mod}/${dk}` }, { t: n.title }])}
+    ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: `${esc(n.title)}${n.en ? ` <small class="en">${esc(n.en)}</small>` : ""}`, badges: khung })}
     <div class="dtabs">${SECS.filter(([num]) => secs[num]).map(([num, t, c]) => `<a class="dt${num === sec ? " on" : ""}" style="--c:var(--${c})" href="#/n/${n.id}/${num}"><b>${dnum(num)}</b> ${t}</a>`).join("")}${secs[9] ? `<a class="dt sum${isSummary ? " on" : ""}" href="#/n/${n.id}/9">★ Tóm tắt</a>` : ""}</div>
     ${!isSummary && sec === have[0] && pre.trim() ? `<div class="pre">${md(relabel(pre))}</div>` : ""}
     <div class="notepage" style="--c:${col}">${tocBox(cont.items)}${cont.html}</div>
@@ -958,7 +988,7 @@ function cardsHome() {
     const fo = ns.filter(n => n.kind !== "disease");
     const lib = LIBS.map(([k, t]) => [t, fo.filter(n => libOf(n) === k)]).concat([["Bài khác", fo.filter(n => !libOf(n))]]).filter(([, l]) => l.length);
     const dueMod = cardStat(allCards.filter(c => byId[c.note].module === mod)).due;
-    return `<section><h2>${esc(MODULES[mod] || mod)}${dueMod ? ` <small class="cdue">${dueMod} cần ôn</small>` : ""}</h2>
+    return `<section><h2>${modLabel(mod)}${dueMod ? ` <small class="cdue">${dueMod} cần ôn</small>` : ""}</h2>
       ${dis.length ? `<h3>Theo bệnh học</h3><div class="decks">${dis.map(n => deck(n, "s5")).join("")}</div>` : ""}
       ${lib.map(([t, l]) => `<h3>${esc(t)}</h3><div class="decks">${l.map(n => deck(n, "s3")).join("")}</div>`).join("")}
       ${dis.length || fo.length ? "" : `<p class="meta">Chưa có thẻ.</p>`}</section>`;
@@ -1060,12 +1090,12 @@ function luudoGraph(g) {
   const { box, W, H, back, fwd } = fcLayout(g), cx = b => b.x + b.w / 2, cy = b => b.y + b.h / 2;
   const edgeSvg = e => {
     const a = box[e[0]], b = box[e[1]];
-    const goLeft = cx(b) < cx(a) - 1, lx = cx(a) + (goLeft ? -8 : 8), lab = e[2] ? `<text class="fc-lab" text-anchor="${goLeft ? "end" : "start"}" x="${lx.toFixed(1)}" y="${(a.y + a.h + 14).toFixed(1)}">${esc(e[2])}</text>` : "";
+    const ym = (a.y + a.h + b.y) / 2, yn = e[2] === "Có" ? " fc-yes" : e[2] === "Không" ? " fc-no" : "";
+    const lab = e[2] ? `<text class="fc-lab${yn}" x="${(cx(b) + 7).toFixed(1)}" y="${((ym + b.y) / 2 + 4).toFixed(1)}">${esc(e[2])}</text>` : "";
     if (back.includes(e)) {
       const xr = Math.max(a.x + a.w, b.x + b.w) + 26, y1 = cy(a), y2 = cy(b);
       return `<path class="fc-edge fc-back" d="M${a.x + a.w},${y1} H${xr} V${y2} H${b.x + b.w}" marker-end="url(#fc-arr)"/><text class="fc-lab" x="${xr + 6}" y="${(y1 + y2) / 2}">lặp lại</text>`;
     }
-    const ym = (a.y + a.h + b.y) / 2;
     return `<path class="fc-edge" d="M${cx(a)},${a.y + a.h} V${ym} H${cx(b)} V${b.y}" marker-end="url(#fc-arr)"/>${lab}`;
   };
   const nodeSvg = n => {
@@ -1075,7 +1105,7 @@ function luudoGraph(g) {
     const text = b.lines.map((l, i) => `<tspan x="${cx(b)}" dy="${i ? 18 : 0}">${esc(l)}</tspan>`).join("");
     const t = `<text class="fc-txt" x="${cx(b)}" y="${y + (h - b.lines.length * 18) / 2 + 13}" text-anchor="middle">${text}</text>`;
     const inner = `<g class="fc-node ${cls}">${shape}${t}</g>`;
-    return n.bai && n.bai.length && byId[n.bai[0]] ? `<a href="#/n/${n.bai[0]}">${inner}</a>` : inner;
+    return n.href ? `<a href="${esc(n.href)}">${inner}</a>` : n.bai && n.bai.length && byId[n.bai[0]] ? `<a href="#/n/${n.bai[0]}">${inner}</a>` : inner;
   };
   return `<div class="fcwrap"><svg class="fc" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Lưu đồ"><defs><marker id="fc-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${g.edges.map(edgeSvg).join("")}${g.nodes.map(nodeSvg).join("")}</svg></div>`;
 }
@@ -1270,6 +1300,358 @@ const GLOSS = [
   ["tiểu khó", "Tiểu đau, tia nước yếu, hoặc phải rặn mới tiểu được."],
   ["khàn giọng", "Giọng bị khản, đổi khác, thường do dây thanh âm bị ảnh hưởng."],
   ["tiểu đêm", "Phải thức dậy ban đêm để đi tiểu."],
+  ["sốt", "Thân nhiệt tăng trên 38°C. Có thể do nhiễm trùng hoặc do chính khối u."],
+  ["đau bụng", "Cảm giác đau vùng bụng, có thể âm ỉ hoặc dữ dội."],
+  ["buồn nôn", "Cảm giác muốn nôn, không nhất thiết phải nôn ra."],
+  ["nôn", "Đẩy thức ăn hoặc dịch từ dạ dày ra ngoài qua miệng."],
+  ["tràn dịch màng phổi", "Dịch tích tụ giữa hai lá màng phổi, gây đau ngực và khó thở."],
+  ["báng bụng", "Dịch tích tụ trong ổ bụng làm bụng to lên. Cùng nghĩa với cổ trướng."],
+  ["loét", "Tổn thương hở trên da hoặc niêm mạc, khó lành."],
+  ["nốt", "Một tổn thương nhỏ nổi lên trên da hoặc niêm mạc."],
+  ["hạch", "Cấu trúc nhỏ dọc đường bạch huyết. Hạch to, chắc, không đau có thể do ung thư lan đến."],
+  ["nuốt đau", "Đau khi nuốt thức ăn, nước bọt hoặc thuốc."],
+  ["đau ngực", "Cảm giác đau, tức hoặc nặng ở vùng ngực."],
+  ["ho khan", "Ho không có đờm, kéo dài nhiều tuần cần khám."],
+  ["xuất huyết âm đạo", "Chảy máu từ âm đạo, nhất là ngoài kỳ kinh hoặc sau mãn kinh."],
+  ["đi ngoài ra máu", "Phân lẫn máu hoặc máu tươi khi đi cầu."],
+  ["phân đen", "Phân màu đen như hắc ín, thường do chảy máu ở đường tiêu hóa trên."],
+  ["da cam", "Da sần sùi, lỗ chân lông nổi rõ, giống vỏ cam. Thường gặp trong ung thư vú giai đoạn muộn."],
+  ["tụt núm", "Núm vú bị kéo vào trong so với bên lành."],
+  ["co kéo da", "Da bị kéo lõm lại, thường do khối u dính vào mô bên dưới."],
+];
+// Chữ viết tắt trong module Ung bướu (khớp đúng hoa thường, không chặn số lần xuất hiện)
+const ABBR = [
+  ["UT", "Ung thư (cancer)"],
+  ["CT", "Chụp cắt lớp vi tính"],
+  ["MRI", "Chụp cộng hưởng từ"],
+  ["HER2", "Gen mã hóa một thụ thể tyrosine kinase, dấu ấn sinh học"],
+  ["PET", "Kỹ thuật chẩn đoán hình ảnh chuyển hóa bằng positron"],
+  ["DNA", "Axit deoxyribonucleic (ADN), vật chất di truyền"],
+  ["ER", "Thụ thể estrogen, dấu ấn sinh học trong ung thư"],
+  ["TNM", "Hệ thống phân loại khối u, hạch và di căn (T: khối u; N: hạch; M: di căn xa)"],
+  ["PSA", "Kháng nguyên đặc hiệu tuyến tiền liệt (prostate-specific antigen), dấu ấn sinh học do tuyến tiền liệt tiết ra"],
+  ["BRCA", "Gen ung thư vú"],
+  ["CEA", "Dấu ấn ung thư (kháng nguyên ung thư phôi) trong máu"],
+  ["HPV", "Virus u nhú ở người"],
+  ["AFP", "Protein thai nhi, dấu ấn ung thư gan, tế bào mầm"],
+  ["EGFR", "Gen mã hóa một thụ thể tyrosine kinase"],
+  ["PR", "Thụ thể progesterone trên tế bào ung thư, dấu ấn nội tiết"],
+  ["PD-L1", "Dấu ấn sinh học, protein thuộc nhóm ligand của PD-1"],
+  ["FNA", "Chọc hút tế bào bằng kim nhỏ"],
+  ["AJCC", "Ủy ban chung Hoa Kỳ về ung thư, ban hành phân giai đoạn TNM"],
+  ["NSCLC", "Ung thư phổi không tế bào nhỏ"],
+  ["MSI", "Bất ổn định vi vệ tinh (dấu ấn sai sót sửa chữa DNA)"],
+  ["ECOG", "Thang đánh giá tình trạng toàn thân người bệnh ung thư"],
+  ["SCLC", "Ung thư phổi tế bào nhỏ"],
+  ["BRAF", "Gen mã hóa một enzym kinase"],
+  ["BRCA1", "Gen mã hóa protein sửa chữa DNA (ung thư vú, buồng trứng)"],
+  ["BYT", "Cơ quan ban hành hướng dẫn và phác đồ điều trị quốc gia"],
+  ["KRAS", "Gen mã hóa một protein GTPase nhỏ (họ RAS)"],
+  ["ALK", "Gen mã hóa một thụ thể tyrosine kinase"],
+  ["RAS", "Nhóm gen mã hóa protein G nhỏ (gen sinh ung)"],
+  ["WHO", "Tổ chức Y tế Thế giới"],
+  ["EBV", "Virus thuộc họ herpes"],
+  ["GPB", "Giải phẫu bệnh: chẩn đoán bệnh qua mẫu mô và tế bào"],
+  ["AUC", "Diện tích dưới đường cong nồng độ–thời gian của thuốc"],
+  ["FIGO", "Liên đoàn Sản phụ khoa Quốc tế, hệ thống phân giai đoạn ung thư phụ khoa"],
+  ["BI-RADS", "Hệ thống phân loại kết quả chẩn đoán hình ảnh vú"],
+  ["FOLFOX", "Phác đồ hóa chất gồm 5-fluorouracil, leucovorin (acid folinic) và oxaliplatin"],
+  ["KPS", "Thang đánh giá toàn trạng Karnofsky"],
+  ["AI", "Nhóm thuốc nội tiết ức chế enzym aromatase"],
+  ["FAP", "Hội chứng đa polyp tuyến gia đình, di truyền"],
+  ["BRCA1/2", "Nhóm gen mã hóa protein sửa chữa ADN"],
+  ["MMR", "Hệ thống sửa chữa ghép cặp sai trong DNA"],
+  ["ACS", "Hiệp hội Ung thư Hoa Kỳ (tổ chức ban hành khuyến cáo)"],
+  ["HCC", "Ung thư biểu mô tế bào gan"],
+  ["dMMR", "Mất chức năng sửa chữa ghép cặp sai"],
+  ["pTNM", "Phân loại TNM dựa trên đánh giá sau mổ, giải phẫu bệnh"],
+  ["TACE", "Hóa trị kết hợp nút mạch qua động mạch"],
+  ["TSH", "Hormon kích thích tuyến giáp"],
+  ["TKI", "Thuốc ức chế enzym tyrosin kinase"],
+  ["HBV", "Virus viêm gan B"],
+  ["BCLC", "Hệ thống phân giai đoạn và điều trị ung thư gan"],
+  ["PARP", "Nhóm enzym sửa chữa ADN"],
+  ["FIT", "Xét nghiệm miễn dịch phát hiện máu ẩn trong phân"],
+  ["CA-125", "Dấu ấn ung thư, glycoprotein do tế bào biểu mô tạo ra"],
+  ["APC", "Gen mã hóa một protein ức chế khối u"],
+  ["XHTH", "Chảy máu trong đường tiêu hóa"],
+  ["TDMP", "Tích tụ dịch trong khoang màng phổi"],
+  ["CIN", "Tân sinh trong biểu mô cổ tử cung"],
+  ["FOLFIRI", "Phác đồ hóa chất gồm fluorouracil, leucovorin và irinotecan"],
+  ["UTG", "Bệnh ung thư xuất phát từ gan"],
+  ["pCR", "Đáp ứng hoàn toàn về giải phẫu bệnh sau điều trị"],
+  ["CSGN", "Chăm sóc giảm triệu chứng, nâng cao chất lượng sống"],
+  ["UICC", "Liên minh Chống Ung thư Quốc tế"],
+  ["HCV", "Virus viêm gan C"],
+  ["RET", "Gen mã hóa một thụ thể tyrosine kinase"],
+  ["TME", "Cắt trọn mạc treo trực tràng (phẫu thuật ung thư trực tràng)"],
+  ["ASC-H", "Tế bào vảy không điển hình, chưa loại trừ tổn thương nội biểu mô vảy độ cao"],
+  ["UV", "Tia cực tím"],
+  ["SIRT", "Xạ trị nội bức xạ chọn lọc bằng vi cầu phóng xạ"],
+  ["EUS", "Siêu âm nội soi"],
+  ["NRAS", "Gen mã hóa một protein GTPase nhỏ (họ RAS)"],
+  ["LCIS", "Carcinôm tiểu thùy tại chỗ"],
+  ["IMRT", "Xạ trị điều biến cường độ"],
+  ["cTNM", "Phân giai đoạn TNM lâm sàng, trước phẫu thuật"],
+  ["IARC", "Cơ quan Nghiên cứu Ung thư Quốc tế, thuộc WHO"],
+  ["CD4", "Dấu ấn bề mặt tế bào lympho T hỗ trợ"],
+  ["HIV", "Virus gây suy giảm miễn dịch ở người"],
+  ["FDA", "Cục Quản lý Thực phẩm và Dược phẩm Hoa Kỳ"],
+  ["LDH", "Enzym lactat dehydrogenase, dấu ấn sinh học"],
+  ["SPECT", "Chụp cắt lớp phát xạ photon đơn"],
+  ["BRCA2", "Gen ức chế khối u, tham gia sửa chữa DNA"],
+  ["UTBT", "Ung thư phát sinh từ buồng trứng"],
+  ["SIADH", "Hội chứng tiết hormon chống bài niệu không thích hợp"],
+  ["SCC", "Dấu ấn ung thư tế bào vảy (kháng nguyên trong máu)"],
+  ["CIMP", "Kiểu hình tăng methyl hóa vùng đảo CpG của khối u"],
+  ["NTRK", "Gen mã hóa một thụ thể tyrosine kinase"],
+  ["DCIS", "Ung thư biểu mô ống tuyến vú tại chỗ"],
+  ["hCG", "Hormon do nhau thai tiết ra"],
+  ["VCA", "Kháng nguyên vỏ của virus Epstein–Barr"],
+  ["ADT", "Điều trị ức chế androgen, giảm hormon nam"],
+  ["FEC", "Phác đồ hóa chất gồm fluorouracil, epirubicin và cyclophosphamid"],
+  ["PTEN", "Gen mã hóa một enzym phosphatase"],
+  ["UFT", "Thuốc hóa chất uống phối hợp tegafur và uracil"],
+  ["AASLD", "Hiệp hội nghiên cứu bệnh gan Hoa Kỳ"],
+  ["HNPCC", "Ung thư đại trực tràng di truyền không polyp, còn gọi hội chứng Lynch"],
+  ["TTM", "Đường đưa thuốc vào tĩnh mạch"],
+  ["ROS1", "Gen mã hóa một thụ thể tyrosine kinase"],
+  ["NSAID", "Thuốc chống viêm không steroid"],
+  ["ADH", "Tăng sản ống tuyến vú không điển hình"],
+  ["FOBT", "Xét nghiệm tìm máu ẩn trong phân"],
+  ["SBRT", "Xạ trị định vị lập thể ngoài sọ"],
+  ["ENE", "Hạch lan ra ngoài vỏ bao hạch"],
+  ["PI3K", "Enzym kinase thuộc họ phosphoinositid 3-kinase"],
+  ["NHL", "U lympho không Hodgkin"],
+  ["CD8", "Dấu ấn bề mặt đặc trưng của lympho T gây độc"],
+  ["MLH1", "Gen mã hóa protein sửa chữa sai sót khi nhân đôi DNA"],
+  ["CK", "Protein khung tế bào biểu mô, dấu ấn hóa mô miễn dịch"],
+  ["TP53", "Gen mã hóa protein ức chế khối u"],
+  ["GIST", "U mô đệm đường tiêu hóa"],
+  ["NCCN", "Tổ chức ban hành hướng dẫn điều trị ung thư Hoa Kỳ"],
+  ["DCP", "Dấu ấn ung thư gan (prothrombin bất thường, còn gọi PIVKA-II)"],
+  ["ATA", "Hiệp hội tuyến giáp Hoa Kỳ"],
+  ["VABB", "Sinh thiết vú bằng kim hút chân không"],
+  ["FOLFOX4", "Phác đồ hóa chất gồm fluorouracil, leucovorin và oxaliplatin"],
+  ["PIK3CA", "Gen mã hóa một enzym kinase (tiểu đơn vị xúc tác PI3K)"],
+  ["TIRADS", "Hệ thống phân loại nguy cơ ác tính nhân giáp trên siêu âm"],
+  ["UTCTC", "Bệnh ung thư xuất phát từ cổ tử cung"],
+  ["NSE", "Dấu ấn enzym enolase đặc hiệu tế bào thần kinh"],
+  ["CD20", "Dấu ấn bề mặt tế bào lympho B (kháng nguyên CD20)"],
+  ["MEN", "Hội chứng tân sinh nội tiết đa tuyến di truyền"],
+  ["RTOG", "Nhóm hợp tác nghiên cứu xạ trị ung thư Hoa Kỳ"],
+  ["BEP", "Phác đồ hóa chất gồm bleomycin, etoposid và cisplatin"],
+  ["GnRH", "Hormone giải phóng gonadotropin của vùng dưới đồi"],
+  ["IHC", "Hóa mô miễn dịch"],
+  ["CDH1", "Gen mã hóa một protein kết dính tế bào (E-cadherin)"],
+  ["IBS", "Hội chứng ruột kích thích"],
+  ["RNA", "Axit ribonucleic (ARN), phân tử sinh học"],
+  ["PCR", "Phản ứng chuỗi polymerase, kỹ thuật khuếch đại DNA"],
+  ["RFA", "Đốt u bằng sóng cao tần"],
+  ["VEGF", "Yếu tố tăng trưởng nội mô mạch máu, một protein"],
+  ["LHRH", "Hormone giải phóng hormone luteinizing (tương tự GnRH)"],
+  ["HDGC", "Ung thư dạ dày lan tỏa di truyền"],
+  ["UNMTC", "Ung thư lớp niêm mạc lót buồng tử cung"],
+  ["LVSI", "Xâm lấn khoang mạch bạch huyết và mạch máu"],
+  ["XP", "Phác đồ hóa chất gồm capecitabin và cisplatin"],
+  ["VMAT", "Xạ trị điều biến thể tích theo cung tròn"],
+  ["CPS", "Chỉ số đánh giá biểu hiện PD-L1 (tổng điểm dương tính)"],
+  ["UTTL", "Ung thư xuất phát từ tuyến tiền liệt"],
+  ["HE4", "Dấu ấn sinh học, protein của biểu mô đường sinh dục"],
+  ["NK", "Tế bào diệt tự nhiên thuộc hệ miễn dịch bẩm sinh"],
+  ["ACOG", "Hiệp hội Sản phụ khoa Hoa Kỳ, đơn vị ban hành hướng dẫn"],
+  ["HPV-DNA", "Xét nghiệm phát hiện DNA của virus papilloma ở người"],
+  ["FEV1", "Thể tích khí thở ra gắng sức trong giây đầu"],
+  ["INR", "Tỷ số chuẩn hóa quốc tế đo thời gian đông máu"],
+  ["FOLFOXIRI", "Phác đồ hóa chất gồm fluorouracil, leucovorin, oxaliplatin và irinotecan"],
+  ["gFOBT", "Xét nghiệm máu ẩn trong phân dựa trên phản ứng guaiac"],
+  ["UTTQ", "Ung thư thực quản"],
+  ["UTTG", "Ung thư xuất phát từ tuyến giáp"],
+  ["FISH", "Kỹ thuật lai huỳnh quang tại chỗ để phát hiện bất thường gen"],
+  ["MHC", "Phức hợp tương hợp mô chính, trình diện kháng nguyên"],
+  ["RECIST", "Tiêu chuẩn đánh giá đáp ứng của khối u đặc"],
+  ["ypTNM", "Phân giai đoạn TNM giải phẫu bệnh sau điều trị tân hỗ trợ"],
+  ["PTH", "Hormon cận giáp"],
+  ["ctDNA", "DNA của khối u lưu hành trong máu"],
+  ["CDK4/6", "Enzym kinase điều hòa chu kỳ tế bào (CDK4 và CDK6)"],
+  ["CD45", "Dấu ấn bề mặt tế bào, kháng nguyên bạch cầu chung"],
+  ["TPF", "Phác đồ hóa chất gồm docetaxel, cisplatin và fluorouracil"],
+  ["MSH2", "Gen mã hóa protein sửa chữa ghép cặp sai DNA"],
+  ["MSS", "Ổn định vi vệ tinh, không mất ổn định MSI"],
+  ["mRECIST", "Tiêu chuẩn đánh giá đáp ứng sửa đổi cho ung thư gan"],
+  ["AIS", "Ung thư biểu mô tuyến tại chỗ"],
+  ["mRNA", "RNA thông tin, mang mã để tổng hợp protein"],
+  ["HDAC", "Enzym tháo nhóm acetyl khỏi histon"],
+  ["TEM", "Phẫu thuật cắt u qua hậu môn bằng nội soi"],
+  ["AKT", "Gen mã hóa một enzym kinase (protein kinase B)"],
+  ["EMR", "Cắt niêm mạc qua nội soi"],
+  ["ESD", "Kỹ thuật cắt bóc lớp dưới niêm mạc qua nội soi"],
+  ["FAC", "Phác đồ hóa chất gồm fluorouracil, doxorubicin và cyclophosphamid"],
+  ["AMH", "Hormon kháng Müller, dấu ấn chức năng buồng trứng"],
+  ["ECF", "Phác đồ hóa chất gồm epirubicin, cisplatin và fluorouracil"],
+  ["CD47", "Protein bề mặt tế bào miễn dịch (kháng nguyên CD47)"],
+  ["EMT", "Quá trình chuyển dạng biểu mô thành trung mô"],
+  ["EMA", "Dấu ấn mô học, kháng nguyên màng biểu mô"],
+  ["CD117", "Dấu ấn bề mặt tế bào, tương ứng thụ thể KIT"],
+  ["SSP", "Polyp răng cưa không cuống của đại tràng"],
+  ["EASL", "Hiệp hội Nghiên cứu Gan châu Âu"],
+  ["VATS", "Phẫu thuật nội soi lồng ngực có hỗ trợ video"],
+  ["IORT", "Xạ trị thực hiện trong lúc phẫu thuật"],
+  ["mTOR", "Gen mã hóa một enzym kinase điều hòa tăng trưởng tế bào"],
+  ["TURP", "Cắt đốt tuyến tiền liệt qua niệu đạo"],
+  ["ACR", "Hiệp hội Phóng xạ học Hoa Kỳ (ban hành phân loại hình ảnh)"],
+  ["HMB45", "Kháng thể hóa mô miễn dịch đánh dấu tế bào hắc tố"],
+  ["GERD", "Bệnh trào ngược dạ dày–thực quản"],
+  ["ProGRP", "Dấu ấn ung thư, peptid tiền thân giải phóng gastrin"],
+  ["ycTNM", "Phân giai đoạn TNM lâm sàng sau tân hỗ trợ, trước phẫu thuật"],
+  ["PFS", "Thời gian sống không tiến triển bệnh"],
+  ["MGMT", "Gen mã hóa enzym sửa chữa DNA"],
+  ["NER", "Cơ chế sửa chữa DNA bằng cắt bỏ nucleotid"],
+  ["HBsAg", "Kháng nguyên bề mặt của virus viêm gan B"],
+  ["ACTH", "Hormon kích thích vỏ thượng thận"],
+  ["TNT", "Điều trị tân hỗ trợ toàn diện trước phẫu thuật"],
+  ["ICI", "Thuốc ức chế điểm kiểm soát miễn dịch"],
+  ["XELOX", "Phác đồ hóa chất gồm capecitabin và oxaliplatin"],
+  ["HCG", "Hormon sinh dục màng đệm người, dấu ấn sinh học"],
+  ["ALDH2", "Gen mã hóa một enzym chuyển hóa aldehyd"],
+  ["SERM", "Thuốc điều biến thụ thể estrogen chọn lọc"],
+  ["ROMA", "Thuật toán đánh giá nguy cơ ác tính buồng trứng"],
+  ["LEEP", "Cắt tổn thương cổ tử cung bằng vòng dây điện cao tần"],
+  ["CAF", "Phác đồ hóa chất gồm cyclophosphamid, doxorubicin và fluorouracil"],
+  ["CA125", "Dấu ấn ung thư (kháng nguyên 125) trong máu"],
+  ["BHYT", "Chế độ bảo hiểm chi trả chi phí khám, chữa bệnh"],
+  ["NHEJ", "Nối tận không đồng nhất, sửa chữa gãy đôi DNA"],
+  ["HAT", "Enzym gắn nhóm acetyl vào histon"],
+  ["MLO", "Tư thế chụp nhũ ảnh xiên trung–bên"],
+  ["SMAD4", "Gen mã hóa một protein truyền tín hiệu SMAD"],
+  ["CIMP-high", "Kiểu hình methyl hóa đảo CpG mức cao"],
+  ["FOLFOX6", "Phác đồ hóa chất gồm leucovorin, fluorouracil và oxaliplatin"],
+  ["SENSA", "Tên thương mại xét nghiệm máu ẩn trong phân (guaiac)"],
+  ["PIAF", "Phác đồ hóa chất gồm platin, interferon alfa, doxorubicin và fluorouracil"],
+  ["ASCO", "Hiệp hội ung thư lâm sàng Hoa Kỳ"],
+  ["ALP", "Enzym phosphatase kiềm, một chỉ số men gan"],
+  ["ISH", "Lai tại chỗ"],
+  ["MALT", "U lympho mô lympho liên quan niêm mạc"],
+  ["ECG", "Điện tâm đồ"],
+  ["FOLFOX/CapeOX", "Phác đồ hóa chất FOLFOX hoặc CapeOX, đều có oxaliplatin"],
+  ["CTL", "Lympho T độc tế bào (CD8+)"],
+  ["FNAC", "Chọc hút kim nhỏ lấy tế bào làm xét nghiệm"],
+  ["LVI", "Xâm lấn mạch bạch huyết hoặc mạch máu"],
+  ["rTNM", "Phân giai đoạn TNM cho ung thư tái phát"],
+  ["UV-A", "Tia cực tím loại A"],
+  ["CHOP", "Phác đồ hóa chất gồm cyclophosphamid, doxorubicin, vincristin và prednison"],
+  ["ABVD", "Phác đồ hóa chất gồm doxorubicin, bleomycin, vinblastin và dacarbazin"],
+  ["BEACOPP", "Phác đồ hóa chất gồm bleomycin, etoposid, doxorubicin, cyclophosphamid, vincristin, pro..."],
+  ["AST", "Men gan aspartate aminotransferase"],
+  ["ALT", "Men gan (enzym), xét nghiệm đánh giá chức năng gan"],
+  ["DFS", "Thời gian sống không bệnh (không tái phát)"],
+  ["CMV", "Virus nhóm herpes gây nhiễm trùng cơ hội"],
+  ["FLOT", "Phác đồ hóa chất gồm fluorouracil, leucovorin, oxaliplatin và docetaxel"],
+  ["ATM", "Gen mã hóa một kinase đáp ứng tổn thương DNA"],
+  ["CMF", "Phác đồ hóa chất gồm cyclophosphamid, methotrexat và fluorouracil"],
+  ["DCF", "Phác đồ hóa chất gồm docetaxel, cisplatin và 5-fluorouracil"],
+  ["HLA", "Hệ kháng nguyên bạch cầu người (tương hợp mô)"],
+  ["SKSS", "Tình trạng sức khỏe liên quan sinh sản và hệ sinh dục"],
+  ["CLL", "Bệnh bạch cầu lympho mạn"],
+  ["CML", "Bạch cầu dòng tủy mạn tính"],
+  ["CCL22", "Gen mã hóa một chemokine thu hút tế bào"],
+  ["CCR4", "Gen mã hóa một thụ thể chemokine (trên tế bào T điều hòa)"],
+  ["ICU", "Đơn vị hồi sức tích cực"],
+  ["HBOC", "Hội chứng ung thư vú–buồng trứng di truyền"],
+  ["FSH", "Hormon kích thích nang trứng"],
+  ["ICE", "Phác đồ hóa chất gồm ifosfamid, carboplatin và etoposid"],
+  ["DISC", "Phức hợp tín hiệu gây chết tế bào (đường ngoại sinh)"],
+  ["LCA", "Dấu ấn hóa mô miễn dịch của tế bào bạch cầu (CD45)"],
+  ["CK8/18", "Dấu ấn mô học, cytokeratin của tế bào biểu mô"],
+  ["HNPCC/Lynch", "Ung thư đại trực tràng di truyền không đa polyp (hội chứng Lynch)"],
+  ["LKB1", "Gen mã hóa một enzym kinase"],
+  ["DRE", "Thăm khám trực tràng bằng ngón tay"],
+  ["DOG1", "Dấu ấn hóa mô miễn dịch của u mô đệm đường tiêu hóa"],
+  ["mFOLFOX6", "Phác đồ FOLFOX cải biên gồm oxaliplatin, leucovorin và 5-fluorouracil"],
+  ["FOLFOX7", "Phác đồ hóa chất gồm fluorouracil, leucovorin và oxaliplatin"],
+  ["XELOX/CapeOX", "Phác đồ hóa chất gồm capecitabin và oxaliplatin"],
+  ["XELIRI", "Phác đồ hóa chất gồm capecitabin và irinotecan"],
+  ["ILF", "Phác đồ hóa chất gồm irinotecan, leucovorin và fluorouracil"],
+  ["IRINOX", "Phác đồ hóa chất gồm irinotecan và oxaliplatin"],
+  ["FIT/iFOBT", "Xét nghiệm hóa miễn dịch tìm máu ẩn trong phân"],
+  ["DCU", "Phác đồ hóa chất gồm docetaxel, cisplatin và tegafur–uracil"],
+  ["PPI", "Thuốc ức chế bơm proton, giảm tiết acid dạ dày"],
+  ["CAV", "Phác đồ hóa chất gồm cyclophosphamid, doxorubicin và vincristin"],
+  ["CAE", "Phác đồ hóa chất gồm cyclophosphamid, doxorubicin và etoposid"],
+  ["ALH", "Tăng sản tiểu thùy không điển hình (tổn thương tiền ung thư vú)"],
+  ["TAC", "Phác đồ hóa chất gồm docetaxel, doxorubicin và cyclophosphamid"],
+  ["TCH", "Phác đồ hóa chất gồm docetaxel, carboplatin và trastuzumab"],
+  ["IOTA/O-RADS", "Hệ thống phân loại nguy cơ khối u buồng trứng trên siêu âm"],
+  ["LH", "Hormon kích thích hoàng thể, do tuyến yên tiết"],
+  ["PVB", "Phác đồ hóa chất gồm cisplatin, vinblastin và bleomycin"],
+  ["PTV", "Thể tích đích dùng để lập kế hoạch xạ trị"],
+  ["ECX", "Phác đồ hóa chất gồm epirubicin, cisplatin và capecitabin"],
+  ["EOX", "Phác đồ hóa chất gồm epirubicin, oxaliplatin và capecitabin"],
+  ["CBL", "Buổi học thảo luận theo ca lâm sàng"],
+  ["GFR", "Mức lọc cầu thận, chỉ số chức năng thận"],
+  ["CYP17", "Gen mã hóa enzym cytochrome, tham gia tổng hợp steroid"],
+  ["EGF", "Yếu tố tăng trưởng biểu bì, phối tử của EGFR"],
+  ["HIPEC", "Hóa trị tăng thân nhiệt trong ổ bụng"],
+  ["Melan-A/MART-1", "Dấu ấn biệt hóa của tế bào hắc tố"],
+  ["MAGE", "Họ gen mã hóa kháng nguyên ung thư"],
+  ["NKG2D", "Thụ thể hoạt hóa trên bề mặt tế bào NK"],
+  ["CD55", "Protein bề mặt tế bào điều hòa hoạt hóa bổ thể"],
+  ["CD59", "Dấu ấn bề mặt tế bào, protein điều hòa bổ thể"],
+  ["CD25", "Dấu ấn bề mặt tế bào, chuỗi alpha của thụ thể interleukin-2"],
+  ["aTNM", "Phân loại TNM chỉ xác định khi khám nghiệm tử thi"],
+  ["ERCC1", "Gen mã hóa protein tham gia sửa chữa DNA"],
+  ["ERCC4", "Gen mã hóa protein sửa chữa ADN"],
+  ["KU70/80", "Phức hợp protein sửa chữa ADN Ku70 và Ku80"],
+  ["PADUA", "Thang điểm dự báo nguy cơ huyết khối tĩnh mạch nội trú"],
+  ["TRAIL", "Phối tử thuộc họ TNF, tham gia tín hiệu chết tế bào"],
+  ["TNFR1", "Thụ thể bề mặt tế bào gắn yếu tố hoại tử u"],
+  ["UTPTBN", "Nhóm ung thư phổi có tế bào nhỏ (SCLC)"],
+  ["PTHrP", "Peptid liên quan hormon cận giáp, chất cận u"],
+  ["AFB/Xpert", "Xét nghiệm đờm tìm lao: soi AFB và Xpert"],
+  ["FVC", "Dung tích sống gắng sức, chỉ số chức năng hô hấp"],
+  ["PORT", "Xạ trị sau phẫu thuật"],
+  ["FISH/CISH", "Kỹ thuật lai tại chỗ phát hiện bất thường gen hoặc nhiễm sắc thể"],
+  ["MTX", "Thuốc chống chuyển hóa methotrexat"],
+  ["DHEA", "Hormon steroid androgen, dấu ấn nội tiết"],
+  ["IGRT", "Xạ trị có dẫn đường bằng hình ảnh"],
+  ["EBRT", "Xạ trị bằng chùm tia từ ngoài cơ thể"],
+  ["ERBB2", "Gen mã hóa một thụ thể tyrosine kinase (HER2)"],
+  ["CD46", "Protein màng điều hòa hệ bổ thể, dấu ấn bề mặt"],
+  ["FOXP3", "Gen mã hóa yếu tố phiên mã của lympho T điều hòa"],
+  ["IDO", "Enzym chuyển hóa tryptophan"],
+  ["rcTNM", "Phân loại TNM tái phát theo lâm sàng"],
+  ["rpTNM", "Phân giai đoạn TNM tái phát, theo giải phẫu bệnh"],
+  ["HTLV1", "Retrovirus hướng tế bào lympho T ở người"],
+  ["HSV8", "Virus herpes ở người, liên quan sarcom Kaposi"],
+  ["HBOCS", "Hội chứng ung thư vú–buồng trứng di truyền"],
+  ["SSBR", "Cơ chế sửa chữa đứt gãy đơn mạch DNA"],
+  ["BER", "Cơ chế sửa chữa DNA bằng cắt bỏ base"],
+  ["PARP1", "Gen mã hóa một enzym sửa chữa DNA"],
+  ["DSBR", "Cơ chế sửa chữa đứt gãy đôi mạch DNA"],
+  ["TRADD", "Gen mã hóa protein tiếp hợp tín hiệu gây chết tế bào"],
+  ["FADD", "Gen mã hóa protein tiếp hợp tín hiệu gây chết tế bào"],
+  ["HMT", "Enzym gắn nhóm methyl lên histon"],
+  ["HDM", "Enzym tháo nhóm methyl khỏi histon"],
+  ["T-CD8", "Tế bào lympho T mang dấu ấn CD8"],
+  ["CK10/13", "Dấu ấn hóa mô miễn dịch của biểu mô vảy"],
+  ["CK7", "Dấu ấn hóa mô miễn dịch thuộc nhóm cytokeratin"],
+  ["TCF", "Phác đồ hóa chất gồm docetaxel, cisplatin và fluorouracil"],
+  ["CK5/6", "Dấu ấn hóa mô miễn dịch của tế bào biểu mô"],
+  ["TTF1", "Dấu ấn hóa mô miễn dịch, yếu tố phiên mã"],
+  ["CEV", "Phác đồ hóa chất gồm cyclophosphamid, epirubicin và vincristin"],
+  ["VIP", "Phác đồ hóa chất gồm etoposid, ifosfamid và cisplatin"],
+  ["CHEK2", "Gen mã hóa một enzym kinase kiểm soát chu kỳ tế bào"],
+  ["PPV", "Giá trị tiên đoán dương"],
+  ["CEF", "Phác đồ hóa chất gồm cyclophosphamid, epirubicin và fluorouracil"],
+  ["PAC", "Phác đồ hóa chất gồm cisplatin, doxorubicin và cyclophosphamid"],
+  ["VAC", "Phác đồ hóa chất gồm vincristin, dactinomycin và cyclophosphamid"],
+  ["PEI", "Phác đồ hóa chất gồm ifosfamid, etoposid và cisplatin"],
+  ["CTV", "Thể tích đích lâm sàng cần đưa liều xạ trị"],
+  ["CTC/Pap", "Tầm soát ung thư cổ tử cung bằng tế bào học (Pap)"],
+  ["AUB", "Xuất huyết tử cung bất thường"],
+  ["GOG", "Nhóm nghiên cứu hợp tác ung thư phụ khoa Hoa Kỳ"],
+  ["BTP", "Phác đồ hóa chất gồm bevacizumab, topotecan và paclitaxel"],
+  ["VPP", "Giá trị tiên đoán dương hoặc âm của xét nghiệm"],
 ];
 let glossOn = false;
 // Đánh dấu thuật ngữ trong phần nội dung bài (chỉ module Ung bướu, chỉ khi bật); chạm vào để xem nghĩa
@@ -1279,8 +1661,8 @@ function glossApply() {
   const id = curNoteId(), n = id ? byId[id] : null, mod = n ? n.module : (location.hash.match(/^#\/m\/([^/]+)/) || [])[1];
   if (mod !== GLOSS_MOD) return;
   const seen = {};
-  GLOSS.forEach(([term, def]) => {
-    const re = new RegExp("(^|[^\\p{L}])(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?=[^\\p{L}]|$)", "giu");
+  [...GLOSS.map(([t, d]) => [t, d, true]), ...ABBR.map(([t, d]) => [t, d, false])].forEach(([term, def, ci]) => {
+    const re = new RegExp("(^|[^\\p{L}\\p{N}])(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?=[^\\p{L}\\p{N}]|$)", ci ? "giu" : "gu");
     const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, { acceptNode: x => x.parentElement && x.parentElement.closest("a,code,pre,abbr,.gl,.glpop,h1,h2,h3,h4,h5") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const tn of nodes) {
@@ -1289,10 +1671,10 @@ function glossApply() {
       const frag = document.createDocumentFragment(); let last = 0, m;
       while ((m = re.exec(tn.nodeValue))) {
         const start = m.index + m[1].length;
-        if (seen[term] >= 2) break;
+        if (ci && seen[term] >= 2) break;
         frag.append(tn.nodeValue.slice(last, start));
         const sp = document.createElement("span"); sp.className = "gl"; sp.dataset.def = def; sp.textContent = m[2];
-        frag.append(sp); last = start + m[2].length; seen[term] = (seen[term] || 0) + 1;
+        frag.append(sp); last = start + m[2].length; if (ci) seen[term] = (seen[term] || 0) + 1;
       }
       frag.append(tn.nodeValue.slice(last));
       tn.replaceWith(frag);
@@ -1414,7 +1796,11 @@ function route() {
   const pb = $("#pfBuild"), pp = $("#pfPage");
   const ver = (window.BUILD || "").match(/(\d{2})\/(\d{2})\/(\d{4})/);   // ngày dựng dd/mm/yyyy → phiên bản vyy.mm.dd
   if (pb) pb.textContent = ver ? `v${ver[3].slice(2)}.${ver[2]}.${ver[1]}` : "";
-  if (pp) pp.textContent = ((document.querySelector("#main .cover h1") || document.querySelector("#main h1") || {}).textContent || "Trang chủ");
+  if (pp) {   // tiêu đề trang; có tên tiếng Anh thì ghi "Tên Việt - English"
+    const h = document.querySelector("#main .cover h1") || document.querySelector("#main h1"), en = h && h.querySelector(".en");
+    const vi = h ? [...h.childNodes].filter(x => x !== en).map(x => x.textContent).join("").trim() : "";
+    pp.textContent = h ? (en ? `${vi} - ${en.textContent}` : vi) : "Trang chủ";
+  }
   stickyTables();
   glossApply();
   document.body.classList.remove("tocpop"); $("#tocFab").hidden = !($("#main details.toc") && narrow());
