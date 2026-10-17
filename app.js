@@ -1696,6 +1696,14 @@ const ABBR = [
   ["BTP", "Phác đồ hóa chất gồm bevacizumab, topotecan và paclitaxel"],
   ["VPP", "Giá trị tiên đoán dương hoặc âm của xét nghiệm"],
 ];
+// Cụm chứa thuật ngữ nhưng không phải nghĩa của thuật ngữ đó (ví dụ "tuyến tiền liệt" không phải "liệt")
+// Cụm chứa thuật ngữ nhưng không mang nghĩa của thuật ngữ đó: b = chữ đứng trước không được có, a = chữ đứng sau không được có
+const GLOSS_NOT = {
+  "liệt": { b: ["tiền "], a: [" kê"] },
+  "tiết dịch": { b: ["tuyến "] },
+  "dò": { b: ["đầu ", "thăm "] },
+  "phù": { a: [" hợp"] },
+};
 let glossOn = false;
 // Đánh dấu thuật ngữ trong phần nội dung bài (chỉ module Ung bướu, chỉ khi bật); chạm vào để xem nghĩa
 function glossApply() {
@@ -1705,15 +1713,19 @@ function glossApply() {
   if (mod !== GLOSS_MOD) return;
   const seen = {};
   [...GLOSS.map(([t, d]) => [t, d, true]), ...ABBR.map(([t, d]) => [t, d, false])].forEach(([term, def, ci]) => {
-    const re = new RegExp("(^|[^\\p{L}\\p{N}])(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(?=[^\\p{L}\\p{N}]|$)", ci ? "giu" : "gu");
+    const ex = GLOSS_NOT[term] || {}, pre = ex.b ? "(?<!" + ex.b.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")" : "";
+    const post = ex.a ? "(?!" + ex.a.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")" : "";
+    const re = new RegExp("(^|[^\\p{L}\\p{N}])" + pre + "(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")" + post + "(?=[^\\p{L}\\p{N}]|$)", ci ? "giu" : "gu");
     const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, { acceptNode: x => x.parentElement && x.parentElement.closest("a,code,pre,abbr,.gl,.glpop,h1,h2,h3,h4,h5") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const tn of nodes) {
       if (!re.test(tn.nodeValue)) continue;
       re.lastIndex = 0;
+      const prevTxt = tn.previousSibling && tn.previousSibling.nodeType === 3 ? tn.previousSibling.nodeValue : "";
       const frag = document.createDocumentFragment(); let last = 0, m;
       while ((m = re.exec(tn.nodeValue))) {
         const start = m.index + m[1].length;
+        if (ex.b && start === 0 && ex.b.some(x => prevTxt.endsWith(x))) continue;
         if (ci && seen[term] >= 2) break;
         frag.append(tn.nodeValue.slice(last, start));
         const sp = document.createElement("span"); sp.className = "gl"; sp.dataset.def = def; sp.textContent = m[2];
