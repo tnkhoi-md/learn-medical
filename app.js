@@ -434,6 +434,7 @@ const gId = (mod, k, g) => "grp-" + groupList(mod, k).indexOf(g);
 // [khóa, tên, mô tả, màu (--s…), tab bệnh liên quan]: loại của một bài lấy từ `lib` của nhóm/mục trong _module.json hoặc `lib:` trong bài
 const LIBS = [
   ["trieuchung", "Triệu chứng học", "Từ triệu chứng và hội chứng đến chẩn đoán: hỏi bệnh, khám, bệnh án.", "s3", [4]],
+  ["hoichung", "Các hội chứng trong thực hành lâm sàng", "Nhóm dấu hiệu đi cùng nhau gợi ý một nhóm nguyên nhân: nhận diện hội chứng, biện luận và đi tới chẩn đoán phân biệt.", "s13", []],
   ["benhhoc", "Bệnh học", "Cơ chế, nguyên nhân và từng bệnh: lâm sàng, chẩn đoán, điều trị, tiên lượng.", "s5", []],
   ["cls", "Cận lâm sàng", "Chọn và đọc xét nghiệm, hình ảnh, giải phẫu bệnh, phân giai đoạn.", "s4", [5, 6]],
   ["capcuu", "Cấp cứu", "Nhận diện nhanh và xử trí ban đầu các tình huống cấp cứu.", "s6", []],
@@ -445,6 +446,8 @@ const LIBS = [
   ["thamkham", "Thăm khám", "Cách hỏi bệnh và khám lâm sàng theo từng hệ cơ quan.", "s9", []],
   ["trogiatri", "Giá trị bình thường (dự kiến)", "Ngưỡng xét nghiệm và chỉ số huyết học, sinh hóa, huyết động, kèm nguồn trang cho từng con số. Đang xây dựng.", "s11", []],
 ];
+// Hội chứng lâm sàng: vừa nằm trong thư viện "Các hội chứng", vừa hiện ở mục Tiếp cận bệnh nhân của từng module
+const isSyn = n => n.lib === "hoichung";
 function libOf(n) {
   if (n.lib) return n.lib;
   if (n.kind === "disease") return "benhhoc";
@@ -526,6 +529,7 @@ const LIB_ICON = {
   dinhduong: '<path d="M12 7c0-2.5 1.5-4 4-4 0 2.5-1.5 4-4 4z"/><path d="M12 7C7 7 4 10 4 14.5 4 18.5 7.5 21 12 21s8-2.5 8-6.5C20 10 17 7 12 7z"/>',
   thamkham: '<path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v2a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="11" r="2"/>',
   trogiatri: '<path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-4"/><path d="M12 6v2M5.6 9.6l1.4 1.4M18.4 9.6l-1.4 1.4"/>',
+  hoichung: '<circle cx="8.5" cy="9" r="3.2"/><circle cx="15.5" cy="9" r="3.2"/><path d="M2.5 19.5c.8-2.8 3-4.2 6-4.2s5.2 1.4 6 4.2M12.5 19.5c.8-2.8 3-4.2 6-4.2s4.5 1.2 5 3.2"/>',
 };
 function libIndex() {
   $("#main").style.maxWidth = "1080px";
@@ -573,8 +577,11 @@ function tree(cur, sec) {
       if (s.type === "overview") return top(s, on && !ms(srcN));
       if (s.type === "groups") return sub(s, groupList(mod, s.n).map(g => `<a href="#/m/${mod}/${s.n}" data-g="${gId(mod, s.n, g)}" class="${on && curN && (curN.group || "Khác") === g ? "on" : ""}">${esc(gSide(mod, g))}</a>`).join(""), on);
       if (s.type === "diseases") return sub(s, di.map(d => `<details${open(isDis && curN.id === d.id)}><summary>${esc(d.short || d.title)}</summary>${SECS.map(([num, name]) => link(d, num, dnum(num, mod) + " " + name, SECCOL[num])).join("")}${link(d, 9, "★ Tóm tắt", "tsum")}</details>`).join(""), isDis);
-      if (s.type === "notes" && s.byDisease) return sub(s, `<a href="#/m/${mod}/${s.n}">${esc(s.overviewLabel || "Khái quát")}</a>` + gen(s.n).map(n => link(n)).join("") + `<div class="lay">Theo bệnh</div>` + di.map(d => link(d, s.byDisease[0], d.short || d.title)).join(""), on || (isDis && isHere && s.byDisease.includes(sec)));
-      if (s.type === "notes" && s.tree === "list") return sub(s, `<a href="#/m/${mod}/${s.n}">${esc(s.overviewLabel || "Xem cả mục")}</a>` + gen(s.n).map(n => link(n)).join(""), on);
+      if (s.type === "notes" && s.byDisease) return sub(s, `<a href="#/m/${mod}/${s.n}">${esc(s.overviewLabel || "Khái quát")}</a>` + gen(s.n).filter(n => !isSyn(n)).map(n => link(n)).join("") + (gen(s.n).some(isSyn) ? `<div class="lay">Các hội chứng</div>` + gen(s.n).filter(isSyn).map(n => link(n)).join("") : "") + `<div class="lay">Theo bệnh</div>` + di.map(d => link(d, s.byDisease[0], d.short || d.title)).join(""), on || (isDis && isHere && s.byDisease.includes(sec)));
+      if (s.type === "notes" && s.tree === "list") {
+        const kids = gen(s.n), syn = kids.filter(isSyn);
+        return sub(s, `<a href="#/m/${mod}/${s.n}">${esc(s.overviewLabel || "Xem cả mục")}</a>` + kids.filter(n => !isSyn(n)).map(n => link(n)).join("") + (syn.length ? `<div class="lay">Các hội chứng</div>` + syn.map(n => link(n)).join("") : ""), on);
+      }
       return top(s, on);
     });
     return `<details class="mod"${isHere ? " open" : ""}><summary>${modLabel(mod)}</summary>
@@ -871,7 +878,9 @@ function modSection(mod, k, openId) {
   if (type === "groups") {
     body = allBtn + groups.map(g => `<section id="${gId(mod, k, g)}"><h2>${esc(gTitle(mod, g))}</h2>${noteToggles(flat.filter(n => (n.group || "Khác") === g), openSet)}</section>`).join("");
   } else if (type === "notes" && sp.byDisease) {
-    body = `<section><h2>${esc(sp.genTitle || "Bài khái quát")}</h2>${gen.length ? allBtn + noteToggles(gen, openSet) : "<p class='meta'>Chưa có.</p>"}</section>
+    const syn = gen.filter(isSyn), sym = gen.filter(n => !isSyn(n));
+    body = `<section><h2>${esc(sp.genTitle || "Bài khái quát")}</h2>${sym.length ? allBtn + noteToggles(sym, openSet) : (gen.length ? "" : "<p class='meta'>Chưa có.</p>")}</section>
+      ${syn.length ? `<section id="syn-${k}"><h2>Các hội chứng</h2>${noteToggles(syn, openSet)}</section>` : ""}
       <section><h2>${esc(sp.disTitle || "Theo từng bệnh")}</h2>${byDisease(sp.byDisease)}</section>`;
   } else if (type === "diseases") {
     body = `<section>${diseaseGrid(di, mod)}</section>`;
@@ -891,8 +900,10 @@ function modSection(mod, k, openId) {
       `<section><h2>Nguồn theo từng bài chung</h2><div class="tw"><table><thead><tr><th>Bài</th><th>Nguồn</th></tr></thead><tbody>${ns.filter(n => n.kind === "foundation").map(n => `<tr><td><a href="#/n/${n.id}">${esc(n.short || n.title)}</a></td><td>${esc(n.source || "")}</td></tr>`).join("")}</tbody></table></div></section>`;
   } else if (type === "notes") {   // mục gồm các bài; "openAll": true trong _module.json thì mở sẵn để đọc liền
     // mục chỉ có một bài: hiện nội dung luôn, không cần thanh mở/đóng
+    const syn = gen.filter(isSyn), sym = gen.filter(n => !isSyn(n));
     body = gen.length === 1 ? `<section id="t-${gen[0].id}"><h2>${esc(gen[0].short || gen[0].title)}</h2>${md(gen[0].body)}</section>`
-      : gen.length ? allBtn + noteToggles(gen, openSet) : "<p class='meta'>Chưa có.</p>";
+      : gen.length ? allBtn + (sym.length ? noteToggles(sym, openSet) : "") + (syn.length ? `<section id="syn-${k}"><h2>Các hội chứng</h2>${noteToggles(syn, openSet)}</section>` : "")
+      : "<p class='meta'>Chưa có.</p>";
   } else if (type === "sim") {   // công cụ tương tác đứng riêng (trang HTML trong 5-khac/, nhúng bằng iframe)
     body = `<section><p class="meta">${esc(sp.desc || "")}</p>` +
       `<iframe class="simframe" src="${esc(sp.src)}" title="${esc(title)}" loading="lazy"></iframe>` +

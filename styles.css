@@ -137,30 +137,30 @@ main p,main li,main .callout,.hero p{text-wrap:pretty}
 .pfoot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;margin:0;padding:14px max(18px,env(safe-area-inset-left)) calc(16px + env(safe-area-inset-bottom));border-top:1px dashed var(--line);font-size:calc(12.5px * var(--fs));color:var(--mute)}
 
 /* Mục lục bên trái: cùng một cách trình bày cho mọi mục */
-:is(#tree,#sheet) details.mod{margin:0 0 8px}
-:is(#tree,#sheet) details.mod>summary{padding:6px 8px;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);cursor:pointer;list-style:none}
-:is(#tree,#sheet) details.mod>summary::-webkit-details-marker{display:none}
-:is(#tree,#sheet) details{margin:2px 0}
-:is(#tree,#sheet) details>summary{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border-left:3px solid var(--c,transparent);font-size:14.5px;font-weight:600;cursor:pointer;list-style:none}
-:is(#tree,#sheet) details>summary::-webkit-details-marker{display:none}
+:is(#tree,#sheet,#khacmods) details.mod{margin:0 0 8px}
+:is(#tree,#sheet,#khacmods) details.mod>summary{padding:6px 8px;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);cursor:pointer;list-style:none}
+:is(#tree,#sheet,#khacmods) details.mod>summary::-webkit-details-marker{display:none}
+:is(#tree,#sheet,#khacmods) details{margin:2px 0}
+:is(#tree,#sheet,#khacmods) details>summary{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border-left:3px solid var(--c,transparent);font-size:14.5px;font-weight:600;cursor:pointer;list-style:none}
+:is(#tree,#sheet,#khacmods) details>summary::-webkit-details-marker{display:none}
 :root{--chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 6l6 6-6 6' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
-:is(#tree,#sheet) details>summary::before{content:"";flex:0 0 14px;width:14px;height:14px;background:var(--c,var(--mute));-webkit-mask:var(--chev) center/contain no-repeat;mask:var(--chev) center/contain no-repeat;transition:transform .15s ease}
-:is(#tree,#sheet) a.top::before{content:"";flex:0 0 14px}   /* chừa chỗ mũi tên để mọi mục cùng một cột số */
+:is(#tree,#sheet,#khacmods) details>summary::before{content:"";flex:0 0 14px;width:14px;height:14px;background:var(--c,var(--mute));-webkit-mask:var(--chev) center/contain no-repeat;mask:var(--chev) center/contain no-repeat;transition:transform .15s ease}
+:is(#tree,#sheet,#khacmods) a.top::before{content:"";flex:0 0 14px}   /* chừa chỗ mũi tên để mọi mục cùng một cột số */
 /* mục cấp 1 trong module: cùng cỡ chữ, khoảng đệm, chiều cao cho mục phẳng (Tổng quan) và mục mở được (Đại cương…) */
-:is(#tree,#sheet) details.mod>details>summary,:is(#tree,#sheet) details.mod>a.top{display:flex;align-items:center;min-height:36px;height:auto;margin:2px 0;padding:6px 8px;border-radius:0 10px 10px 0;font-size:14.5px;font-weight:600;line-height:1.4}
-:is(#tree,#sheet) details.mod>a.top{position:static;z-index:auto;background:none;border-bottom:0;box-shadow:none}   /* bỏ kiểu của thanh tiêu đề (.top) để hàng mục giống hệt các mục khác */
-:is(#tree,#sheet) details.mod>a.top.on{box-shadow:none}   /* mục đang mở: chỉ một vạch màu bên trái (border), không vẽ thêm bóng trong */
-:is(#tree,#sheet) details[open]>summary::before{transform:rotate(90deg)}
-:is(#tree,#sheet) details>summary:hover,:is(#tree,#sheet) a.top:hover{background:var(--brand-bg)}
-:is(#tree,#sheet) details>summary small{margin-left:4px;font-weight:400;color:var(--mute)}
-:is(#tree,#sheet) details details>summary{padding-left:14px;font-size:14px}
-:is(#tree,#sheet) a.top{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border-left:3px solid var(--c,transparent);font-size:14.5px;font-weight:600;color:var(--ink);text-decoration:none}
-:is(#tree,#sheet) a.top.on{background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-weight:800}
-:is(#tree,#sheet) a{display:block;padding:5px 8px 5px 26px;border-radius:9px;font-size:14px;color:var(--ink);text-decoration:none}
-:is(#tree,#sheet) details a{margin-left:8px}
-:is(#tree,#sheet) a.on{background:color-mix(in srgb,var(--c,var(--brand)) 14%,transparent);color:var(--c,var(--brand-d));font-weight:700;box-shadow:inset 3px 0 0 var(--c,var(--brand))}
-:is(#tree,#sheet) details>summary b,:is(#tree,#sheet) a.top b{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 5px;border-radius:7px;background:var(--c,var(--brand));color:var(--onc,#fff);font-size:12px;font-weight:800}
-:is(#tree,#sheet) .lay{margin:10px 0 2px 8px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+:is(#tree,#sheet,#khacmods) details.mod>details>summary,:is(#tree,#sheet,#khacmods) details.mod>a.top{display:flex;align-items:center;min-height:36px;height:auto;margin:2px 0;padding:6px 8px;border-radius:0 10px 10px 0;font-size:14.5px;font-weight:600;line-height:1.4}
+:is(#tree,#sheet,#khacmods) details.mod>a.top{position:static;z-index:auto;background:none;border-bottom:0;box-shadow:none}   /* bỏ kiểu của thanh tiêu đề (.top) để hàng mục giống hệt các mục khác */
+:is(#tree,#sheet,#khacmods) details.mod>a.top.on{box-shadow:none}   /* mục đang mở: chỉ một vạch màu bên trái (border), không vẽ thêm bóng trong */
+:is(#tree,#sheet,#khacmods) details[open]>summary::before{transform:rotate(90deg)}
+:is(#tree,#sheet,#khacmods) details>summary:hover,:is(#tree,#sheet,#khacmods) a.top:hover{background:var(--brand-bg)}
+:is(#tree,#sheet,#khacmods) details>summary small{margin-left:4px;font-weight:400;color:var(--mute)}
+:is(#tree,#sheet,#khacmods) details details>summary{padding-left:14px;font-size:14px}
+:is(#tree,#sheet,#khacmods) a.top{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border-left:3px solid var(--c,transparent);font-size:14.5px;font-weight:600;color:var(--ink);text-decoration:none}
+:is(#tree,#sheet,#khacmods) a.top.on{background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-weight:800}
+:is(#tree,#sheet,#khacmods) a{display:block;padding:5px 8px 5px 26px;border-radius:9px;font-size:14px;color:var(--ink);text-decoration:none}
+:is(#tree,#sheet,#khacmods) details a{margin-left:8px}
+:is(#tree,#sheet,#khacmods) a.on{background:color-mix(in srgb,var(--c,var(--brand)) 14%,transparent);color:var(--c,var(--brand-d));font-weight:700;box-shadow:inset 3px 0 0 var(--c,var(--brand))}
+:is(#tree,#sheet,#khacmods) details>summary b,:is(#tree,#sheet,#khacmods) a.top b{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 5px;border-radius:7px;background:var(--c,var(--brand));color:var(--onc,#fff);font-size:12px;font-weight:800}
+:is(#tree,#sheet,#khacmods) .lay{margin:10px 0 2px 8px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
 
 /* ---------- 7. Bìa trang (mọi trang nội dung dùng chung một kiểu) ---------- */
 .crumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;font-size:calc(13px * var(--fs));color:var(--mute)}
@@ -430,8 +430,8 @@ details.kitem[open]>summary{border-bottom:1px solid var(--line)}
   html.side-off main{margin:0 auto;max-width:calc(var(--mw) * 1.25)}
 }
 @media (hover:none){
-  .tabbtn,.dt,:is(#tree,#sheet) a,:is(#tree,#sheet) details>summary,.modsec{min-height:36px}
-  :is(#tree,#sheet) a{padding-top:7px;padding-bottom:7px}
+  .tabbtn,.dt,:is(#tree,#sheet,#khacmods) a,:is(#tree,#sheet,#khacmods) details>summary,.modsec{min-height:36px}
+  :is(#tree,#sheet,#khacmods) a{padding-top:7px;padding-bottom:7px}
 }
 
 /* ô chọn chuyên khoa trên thanh module (hiện khi có từ 2 chuyên khoa trở lên) */
@@ -448,16 +448,16 @@ html.no-modbar{--mbar:0px}
 .topnav{gap:4px}
 /* thanh bên: Trang chủ · Module · Thư viện học tập · Khác */
 .sbh{margin:16px 8px 6px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
-:is(#tree,#sheet) .sbh a{display:inline;padding:0;margin:0;color:inherit;text-decoration:none;font-size:inherit}
+:is(#tree,#sheet,#khacmods) .sbh a{display:inline;padding:0;margin:0;color:inherit;text-decoration:none;font-size:inherit}
 .sbh a:hover{color:var(--brand-d)}
-:is(#tree,#sheet) a.sbhome,:is(#side,#sheet) .sbmore>a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;font-size:14.5px;font-weight:600;color:var(--ink);text-decoration:none}
-:is(#tree,#sheet) a.sbhome:hover,:is(#side,#sheet) .sbmore>a:hover,.sbset>summary:hover{background:var(--brand-bg)}
-:is(#tree,#sheet) a.sbhome.on,:is(#side,#sheet) .sbmore>a.on{background:var(--brand-bg);color:var(--brand-d);font-weight:800;box-shadow:inset 3px 0 0 var(--brand)}
-:is(#tree,#sheet) a.sbhome .ico,.sbmore .ico{width:18px;height:18px;color:var(--mute)}
-:is(#tree,#sheet) a.sblib{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 0;padding:7px 10px 7px 12px;border-radius:10px;border-left:3px solid var(--c);font-size:14.5px;font-weight:600}
-:is(#tree,#sheet) a.sblib small{min-width:22px;padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-size:12px;font-weight:800;text-align:center}
-:is(#tree,#sheet) a.sblib:hover{background:var(--brand-bg)}
-:is(#tree,#sheet) a.sblib.on{background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-weight:800}
+:is(#tree,#sheet,#khacmods) a.sbhome,:is(#side,#sheet) .sbmore>a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;font-size:14.5px;font-weight:600;color:var(--ink);text-decoration:none}
+:is(#tree,#sheet,#khacmods) a.sbhome:hover,:is(#side,#sheet) .sbmore>a:hover,.sbset>summary:hover{background:var(--brand-bg)}
+:is(#tree,#sheet,#khacmods) a.sbhome.on,:is(#side,#sheet) .sbmore>a.on{background:var(--brand-bg);color:var(--brand-d);font-weight:800;box-shadow:inset 3px 0 0 var(--brand)}
+:is(#tree,#sheet,#khacmods) a.sbhome .ico,.sbmore .ico{width:18px;height:18px;color:var(--mute)}
+:is(#tree,#sheet,#khacmods) a.sblib{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 0;padding:7px 10px 7px 12px;border-radius:10px;border-left:3px solid var(--c);font-size:14.5px;font-weight:600}
+:is(#tree,#sheet,#khacmods) a.sblib small{min-width:22px;padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-size:12px;font-weight:800;text-align:center}
+:is(#tree,#sheet,#khacmods) a.sblib:hover{background:var(--brand-bg)}
+:is(#tree,#sheet,#khacmods) a.sblib.on{background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font-weight:800}
 .sbmore{margin-bottom:6px}
 .sbset>summary{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;font-size:14.5px;font-weight:600;cursor:pointer;list-style:none}
 .sbset>summary::-webkit-details-marker{display:none}
