@@ -902,6 +902,7 @@ function modSection(mod, k, openId) {
     // mục chỉ có một bài: hiện nội dung luôn, không cần thanh mở/đóng
     const syn = gen.filter(isSyn), sym = gen.filter(n => !isSyn(n));
     body = gen.length === 1 ? `<section id="t-${gen[0].id}"><h2>${esc(gen[0].short || gen[0].title)}</h2>${md(gen[0].body)}</section>`
+      : sp.pages && gen.length ? `<div class="rgrid">${gen.map(n => `<div class="rcard"><b>${esc(n.short || n.title)}</b><p class="meta">${esc(n.tags.slice(0, 4).join(", "))}</p><a class="chip wide" href="#/n/${n.id}">Mở trang →</a></div>`).join("")}</div>`
       : gen.length ? allBtn + (sym.length ? noteToggles(sym, openSet) : "") + (syn.length ? `<section id="syn-${k}"><h2>Các hội chứng</h2>${noteToggles(syn, openSet)}</section>` : "")
       : "<p class='meta'>Chưa có.</p>";
   } else if (type === "sim") {   // công cụ tương tác đứng riêng (trang HTML trong 5-khac/, nhúng bằng iframe)
@@ -997,7 +998,7 @@ function note(id, sec) {
   if (n.kind === "tong") return tongPage(n);
   const k = sectionOfNote(n), mod = n.module, sp = secOf(mod, k);
   pushRecent(id, 0);
-  if (n.kind === "foundation" && ["groups", "notes"].includes(sp.type)) return modSection(mod, k, id);
+  if (n.kind === "foundation" && ["groups", "notes"].includes(sp.type) && !sp.pages) return modSection(mod, k, id);   // mục "pages": mỗi bài là một trang riêng
   const cont = withToc(md(n.body));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${k} ${sp.title}`, href: `#/m/${mod}/${k}` }])}
     ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title) })}
