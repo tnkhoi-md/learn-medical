@@ -1,5 +1,8 @@
 (() => {
 const NOTES = window.NOTES || [], MODULES = window.MODULES || {}, MODULES_EN = window.MODULES_EN || {}, MODSPEC = window.MODSPEC || {};
+// Module hiển thị dưới mục "Khác" thay vì danh sách Module (vẫn mở được bằng #/m/<id>/<mục>)
+const KHAC_MODS = ["doc-ecg"];
+const mainMods = () => Object.keys(MODULES).filter(m => !KHAC_MODS.includes(m));
 // Tên module kèm tên tiếng Anh (nhỏ, sau tên Việt) khi có
 const modLabel = m => esc(MODULES[m] || m) + (MODULES_EN[m] ? ` <small class="en">${esc(MODULES_EN[m])}</small>` : "");
 // Khung các mục của một chuyên khoa (module)
@@ -22,7 +25,7 @@ const specOf = mod => MODSPEC[mod] || { sections: [] };
 const secsOf = mod => specOf(mod).sections;
 const secOf = (mod, k) => secsOf(mod).find(s => s.n === k) || { n: k, title: "", desc: "", type: "notes" };
 const secByType = (mod, type) => (secsOf(mod).find(s => s.type === type) || {}).n || 0;
-const secC = (mod, k) => secOf(mod, k).c || k;          // số màu (--s1…--s10) của một mục
+const secC = (mod, k) => ((((secOf(mod, k).c || k) - 1) % 16) + 1);          // số màu (--s1…--s10) của một mục
 // Chuyên khoa đang xem: theo đường dẫn, nếu không có thì chuyên khoa xem lần trước
 function curMod() {
   const h = decodeURIComponent(location.hash.slice(1)), a = h.match(/^\/m\/([^/]+)\//), b = h.match(/^\/n\/([^/]+)/);
@@ -87,6 +90,7 @@ const inline = s => esc(s)
     const t = resolve(k.replace(/&amp;/g, "&"));
     return t ? `<a class="wl" href="#/n/${t.id}">${label || t.title}</a>` : `<a class="wl broken" title="Chưa có bài này">${label || k}</a>`;
   })
+  .replace(/!\[([^\]]*)\]\((data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+\/=]+|ecg\/[\w.\-\/]+)\)/g, '<img class="ecgimg" src="$2" alt="$1" loading="lazy">')
   .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
   .replace(/\[([^\]]+)\]\((#\/[^)]+)\)/g, '<a href="$2">$1</a>');
 
@@ -98,7 +102,7 @@ function md(src) { return blocks(src.split("\n")); }
 
 // Công cụ tính điểm: @@calc Tên … @@item Tên mục (chọn một) / @@checks Tên nhóm (tích nhiều) / @@bands (mức kết quả) … @@end
 //   tùy chọn:  "- điểm | nhãn"      mức kết quả:  "- từ..đến | diễn giải | màu (r,g,o,p,b; không bắt buộc)"
-let calcN = 0;
+let calcN = 0, calcNoLink = false;
 function calcBlock(title, lines) {
   const id = "calc" + (++calcN), parts = [], bands = [], plain = s => s.replace(/\{[rgbop]\|([^}]*)\}/g, "$1").replace(/\*\*/g, "");
   const fin = [], groups = [];
@@ -126,7 +130,7 @@ function calcBlock(title, lines) {
       : `<fieldset class="calc-sel" data-label="${esc(f.name)}"><legend>${inline(f.name)}</legend>` + f.opts.map(o => `<label><input type="radio" name="${id}-${f.id}" data-var="${f.id}" value="${o.v}"><span>${inline(o.t)}</span></label>`).join("") + `</fieldset>`;
     const outs = fin.filter(f => f.k === "out").map(f => `<div class="calc-line" data-var="${f.id}" data-label="${esc(f.name)}" data-dec="${f.dec}" data-expr="${esc(f.expr)}"><span>${inline(f.name)}</span><b class="calc-val">–</b><small>${esc(f.unit)}</small></div>`).join("");
     const res = groups.map((g, k) => `<div class="calc-res" data-g="${k}">${g.t ? `<b class="calc-gt">${inline(g.t)}</b>` : ""}<span class="calc-msg">–</span></div>`).join("");
-    return `<div class="calc calc-f" data-groups="${esc(JSON.stringify(groups))}"><div class="calc-head"><span>🧮 ${inline(title)}</span><button type="button" class="calc-reset">Đặt lại</button></div>` +
+    return `<div class="calc calc-f" data-groups="${esc(JSON.stringify(groups))}"><div class="calc-head"><span>🧮 ${inline(title)}</span>${calcLink(title)}<button type="button" class="calc-reset">Đặt lại</button></div>` +
       fin.filter(f => f.k !== "out").map(field).join("") + (outs ? `<div class="calc-vals">${outs}</div>` : "") +
       `<div class="calc-outf"><div class="calc-top"></div>${res}</div></div>`;
   }
@@ -134,10 +138,11 @@ function calcBlock(title, lines) {
   const req = parts.filter(p => p.kind === "item").length;
   const body = parts.map((p, k) => `<fieldset class="calc-item${p.kind === "checks" ? " checks" : ""}"><legend>${inline(p.name)}</legend>` +
     p.opts.map(o => `<label><input type="${p.kind === "item" ? "radio" : "checkbox"}" name="${id}-${k}" value="${o.v}"><b>${p.kind === "checks" && o.v > 0 ? "+" : ""}${o.v}</b><span>${inline(o.t)}</span></label>`).join("") + `</fieldset>`).join("");
-  return `<div class="calc" data-req="${req}" data-bands="${esc(JSON.stringify(bands))}"><div class="calc-head"><span>🧮 ${inline(title)}</span><button type="button" class="calc-reset">Đặt lại</button></div>${body}` +
+  return `<div class="calc" data-req="${req}" data-bands="${esc(JSON.stringify(bands))}"><div class="calc-head"><span>🧮 ${inline(title)}</span>${calcLink(title)}<button type="button" class="calc-reset">Đặt lại</button></div>${body}` +
     `<div class="calc-out"><div class="calc-score"><b class="calc-total">0</b><small>/ ${max} điểm</small></div><div class="calc-res" aria-live="polite">Chọn các mục để tính điểm</div></div></div>`;
 }
-const CALC_FN = { min: Math.min, max: Math.max, abs: Math.abs, log: Math.log, log10: Math.log10, sqrt: Math.sqrt };
+const calcLink = title => { if (calcNoLink) return ""; const c = calcByTitle(title.replace(/\{\{[^}]*\}\}/g, "").replace(/\{[rgbop]\|([^}]*)\}/g, "$1").replace(/\*\*/g, "").trim()); return c ? `<a class="calc-open" href="#/congcu/${c.id}" title="Mở riêng trong trang Công cụ tính toán">Mở công cụ ↗</a>` : ""; };
+const CALC_FN = { min: Math.min, max: Math.max, abs: Math.abs, log: Math.log, log10: Math.log10, sqrt: Math.sqrt, round: Math.round, floor: Math.floor, ceil: Math.ceil, exp: Math.exp };
 function calcEval(expr, vars) {
   if (!/^[\w\s.+\-*\/%()<>=!&|,]+$/.test(expr)) return NaN;
   try { return new Function(...Object.keys(vars), ...Object.keys(CALC_FN), "return (" + expr + ")")(...Object.values(vars), ...Object.values(CALC_FN)); } catch (_) { return NaN; }
@@ -553,7 +558,7 @@ let MOD_HTML = "";   // danh sách module (cho ngăn Module trên điện thoạ
 function tree(cur, sec) {
   const curN = byId[cur], curSec = curN ? sectionOfNote(curN) : +((location.hash.match(/^#\/m\/[^/]+\/(\d+)$/) || [])[1] || 0);   // đang ở trang mục thì mở đúng mục đó
   const here = curMod(), hashM = location.hash.match(/^#\/m\/([^/]+)\/(\d+)$/) || [];
-  const modsHtml = Object.keys(MODULES).map(mod => {
+  const renderMod = mod => {
     const ns = NOTES.filter(n => n.module === mod), di = diseases().filter(n => n.module === mod);
     const isHere = mod === here;
     const link = (n, s, label, c) => `<a href="#/n/${n.id}${s ? "/" + s : ""}" class="${n.id === cur && (!s || +s === sec) ? "on" : ""}"${c ? ` style="--c:var(--${c})"` : ""}>${esc(label || n.short || n.title)}</a>`;
@@ -575,9 +580,12 @@ function tree(cur, sec) {
     return `<details class="mod"${isHere ? " open" : ""}><summary>${modLabel(mod)}</summary>
       ${rows.join("\n      ")}
     </details>`;
-  }).join("");
+  };
+  const modsHtml = mainMods().map(renderMod).join("");
+  const khacHtml = KHAC_MODS.filter(m => MODULES[m]).map(renderMod).join("");
   MOD_HTML = modsHtml;
   const libCur = (location.hash.match(/^#\/lib\/([^/]+)/) || [])[1] || "", isHome = !location.hash || location.hash === "#/" || location.hash === "#";
+  $("#khacmods").innerHTML = khacHtml;
   $("#tree").innerHTML = `<a class="sbhome${isHome ? " on" : ""}" href="#/"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6 10.5V19h12v-8.5"/></svg><span>Trang chủ</span></a>
     <div class="sbh">Module</div>${modsHtml}
     <div class="sbh"><a href="#/lib">Thư viện học tập</a></div>${LIBS.map(([k, t, , col]) => `<a class="sblib${libCur === k ? " on" : ""}" style="--c:var(--${col})" href="#/lib/${k}"><span>${esc(t)}</span><small>${libCount(k)}</small></a>`).join("")}`;
@@ -654,7 +662,7 @@ function runSearch(raw) {
     const allTerms = terms.length && terms.every((x, i) => tRe[i].test(t) && accOK(x, tr));
     if (allTerms || groups.some(g => g.some(o => o.re.test(t)))) sections.push({ m, sp });
   }));
-  const tools = terms.length ? CC.filter(t => terms.some((x, i) => tRe[i].test(noDia(t.title + " " + t.desc)) && accOK(x, (t.title + " " + t.desc).toLowerCase()))).slice(0, 3) : [];
+  const tools = terms.length ? calcIndex().filter(c => terms.every(x => c._s.includes(x))).slice(0, 4) : [];
   return { notes, sections: sections.slice(0, 5), tools };
 }
 function renderResults() {
@@ -663,7 +671,7 @@ function renderResults() {
   const { notes: hits, sections, tools } = runSearch(q);
   box.hidden = false;
   const secHtml = sections.map(({ m, sp }) => `<a class="sechit" href="#/m/${m}/${sp.n}"><b>${esc(sp.title)}</b> <span class="where">${esc(MODULES[m] || m)}</span></a>`).join("");
-  const toolHtml = tools.map(t => `<a class="sechit" href="#/congcu/${t.id}"><b>${esc(t.title)}</b> <span class="where">Công cụ tính điểm</span></a>`).join("");
+  const toolHtml = tools.map(t => `<a class="sechit" href="#/congcu/${t.id}"><b>${esc(t.title)}</b> <span class="where">Công cụ tính toán · ${esc(calcCatName(t))}</span></a>`).join("");
   box.innerHTML = (toolHtml ? `<div class="sechdr">Công cụ</div>${toolHtml}` : "") + (secHtml ? `<div class="sechdr">Mục</div>${secHtml}` : "") + (hits.length ? (secHtml || toolHtml ? '<div class="sechdr">Bài</div>' : "") + hits.map(({ n, pos, why }) => {
     const sec = pos >= 0 ? secAt(n, pos) : 0;
     const href = `#/n/${n.id}${sec ? "/" + sec : ""}`;
@@ -729,10 +737,6 @@ function applyPrefs() {
   const fs = parseFloat(lsGet("ykkb_fs")) || 1, th = lsGet("ykkb_theme") || "auto";
   setSideOff(!narrow() && lsGet("ykkb_side") === "off");
   document.documentElement.style.setProperty("--fs", fs);
-  const w = lsGet("ykkb_w") || "std", dn = lsGet("ykkb_d") || "std";
-  document.documentElement.dataset.w = w; document.documentElement.dataset.d = dn;
-  $("#setPanel").querySelectorAll("[data-w]").forEach(b => b.classList.toggle("on", b.dataset.w === w));
-  $("#setPanel").querySelectorAll("[data-d]").forEach(b => b.classList.toggle("on", b.dataset.d === dn));
   document.documentElement.dataset.gl = lsGet("ykkb_gl") || "off";
   $("#setPanel").querySelectorAll("[data-gl]").forEach(b => b.classList.toggle("on", b.dataset.gl === document.documentElement.dataset.gl));
   if (th === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = th;
@@ -747,8 +751,6 @@ $("#setPanel").addEventListener("click", e => {
   if (b.dataset.fs) lsSet("ykkb_fs", b.dataset.fs);
   if (b.dataset.th) lsSet("ykkb_theme", b.dataset.th === "auto" ? null : b.dataset.th);
   if (b.dataset.gl) { lsSet("ykkb_gl", b.dataset.gl); route(); }
-  if (b.dataset.w) lsSet("ykkb_w", b.dataset.w);
-  if (b.dataset.d) lsSet("ykkb_d", b.dataset.d);
   applyPrefs();
 });
 applyPrefs();
@@ -785,44 +787,60 @@ function diseaseGrid(ds, mod = curMod()) {
 }
 
 function home() {
-  const ds = diseases(), mods = Object.keys(MODULES), cm = curMod();   // cm: chuyên khoa xem gần nhất
+  const ds = diseases(), mods = mainMods(), cm = curMod();   // cm: chuyên khoa xem gần nhất
   const fo = NOTES.filter(n => n.kind === "foundation").length;
   const nKhung = window.KHUNG ? window.KHUNG.items.length : 129;
   const recent = (store.get(RK, []) || []).map(r => ({ ...r, n: byId[r.id] })).filter(r => r.n).slice(0, 4);
-  const due = dueCards().length, sumN = secByType(cm, "summary"), cardN = secByType(cm, "cards");
-  const article = mod => {
-    const dsm = ds.filter(n => n.module === mod), fom = NOTES.filter(n => n.module === mod && n.kind === "foundation").length, sN = secByType(mod, "summary");
-    return `<article class="spec"><div class="spechead"><span class="sdot"></span><div><h3>${modLabel(mod)}</h3><small>${dsm.length} bệnh · ${fom} bài chung</small></div>
-      <div class="specact"><a class="btn p" href="#/m/${mod}/1">Tổng quan module</a>${sN ? `<a class="btn" href="#/m/${mod}/${sN}">Tóm tắt Pareto</a>` : ""}</div></div>
-      <ol class="stepper">${secsOf(mod).map(s => `<li style="--c:var(--s${secC(mod, s.n)})"><a href="#/m/${mod}/${s.n}"><b>${s.n}</b>${esc(s.title)}</a></li>`).join("")}</ol>
+  const due = dueCards().length;
+  const oath = byId["loi-the-hippocrates"];
+  const ACC = [2, 3, 4, 5, 6, 7, 8, 10];   // màu nhấn xoay vòng cho thẻ chuyên khoa
+  const info = mod => { const dsm = ds.filter(n => n.module === mod), fom = NOTES.filter(n => n.module === mod && n.kind === "foundation").length; return { dsm, fom, ready: dsm.length > 0 || fom > 1 }; };
+  const mcard = (mod, i) => {
+    const { dsm, fom, ready } = info(mod), sN = secByType(mod, "summary");
+    return `<article class="mcard${ready ? "" : " soon"}" style="--c:var(--s${ACC[i % ACC.length]})">
+      <a class="mname" href="#/m/${mod}/1"><b>${esc(MODULES[mod] || mod)}</b>${MODULES_EN[mod] ? `<small>${esc(MODULES_EN[mod])}</small>` : ""}</a>
+      <p class="mmeta">${ready ? `${dsm.length} bệnh · ${fom} bài chung` : "Đang xây dựng"}</p>
+      <div class="msecs">${secsOf(mod).map(s => `<a href="#/m/${mod}/${s.n}" title="${esc(s.title)}"><b>${s.n}</b><span>${esc(s.title)}</span></a>`).join("")}</div>
+      ${sN ? `<a class="msum" href="#/m/${mod}/${sN}">★ Tóm tắt Pareto</a>` : ""}
     </article>`;
   };
-  $("#main").style.maxWidth = "1080px";
+  const ready = mods.filter(m => info(m).ready), soon = mods.filter(m => !info(m).ready);
+  const ico = p => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+  const tiles = [
+    ["#/lib", "var(--s5)", ico('<path d="M5 5h5v14H5zM12 5h3l4 14h-3z"/>'), "Thư viện học tập", "Tra theo loại: triệu chứng, bệnh học, cận lâm sàng"],
+    [`#/m/${cm}/1`, "var(--s2)", ico('<path d="M4 7l8-4 8 4-8 4zM4 12l8 4 8-4M4 17l8 4 8-4"/>'), "Module", `Tiếp tục ${esc(MODULES[cm] || cm)}`],
+    ["#/khung", "var(--s3)", ico('<path d="M6 4h12v16H6zM9 9h6M9 13h6M9 17h3"/>'), "Đề cương ôn thi", `${nKhung} vấn đề khung thi CCHN`],
+    ["#/cards", "var(--s10)", ico('<rect x="4" y="6" width="13" height="12" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v11"/>'), "Ôn thẻ", due ? `${due} thẻ đến hạn hôm nay` : "Chưa có thẻ đến hạn"],
+  ];
+  $("#main").style.maxWidth = "1120px";
   $("#main").innerHTML = `
-  <section class="hero">
-    <div class="herotxt"><h1>Học tập Y khoa</h1><p>Kho kiến thức ôn thi chứng chỉ hành nghề bác sĩ đa khoa: từ nền tảng đến phác đồ, mỗi bệnh một trang có tab.</p></div>
-    <button class="herosearch" id="heroSearch"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg> Tìm bài, bệnh, thuốc… <kbd>/</kbd></button>
-    <div class="stats"><div><b>${NOTES.length}</b><span>bài</span></div><div><b>${ds.length}</b><span>bệnh</span></div><div><b>${fo}</b><span>bài chung</span></div><div><b>${nKhung}</b><span>vấn đề khung thi</span></div></div>
-  </section>
-  <section class="intro"><h2>Giới thiệu</h2>
-    <p>Học tập Y khoa là kho kiến thức cá nhân để ôn thi chứng chỉ hành nghề bác sĩ đa khoa. Nội dung được soạn lại từ giáo trình giảng dạy và văn bản của Bộ Y tế; các nhận định chính đều gắn nguồn (tên tài liệu và số trang) để kiểm tra lại. Đây là tài liệu học tập, không thay cho hướng dẫn chuyên môn hay quyết định lâm sàng.</p>
-    <div class="rgrid">
-      <a class="rcard lib" style="--c:var(--s5)" href="#/lib"><small>Tra theo loại</small><b>Thư viện học tập</b><span>Triệu chứng học, bệnh học, cận lâm sàng, cấp cứu, điều trị, phòng ngừa, gom từ mọi chuyên khoa.</span></a>
-      <a class="rcard lib" style="--c:var(--s2)" href="#/m/${cm}/1"><small>Học theo trình tự</small><b>Module</b><span>Mỗi chuyên khoa một lộ trình: tổng quan, nền tảng, bệnh học, tóm tắt.</span></a>
-      <a class="rcard lib" style="--c:var(--s3)" href="#/khung"><small>Bám đề thi</small><b>Đề cương ôn thi CCHN YKQGQ</b><span>Khung 128 vấn đề lâm sàng của kỳ thi, nối tới các bài liên quan.</span></a>
-      <a class="rcard lib" style="--c:var(--s10)" href="#/cards"><small>Tự kiểm tra</small><b>Ôn thẻ</b><span>${due} thẻ đến hạn, lặp lại ngắn quãng.</span></a>
+  <section class="hero2">
+    <div class="herotxt">
+      <span class="eyebrow">Ôn thi chứng chỉ hành nghề bác sĩ đa khoa</span>
+      <h1>Học tập Y khoa</h1>
+      <p>Từ nền tảng đến phác đồ: mỗi bệnh một trang có tab, mỗi ý gắn nguồn để kiểm tra lại.</p>
+      <button class="herosearch" id="heroSearch"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg> Tìm bài, bệnh, thuốc… <kbd>/</kbd></button>
+      <div class="stats"><div><b>${NOTES.length}</b><span>bài</span></div><div><b>${ds.length}</b><span>bệnh</span></div><div><b>${fo}</b><span>bài chung</span></div><div><b>${nKhung}</b><span>vấn đề khung thi</span></div></div>
     </div>
+    ${oath ? `<div class="oath"><span class="oathmark" aria-hidden="true">⚕</span>
+      <span class="eyebrow">Lời thề Hippocrates</span>
+      <blockquote>Sức khỏe và hạnh phúc của người bệnh sẽ là mối quan tâm hàng đầu của tôi.</blockquote>
+      <cite>Tuyên ngôn Geneva, Hiệp hội Y khoa Thế giới</cite>
+      <div class="oathact"><a class="btn p" href="#/n/${oath.id}">Đọc lời thề</a><a class="btn" href="#/m/y-duc-ky-nang-an-toan/2">Y đức</a></div></div>` : ""}
   </section>
-  <section><h2>Cách đọc một trang</h2>
+  <section class="quick">${tiles.map(([h, c, i, t, s]) => `<a class="qtile" style="--c:${c}" href="${h}"><span class="qico">${i}</span><span class="qtxt"><b>${t}</b><small>${s}</small></span></a>`).join("")}</section>
+  ${recent.length ? `<section><h2>Tiếp tục</h2><div class="rgrid">${recent.map(r => `<a class="rcard" href="#/n/${r.id}${r.sec ? "/" + r.sec : ""}"><small>${r.sec ? dnum(r.sec, r.n.module) + " · " + SECNAME[r.sec] : esc(r.n.group || (r.n.kind === "overview" ? "Tổng quan" : "Bài"))}</small><b>${esc(r.n.short || r.n.title)}</b></a>`).join("")}</div></section>` : ""}
+  <section><h2>Chuyên khoa</h2><div class="mgrid">${ready.map(mcard).join("")}</div>
+    ${soon.length ? `<details class="soonbox"><summary>Đang xây dựng (${soon.length} module)</summary><div class="mgrid">${soon.map((m, i) => mcard(m, i + ready.length)).join("")}</div></details>` : ""}</section>
+  <details class="guide"><summary>Giới thiệu và cách đọc một trang</summary>
+    <p>Học tập Y khoa là kho kiến thức cá nhân để ôn thi chứng chỉ hành nghề bác sĩ đa khoa. Nội dung được soạn lại từ giáo trình giảng dạy và văn bản của Bộ Y tế; các nhận định chính đều gắn nguồn (tên tài liệu và số trang) để kiểm tra lại. Đây là tài liệu học tập, không thay cho hướng dẫn chuyên môn hay quyết định lâm sàng.</p>
     <div class="legend3">
       <div class="callout key"><div class="ct">Ý chính</div><p>Điều cần nhớ nhất của bài.</p></div>
       <div class="callout warn"><div class="ct">Lưu ý – bẫy thi</div><p>Chỗ dễ nhầm và nơi các nguồn khác nhau.</p></div>
       <div class="callout red"><div class="ct">Cấp cứu – nguy hiểm</div><p>Dấu hiệu cần xử trí hoặc chuyển tuyến ngay.</p></div>
     </div>
-    <p>Ô nguồn như <span class="src">Y5 tr.12</span> cho biết ý lấy từ trang nào của tài liệu nào. Ô <span class="src">Notion: tên giáo trình</span> là phần bổ sung từ ghi chú chép lại giáo trình cũ (tên giáo trình lấy từ thuộc tính trên Notion), chỉ dùng khi giáo trình mới không có; khi hai nguồn khác nhau, bài theo nguồn mới hơn và ghi rõ chỗ khác. Chữ "tài liệu không nêu" nghĩa là nguồn đã dùng không trả lời điểm đó.</p>
-  </section>
-  <section><h2>Chuyên khoa</h2>${mods.map(article).join("")}</section>
-  ${recent.length ? `<section><h2>Tiếp tục</h2><div class="rgrid">${recent.map(r => `<a class="rcard" href="#/n/${r.id}${r.sec ? "/" + r.sec : ""}"><small>${r.sec ? dnum(r.sec, r.n.module) + " · " + SECNAME[r.sec] : esc(r.n.group || (r.n.kind === "overview" ? "Tổng quan" : "Bài"))}</small><b>${esc(r.n.short || r.n.title)}</b></a>`).join("")}</div></section>` : ""}
+    <p>Ô nguồn như <span class="src">Y5 tr.12</span> cho biết ý lấy từ trang nào của tài liệu nào (số trang là số trang trong file PDF nguồn; nhiều trang viết <span class="src">Y5 tr.12–14, 20</span>; nhiều nguồn cách nhau dấu chấm phẩy). Ô cam <span class="src ext">+StatPearls 2024</span> là nguồn ngoài tài liệu của bạn. Ô <span class="src">Notion: tên giáo trình</span> là phần bổ sung từ ghi chú chép lại giáo trình cũ (tên giáo trình lấy từ thuộc tính trên Notion), chỉ dùng khi giáo trình mới không có; khi hai nguồn khác nhau, bài theo nguồn mới hơn và ghi rõ chỗ khác. Chữ "tài liệu không nêu" nghĩa là nguồn đã dùng không trả lời điểm đó.</p>
+  </details>
 `;
   $("#heroSearch").onclick = focusSearch;
 }
@@ -875,6 +893,10 @@ function modSection(mod, k, openId) {
     // mục chỉ có một bài: hiện nội dung luôn, không cần thanh mở/đóng
     body = gen.length === 1 ? `<section id="t-${gen[0].id}"><h2>${esc(gen[0].short || gen[0].title)}</h2>${md(gen[0].body)}</section>`
       : gen.length ? allBtn + noteToggles(gen, openSet) : "<p class='meta'>Chưa có.</p>";
+  } else if (type === "sim") {   // công cụ tương tác đứng riêng (trang HTML trong 5-khac/, nhúng bằng iframe)
+    body = `<section><p class="meta">${esc(sp.desc || "")}</p>` +
+      `<iframe class="simframe" src="${esc(sp.src)}" title="${esc(title)}" loading="lazy"></iframe>` +
+      `<p class="meta">Không hiện được? <a href="${esc(sp.src)}" target="_blank" rel="noopener">Mở trong tab mới ↗</a></p></section>`;
   } else if (type === "cards") {
     const withCards = ns.map(n => ({ n, c: cardsOf(n) })).filter(x => x.c.length);
     const total = withCards.reduce((s, x) => s + x.c.length, 0);
@@ -1165,86 +1187,117 @@ function luudo(id) {
        <div class="rgrid libgrid">${list}</div>`;
   window.scrollTo(0, 0);
 }
-// ---- công cụ tính điểm lâm sàng: nhập số, kết quả tính ngay; công thức theo tài liệu gốc của từng thang ----
-const CC = [
-  { id: "bmi", title: "BMI", desc: "Chỉ số khối cơ thể: cân nặng chia bình phương chiều cao.", bai: "kls-thang-dinh-duong", src: "Ngưỡng WHO. Người châu Á có ngưỡng thừa cân và béo phì thấp hơn; xem bài liên quan.",
-    fields: [{ k: "w", t: "num", label: "Cân nặng", unit: "kg", min: 1, max: 300, step: 0.1 }, { k: "h", t: "num", label: "Chiều cao", unit: "cm", min: 50, max: 250, step: 1 }],
-    calc: v => { if (!v.w || !v.h) return null; const b = v.w / ((v.h / 100) ** 2); return { val: b.toFixed(1), unit: "kg/m²", label: b < 18.5 ? "Thiếu cân" : b < 25 ? "Bình thường" : b < 30 ? "Thừa cân" : "Béo phì" }; } },
-  { id: "egfr", title: "eGFR (CKD-EPI 2021)", desc: "Độ lọc cầu thận ước tính từ creatinin huyết thanh, không dùng hệ số chủng tộc.", bai: "kls-thang-chuc-nang-than", src: "CKD-EPI 2021 (Inker và cộng sự, NEJM 2021).",
-    fields: [{ k: "scr", t: "num", label: "Creatinin huyết thanh", unit: "mg/dL", min: 0.1, max: 20, step: 0.01 }, { k: "age", t: "num", label: "Tuổi", unit: "năm", min: 18, max: 120, step: 1 }, { k: "sex", t: "opt", label: "Giới", opts: [["Nữ", "f"], ["Nam", "m"]] }],
-    calc: v => { if (!v.scr || !v.age) return null; const f = v.sex === "f", k = f ? 0.7 : 0.9, a = f ? -0.241 : -0.302; const e = 142 * Math.min(v.scr / k, 1) ** a * Math.max(v.scr / k, 1) ** -1.2 * 0.9938 ** v.age * (f ? 1.012 : 1); const g = e >= 90 ? "G1" : e >= 60 ? "G2" : e >= 45 ? "G3a" : e >= 30 ? "G3b" : e >= 15 ? "G4" : "G5"; return { val: e.toFixed(0), unit: "mL/phút/1,73 m²", label: `Giai đoạn ${g}` }; } },
-  { id: "wells", title: "Wells (thuyên tắc phổi)", desc: "Xác suất lâm sàng thuyên tắc phổi, theo các tiêu chí lâm sàng.", bai: "kls-thang-thuyen-tac-phoi", src: "Wells và cộng sự (2000, 2001). Thang ba mức và hai mức đều được dùng; hiển thị cả hai.",
-    fields: [
-      { k: "dvt", t: "chk", label: "Dấu hiệu lâm sàng của huyết khối tĩnh mạch sâu", pts: 3 },
-      { k: "pe", t: "chk", label: "Chẩn đoán thuyên tắc phổi là giả thuyết hàng đầu", pts: 3 },
-      { k: "hr", t: "chk", label: "Nhịp tim trên 100 lần/phút", pts: 1.5 },
-      { k: "imm", t: "chk", label: "Bất động từ 3 ngày trở lên hoặc phẫu thuật trong 4 tuần", pts: 1.5 },
-      { k: "prev", t: "chk", label: "Tiền sử huyết khối tĩnh mạch sâu hoặc thuyên tắc phổi", pts: 1.5 },
-      { k: "hemo", t: "chk", label: "Ho ra máu", pts: 1 },
-      { k: "ca", t: "chk", label: "Ung thư đang điều trị hoặc trong 6 tháng", pts: 1 }],
-    calc: v => { const pts = ["dvt", "pe", "hr", "imm", "prev", "hemo", "ca"].reduce((s, k) => s + (v[k] ? (CC_WELLS[k]) : 0), 0); return { val: pts.toFixed(1), unit: "điểm", label: `Ba mức: ${pts > 6 ? "cao" : pts >= 2 ? "trung bình" : "thấp"} · Hai mức: ${pts > 4 ? "có thể thuyên tắc phổi" : "khó có thuyên tắc phổi"}` }; } },
-  { id: "chads", title: "CHA₂DS₂-VASc", desc: "Nguy cơ đột quỵ ở người bệnh rung nhĩ không do van tim.", bai: "kls-thang-rung-nhi", src: "Lip và cộng sự (2010); khuyến cáo rung nhĩ hiện hành.",
-    fields: [
-      { k: "chf", t: "chk", label: "Suy tim hoặc rối loạn chức năng thất trái", pts: 1 },
-      { k: "htn", t: "chk", label: "Tăng huyết áp", pts: 1 },
-      { k: "age", t: "opt", label: "Tuổi", opts: [["Dưới 65", 0], ["65–74", 1], ["75 trở lên", 2]] },
-      { k: "dm", t: "chk", label: "Đái tháo đường", pts: 1 },
-      { k: "stroke", t: "chk", label: "Đột quỵ, TIA hoặc thuyên tắc hệ thống trước đó", pts: 2 },
-      { k: "vasc", t: "chk", label: "Bệnh mạch máu (nhồi máu cơ tim, bệnh động mạch ngoại biên, mảng xơ động mạch chủ)", pts: 1 },
-      { k: "fem", t: "chk", label: "Giới nữ", pts: 1 }],
-    calc: v => { const pts = (v.chf ? 1 : 0) + (v.htn ? 1 : 0) + Number(v.age || 0) + (v.dm ? 1 : 0) + (v.stroke ? 2 : 0) + (v.vasc ? 1 : 0) + (v.fem ? 1 : 0); return { val: String(pts), unit: "điểm", label: pts === 0 ? "Nguy cơ thấp (nam)" : pts === 1 ? "Cân nhắc chống đông" : "Nên chống đông" }; } },
-  { id: "childpugh", title: "Child-Pugh", desc: "Mức độ suy gan ở xơ gan, theo năm yếu tố lâm sàng và cận lâm sàng.", bai: "kls-thang-chuc-nang-gan", src: "Pugh (1973) và các cải biên; kết quả chia nhóm A, B, C.",
-    fields: [
-      { k: "bil", t: "opt", label: "Bilirubin toàn phần", opts: [["Dưới 2 mg/dL", 1], ["2–3 mg/dL", 2], ["Trên 3 mg/dL", 3]] },
-      { k: "alb", t: "opt", label: "Albumin", opts: [["Trên 3,5 g/dL", 1], ["2,8–3,5 g/dL", 2], ["Dưới 2,8 g/dL", 3]] },
-      { k: "inr", t: "opt", label: "INR", opts: [["Dưới 1,7", 1], ["1,7–2,3", 2], ["Trên 2,3", 3]] },
-      { k: "asc", t: "opt", label: "Cổ trướng", opts: [["Không", 1], ["Ít, dễ kiểm soát", 2], ["Vừa đến nhiều", 3]] },
-      { k: "enc", t: "opt", label: "Bệnh não gan", opts: [["Không", 1], ["Độ 1–2", 2], ["Độ 3–4", 3]] }],
-    calc: v => { if (!v.bil || !v.alb || !v.inr || !v.asc || !v.enc) return null; const pts = [v.bil, v.alb, v.inr, v.asc, v.enc].reduce((s, x) => s + Number(x), 0); return { val: String(pts), unit: "điểm", label: pts <= 6 ? "Nhóm A" : pts <= 9 ? "Nhóm B" : "Nhóm C" }; } },
+// ---- công cụ tính toán: gom mọi khối @@calc trong các bài thang điểm (một nguồn duy nhất, đồng bộ với thư viện) ----
+// Nhóm hiển thị của công cụ, theo id bài thang điểm; bài chưa khai báo ở đây rơi vào nhóm "Khác"
+const CALC_CATS = [
+  ["Tri giác, thần kinh, tâm thần", ["kls-thang-tri-giac", "kls-thang-dot-quy", "kls-thang-sa-sut-tri-tue", "kls-thang-tam-than"]],
+  ["Cấp cứu, nhiễm trùng, huyết động", ["kls-thang-canh-bao-som", "kls-thang-nhiem-trung", "kls-thang-huyet-dong"]],
+  ["Tim mạch và huyết khối", ["kls-thang-dau-nguc", "kls-thang-rung-nhi", "kls-thang-thuyen-tac-phoi"]],
+  ["Hô hấp", ["kls-thang-ho-hap"]],
+  ["Gan, tiêu hoá", ["kls-thang-chuc-nang-gan", "kls-thang-dau-bung-cap", "kls-thang-tieu-hoa-cap"]],
+  ["Thận, điện giải, kiềm toan", ["kls-thang-chuc-nang-than", "kls-thang-kiem-toan", "kls-thang-dien-giai"]],
+  ["Dinh dưỡng, chuyển hoá", ["kls-thang-dinh-duong", "kls-thang-nhu-cau-dinh-duong", "kls-thang-chuyen-hoa"]],
+  ["Sản khoa và sơ sinh", ["kls-thang-chuyen-da", "kls-thang-so-sinh"]],
+  ["Ung bướu và liều thuốc", ["kls-thang-the-trang", "kls-thang-ung-buou"]],
 ];
-const CC_WELLS = { dvt: 3, pe: 3, hr: 1.5, imm: 1.5, prev: 1.5, hemo: 1, ca: 1 };
-function ccForm(t) {
-  const fields = t.fields.map(f => {
-    if (f.t === "num") return `<label class="cc-row"><span>${esc(f.label)}</span><span class="cc-in"><input type="number" data-k="${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" inputmode="decimal"><small>${esc(f.unit)}</small></span></label>`;
-    if (f.t === "opt") return `<label class="cc-row"><span>${esc(f.label)}</span><select data-k="${f.k}"><option value="">Chọn…</option>${f.opts.map(([l, v]) => `<option value="${esc(String(v))}">${esc(l)}</option>`).join("")}</select></label>`;
-    return `<label class="cc-row cc-chk"><input type="checkbox" data-k="${f.k}"><span>${esc(f.label)}</span></label>`;
-  }).join("");
-  return `<div class="cc-form">${fields}</div><div class="cc-res" aria-live="polite"></div>`;
-}
-function ccRead(t, root) {
-  const v = {};
-  t.fields.forEach(f => {
-    const el = root.querySelector(`[data-k="${f.k}"]`); if (!el) return;
-    if (f.t === "num") v[f.k] = el.value === "" ? null : parseFloat(el.value);
-    else if (f.t === "opt") v[f.k] = el.value === "" ? null : (f.opts.find(([, x]) => String(x) === el.value) || [])[1] ?? el.value;
-    else v[f.k] = el.checked;
+const CALC_OLD = { bmi: "BMI", egfr: "eGFR", wells: "Wells PE", chads: "CHA2DS2-VASc", childpugh: "Child-Pugh" };   // đường dẫn cũ #/congcu/<id>
+let CALCS = null;
+function calcIndex() {
+  if (CALCS) return CALCS;
+  const catOf = id => { const i = CALC_CATS.findIndex(c => c[1].includes(id)); return i < 0 ? CALC_CATS.length : i; };
+  CALCS = [];
+  NOTES.filter(n => /(^|\n)@@calc\s/.test(n.body)).forEach(n => {
+    const L = n.body.split("\n"); let sub = "", k = 0;
+    const heads = []; L.forEach((l, i) => { if (/^###\s/.test(l.trim())) heads.push(i); });
+    for (let i = 0; i < L.length; i++) {
+      const t = L[i].trim(); let m;
+      if ((m = t.match(/^#{3}\s+(.*)$/))) sub = plain(m[1]);
+      if (!(m = t.match(/^@@calc\s+(.+)$/))) continue;
+      let e = i + 1; while (e < L.length && L[e].trim() !== "@@end") e++;
+      const lines = L.slice(i + 1, e), formula = lines.some(x => /^\s*@@(in|sel)\s/.test(x));
+      const title = plain(m[1]);
+      const hs = [...heads].reverse().find(h => h < i), he = heads.find(h => h > i) ?? L.length, sec = [];
+      if (hs !== undefined) { let skip = false; for (const x of L.slice(hs + 1, he)) { const t = x.trim(); if (/^@@calc\s/.test(t)) { skip = true; continue; } if (skip) { if (t === "@@end") skip = false; continue; } if (/^####\s+Công cụ tính/.test(t)) continue; sec.push(x); } }
+      CALCS.push({ id: `${n.id}.${k++}`, note: n.id, raw: m[1], title, sub, lines, sec, kind: formula ? "Công thức" : "Chấm điểm",
+        src: [...m[1].matchAll(/\{\{\+?([^}]+)\}\}/g)].map(x => x[1]), cat: catOf(n.id), ord: n.order ?? 99, _s: noDia(`${title} ${sub} ${n.short || n.title} ${(n.tags || []).join(" ")}`) });
+      i = e;
+    }
   });
-  return v;
+  CALCS.sort((a, b) => a.cat - b.cat || a.ord - b.ord || (a.id < b.id ? -1 : 1));
+  return CALCS;
 }
-function ccResult(t, root) {
-  const r = t.calc(ccRead(t, root)), out = root.querySelector(".cc-res");
-  out.innerHTML = r ? `<div class="cc-val"><b>${esc(r.val)}</b> <small>${esc(r.unit)}</small></div><div class="cc-lab">${esc(r.label)}</div>` : `<div class="cc-lab cc-wait">Nhập đủ thông tin để xem kết quả.</div>`;
+const calcByTitle = t => calcIndex().find(c => c.title === t);
+const calcCatName = c => c.cat < CALC_CATS.length ? CALC_CATS[c.cat][0] : "Khác";
+function calcCard(c) {
+  const n = byId[c.note];
+  return `<a class="rcard lib" style="--c:var(--s${(c.cat % 10) + 1})" href="#/congcu/${c.id}"><small>${c.kind}</small><b>${esc(c.title)}</b><span>${esc(n.short || n.title)}</span></a>`;
+}
+// Giải thích của một công cụ: các mục #### của bài (ý nghĩa, khi nào dùng, cách đánh điểm, cách đọc, hạn chế) + công thức và bảng mã lựa chọn
+function calcExplain(c) {
+  const parts = []; let cur = { t: "", b: [] };
+  c.sec.forEach(x => { const m = x.trim().match(/^####\s+(.*)$/); if (m) { parts.push(cur); cur = { t: plain(m[1]), b: [] }; } else cur.b.push(x); });
+  parts.push(cur);
+  const fold = p => p.b.join("\n").trim() ? `<details class="fold"${/Ý nghĩa|Cách đánh|Cách tính/.test(p.t) ? " open" : ""}><summary>${esc(p.t || "Giới thiệu")}</summary>${md(p.b.join("\n"))}</details>` : "";
+  const head = parts.filter(p => !p.t || /Ý nghĩa|Khi nào/.test(p.t)).map(fold).join(""), rest = parts.filter(p => p.t && !/Ý nghĩa|Khi nào/.test(p.t)).map(fold).join("");
+  // công thức và mã lựa chọn của công cụ dạng công thức
+  const lab = {}, sels = [], outs = [];
+  let cs = null;
+  c.lines.forEach(x => { const t = x.trim(); let m;
+    if ((m = t.match(/^@@in\s+(.+)$/))) { const a = m[1].split("|").map(z => z.trim()); lab[a[0]] = a[1]; cs = null; }
+    else if ((m = t.match(/^@@sel\s+(.+)$/))) { const a = m[1].split("|").map(z => z.trim()); lab[a[0]] = a[1]; cs = { n: a[1], o: [] }; sels.push(cs); }
+    else if ((m = t.match(/^@@out\s+(.+)$/))) { const a = m[1].split("|").map(z => z.trim()); lab[a[0]] = a[1]; outs.push({ id: a[0], n: a[1], u: a[2] || "", e: a.slice(4).join("|") }); cs = null; }
+    else if (cs && (m = t.match(/^-\s*(-?[\d.]+)\s*\|\s*(.+)$/))) cs.o.push(`${plain(m[2])} = ${m[1]}`);
+    else if (/^@@(rules|res|bands)/.test(t)) cs = null; });
+  let calcH = "";
+  if (outs.length) {
+    const short = id => (lab[id] || id).replace(/\s*\(.*$/, "");
+    const pretty = e => e.replace(/[A-Za-z_]\w*/g, w => (w in CALC_FN ? w : (w in lab ? `[${short(w)}]` : w))).replace(/\*\*/g, "^").replace(/\*/g, "×").replace(/\//g, "÷");
+    calcH = `<details class="fold" open><summary>Công thức và cách mã hóa lựa chọn</summary><ul>${outs.map(o => `<li><b>${esc(o.n)}</b> = <code>${esc(pretty(o.e))}</code>${o.u ? ` <small>(${esc(o.u)})</small>` : ""}</li>`).join("")}</ul>` +
+      (sels.length ? `<p class="meta">Mã của các lựa chọn: ${sels.map(z => `<b>${esc(z.n)}</b>: ${esc(z.o.join("; "))}`).join(" · ")}. Tên trong ngoặc vuông là ô đã nhập hoặc kết quả trung gian.</p>` : `<p class="meta">Tên trong ngoặc vuông là ô đã nhập hoặc kết quả trung gian.</p>`) + `</details>`;
+  } else {
+    const max = c.lines.some(x => /^\s*@@checks/.test(x)) || c.lines.some(x => /^\s*@@item/.test(x));
+    if (max) calcH = `<p class="meta">Mỗi lựa chọn hiện kèm số điểm ở đầu dòng; tổng điểm tự cộng và đối chiếu với các mức ở khung kết quả.</p>`;
+  }
+  return { head, rest: calcH + rest };
+}
+let ccQuery = "", ccCat = -1;
+function ccList() {
+  const all = calcIndex(), terms = noDia(ccQuery.trim()).split(/\s+/).filter(Boolean);
+  const hit = all.filter(c => (ccCat < 0 || c.cat === ccCat) && terms.every(x => c._s.includes(x)));
+  const cats = [...new Set(hit.map(c => c.cat))];
+  return hit.length ? cats.map(k => `<h3>${esc(k < CALC_CATS.length ? CALC_CATS[k][0] : "Khác")} <small class="meta">(${hit.filter(c => c.cat === k).length})</small></h3><div class="rgrid libgrid">${hit.filter(c => c.cat === k).map(calcCard).join("")}</div>`).join("")
+    : `<p class="meta">Không có công cụ khớp. Thử từ khóa ngắn hơn, ví dụ "gan", "thận", "đột quỵ".</p>`;
 }
 function congCu(id) {
-  $("#main").style.maxWidth = "880px";
-  const t = CC.find(x => x.id === id);
+  $("#main").style.maxWidth = "1000px";
+  const all = calcIndex();
+  const old = Object.keys(CALC_OLD).includes(id) ? all.find(c => c.title.startsWith(CALC_OLD[id])) : null;
+  if (old) { location.replace("#/congcu/" + old.id); return; }
+  const t = all.find(x => x.id === id);
   if (!t) {
-    $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Công cụ tính điểm" }])}
-      ${pageHead({ c: "var(--s11)", kicker: "Khác", title: "Công cụ tính điểm", desc: "Các thang điểm và công thức hay dùng. Nhập số, kết quả hiện ngay. Mỗi công cụ có nguồn và bài liên quan." })}
-      <div class="rgrid libgrid">${CC.map(x => `<a class="rcard lib" style="--c:var(--s11)" href="#/congcu/${x.id}"><small>Công cụ</small><b>${esc(x.title)}</b><span>${esc(x.desc)}</span></a>`).join("")}</div>`;
+    const cats = [...new Set(all.map(c => c.cat))].sort((a, b) => a - b), nNotes = new Set(all.map(c => c.note)).size;
+    $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Công cụ tính toán" }])}
+      ${pageHead({ c: "var(--s11)", kicker: "Khác", title: "Công cụ tính toán", desc: `${all.length} công cụ từ ${nNotes} bài thang điểm lâm sàng. Nhập số hoặc chọn mức, kết quả hiện ngay. Mỗi công cụ có nguồn và liên kết sang bài thang điểm đầy đủ (ý nghĩa, cách chấm, cạm bẫy).` })}
+      <div class="cc-bar"><input id="ccQ" class="cc-q" type="search" placeholder="Tìm công cụ: tên thang, cơ quan, bệnh…" value="${esc(ccQuery)}" aria-label="Tìm công cụ">
+        <div class="cc-chips"><button data-cat="-1" class="${ccCat < 0 ? "on" : ""}">Tất cả</button>${cats.map(k => `<button data-cat="${k}" class="${ccCat === k ? "on" : ""}">${esc(k < CALC_CATS.length ? CALC_CATS[k][0] : "Khác")}</button>`).join("")}</div></div>
+      <div id="ccList">${ccList()}</div>
+      <p class="meta">Công cụ hỗ trợ tra cứu, không thay thế đánh giá lâm sàng. Danh sách tự cập nhật theo các bài thang điểm trong thư viện.</p>`;
+    $("#ccQ").addEventListener("input", e => { ccQuery = e.target.value; $("#ccList").innerHTML = ccList(); });
+    document.querySelectorAll(".cc-chips button").forEach(b => b.onclick = () => { ccCat = +b.dataset.cat; document.querySelectorAll(".cc-chips button").forEach(x => x.classList.toggle("on", x === b)); $("#ccList").innerHTML = ccList(); });
     window.scrollTo(0, 0); return;
   }
-  const bai = byId[t.bai];
-  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Công cụ tính điểm", href: "#/congcu" }, { t: t.title }])}
-    ${pageHead({ c: "var(--s11)", kicker: "Công cụ tính điểm", title: esc(t.title), desc: esc(t.desc) })}
-    <div class="cc" id="ccRoot">${ccForm(t)}</div>
-    <p class="meta">Nguồn: ${esc(t.src)}</p>
-    ${bai ? `<p class="meta">Bài liên quan: <a href="#/n/${bai.id}">${esc(bai.short || bai.title)}</a></p>` : ""}
+  const n = byId[t.note], same = all.filter(c => c.cat === t.cat), i = same.indexOf(t), prev = same[i - 1], next = same[i + 1];
+  calcNoLink = true; const body = calcBlock(t.raw, t.lines); calcNoLink = false;
+  const ex = calcExplain(t);
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Công cụ tính toán", href: "#/congcu" }, { t: calcCatName(t) }, { t: t.title }])}
+    ${pageHead({ c: `var(--s${(t.cat % 10) + 1})`, kicker: `${t.kind} · ${esc(calcCatName(t))}`, title: esc(t.title), desc: esc(t.sub && t.sub !== t.title ? t.sub : "") })}
+    <div class="cc-tool">${ex.head}${body}</div>
+    <div class="cc-why">${ex.rest}</div>
+    <p class="meta">Nguồn: ${t.src.length ? t.src.map(s => `<span class="src ext">${esc(s)}</span>`).join(" ") : esc(n.source || "")}</p>
+    <p class="meta">Bài thang điểm đầy đủ (ý nghĩa, khi nào dùng, cách chấm, cạm bẫy): <a href="#/n/${n.id}">${esc(n.short || n.title)}</a></p>
+    ${same.filter(c => c.note === t.note && c !== t).length ? `<h3>Cùng bài</h3><div class="rgrid libgrid">${same.filter(c => c.note === t.note && c !== t).map(calcCard).join("")}</div>` : ""}
+    <div class="cc-nav">${prev ? `<a class="btn" href="#/congcu/${prev.id}">← ${esc(prev.title)}</a>` : "<span></span>"}${next ? `<a class="btn" href="#/congcu/${next.id}">${esc(next.title)} →</a>` : ""}</div>
     <p class="meta">Công cụ hỗ trợ tra cứu, không thay thế đánh giá lâm sàng.</p>`;
-  const root = $("#ccRoot");
-  root.addEventListener("input", () => ccResult(t, root));
-  root.addEventListener("change", () => ccResult(t, root));
-  ccResult(t, root);
   window.scrollTo(0, 0);
 }
 // ---- bản đồ tư duy của một module: gốc là module, nhánh là mục, lá là bài (tự dựng từ dữ liệu) ----
@@ -1253,7 +1306,7 @@ function mindmap(mod) {
   if (!mod || !MODULES[mod]) {
     $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Bản đồ module" }])}
       ${pageHead({ c: "var(--s11)", kicker: "Khác", title: "Bản đồ module", desc: "Cấu trúc của từng chuyên khoa: mỗi nhánh là một mục, mỗi lá là một bài." })}
-      <div class="rgrid libgrid">${Object.keys(MODULES).map(m => `<a class="rcard lib" style="--c:var(--s11)" href="#/mindmap/${m}"><small>${NOTES.filter(n => n.module === m).length} bài</small><b>${esc(MODULES[m])}</b></a>`).join("")}</div>`;
+      <div class="rgrid libgrid">${mainMods().map(m => `<a class="rcard lib" style="--c:var(--s11)" href="#/mindmap/${m}"><small>${NOTES.filter(n => n.module === m).length} bài</small><b>${esc(MODULES[m])}</b></a>`).join("")}</div>`;
     window.scrollTo(0, 0); return;
   }
   const branch = sp => {
