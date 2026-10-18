@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mô phỏng ECG</title>
+<style>
+:root{
+  --bg:#f6f5f2; --panel:#ffffff; --fg:#1d1d1f; --muted:#6b6b70; --line:#e4e2dc;
+  --paper:#fffdf8; --grid1:#f2c9c4; --grid2:#e08f86; --trace:#111111;
+  --accent:#b03a2e; --ok:#1e7a46; --bad:#b03a2e; --mark:#2b5d9e; --warn:#9a6a00;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121214; --panel:#1c1c20; --fg:#eeeeee; --muted:#9a9aa3; --line:#2e2e35;
+    --paper:#15171a; --grid1:#3a2626; --grid2:#6a3a36; --trace:#e8e8e8;
+    --accent:#e0695d; --ok:#5fd08f; --bad:#ff8a7e; --mark:#8fb8ea; --warn:#e0b050;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121214; --panel:#1c1c20; --fg:#eeeeee; --muted:#9a9aa3; --line:#2e2e35;
+  --paper:#15171a; --grid1:#3a2626; --grid2:#6a3a36; --trace:#e8e8e8;
+  --accent:#e0695d; --ok:#5fd08f; --bad:#ff8a7e; --mark:#8fb8ea; --warn:#e0b050;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:20px 16px 4px;max-width:1280px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}
+h3.h{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 6px}
+.sub{margin:0;color:var(--muted);font-size:13px}
+.wrap{display:grid;grid-template-columns:330px minmax(0,1fr);gap:16px;max-width:1280px;margin:0 auto;padding:16px}
+@media (max-width:860px){.wrap{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.seg{flex:1;padding:8px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;font:inherit}
+.seg:first-child{border-radius:8px 0 0 8px}.seg:last-child{border-radius:0 8px 8px 0}
+.seg.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.modes{display:flex;margin-bottom:10px}
+select,input[type=number],input[type=datetime-local],button.btn{font:inherit;padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+select{width:100%;margin:6px 0 10px}
+input[type=number],input[type=datetime-local]{width:100%}
+button.btn{cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.desc{color:var(--muted);font-size:14px;margin:6px 0}
+.chk{display:flex;gap:8px;align-items:center;margin:10px 0;font-size:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 label{font-size:13px;display:flex;flex-direction:column;gap:2px;color:var(--muted)}
+.grid2 .full{grid-column:1/-1}
+.slider{margin:12px 0}
+.slider label{display:flex;justify-content:space-between;font-size:14px}
+.slider output{color:var(--accent);font-variant-numeric:tabular-nums}
+.slider input{width:100%}
+.slider.na{opacity:.45}
+.options{display:grid;grid-template-columns:1fr;gap:6px;margin:8px 0}
+.options button{text-align:left}
+.options button.right{border-color:var(--ok);color:var(--ok)}
+.options button.wrong{border-color:var(--bad);color:var(--bad)}
+.feedback{min-height:48px;font-size:14px}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+.cwrap{overflow-x:auto;border-radius:8px}
+canvas{display:block;width:100%;border-radius:8px}
+.readout{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:14px 0 0;font-size:14px}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0;font-variant-numeric:tabular-nums}
+.legend{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
+.note{font-size:12px;color:var(--muted);margin-top:12px}
+.rightcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+.an h3{margin:0 0 4px;font-size:17px}
+.an h4{margin:18px 0 6px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.an ul,.an ol{margin:0;padding-left:20px}
+.an li{margin:6px 0;font-size:14px}
+.an ul.fl{list-style:none;padding-left:0}
+.an ul.fl li{display:flex;gap:8px;align-items:flex-start}
+.badge{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;margin-top:2px;white-space:nowrap}
+.f-urgent .badge{color:var(--bad)} .f-warn .badge{color:var(--warn)} .f-note .badge{color:var(--mark)} .f-ok .badge{color:var(--ok)}
+.src{display:inline-block;font-size:11px;padding:0 6px;border-radius:6px;background:var(--line);color:var(--muted);margin-left:4px;vertical-align:1px}
+.src.gen{background:transparent;border:1px dashed var(--muted)}
+.an a{color:var(--mark)}
+.hold{color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mô phỏng điện tâm đồ (ECG)</h1>
+  <p class="sub">Công cụ học tập, không dùng để chẩn đoán hay quyết định điều trị.</p>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <div class="modes">
+      <button class="seg on" id="modeExplore">Khám phá</button>
+      <button class="seg" id="modeQuiz">Luyện nhận dạng</button>
+    </div>
+    <div class="modes">
+      <button class="seg on" id="levelBasic">Cơ bản (chuyển đạo II)</button>
+      <button class="seg" id="levelAdv">Nâng cao (12 chuyển đạo)</button>
+    </div>
+
+    <div id="explorePanel">
+      <label for="rhythm">Loại nhịp</label>
+      <select id="rhythm"></select>
+      <p class="desc" id="desc"></p>
+      <div class="row">
+        <button class="btn" id="applyPreset">Về giá trị mẫu</button>
+        <button class="btn" id="reseed">Tạo lại ngẫu nhiên</button>
+      </div>
+    </div>
+
+    <div id="diseasePanel">
+      <h3 class="h">Mẫu bệnh (chuyển sang Nâng cao)</h3>
+      <div class="row" id="presets"></div>
+      <p class="desc" id="presetDesc">Mỗi mẫu đặt sẵn các thông số gần với bệnh đó. Đây là mô phỏng xấp xỉ để luyện đọc, không phải hình thái thật.</p>
+    </div>
+
+    <div id="quizPanel" hidden>
+      <p class="desc">Quan sát đoạn ECG rồi chọn loại nhịp. Bạn vẫn có thể chỉnh thông số, nhưng đáp án không đổi. Nhãn sóng bị ẩn trong chế độ này.</p>
+      <div class="options" id="options"></div>
+      <div class="feedback" id="feedback"></div>
+      <div class="row">
+        <button class="btn" id="nextQ">Câu tiếp theo</button>
+        <span id="score" class="desc"></span>
+      </div>
+    </div>
+
+    <label class="chk"><input type="checkbox" id="chkLabels"> Hiện nhãn sóng và khoảng đo (P, Q, R, S, T, U; PR, QRS, QT)</label>
+
+    <div id="advPanel" hidden>
+      <div class="grid2">
+        <label>Tốc độ giấy <select id="speed"><option value="25" selected>25 mm/s</option><option value="50">50 mm/s</option></select></label>
+        <label>Biên độ <select id="gain"><option value="5">5 mm/mV</option><option value="10" selected>10 mm/mV</option><option value="20">20 mm/mV</option></select></label>
+      </div>
+      <h3 class="h">Đoạn ST</h3>
+      <select id="stPos">
+        <option value="none">Chênh ST theo hướng sóng T (bình thường)</option>
+        <option value="ant">Thành trước (V1–V3)</option>
+        <option value="inf">Thành dưới (II, III, aVF)</option>
+        <option value="lat">Thành bên (I, aVL, V5–V6)</option>
+      </select>
+      <p class="desc">Vị trí chỉ có tác dụng khi “Chênh ST” khác 0.</p>
+    </div>
+
+    <div id="sliders"></div>
+  </section>
+
+  <div class="rightcol">
+  <section class="card">
+    <div class="cwrap"><canvas id="ecg"></canvas></div>
+    <dl class="readout" id="readout"></dl>
+    <p class="legend" id="legend"></p>
+    <p class="note">Đây là sóng mô phỏng bằng mô hình vector tim đơn giản, không phải dữ liệu bệnh nhân thật. Mỗi chuyển đạo là hình chiếu của cùng các vector P, QRS, ST, T, U lên trục của chuyển đạo đó. Đoạn ST và sóng U được vẽ bằng đường cong đơn giản, chỉ để minh họa.</p>
+  </section>
+  <section class="card an" id="analysis"></section>
+  </div>
+</main>
+
+<script>
+// ---------- Cấu hình ----------
+const FS = 500;            // tần số lấy mẫu (Hz)
+const T0 = -1.2;           // đệm trước cửa sổ hiển thị (s)
+const VIEW = 10;           // độ dài hiển thị (s)
+const T1 = VIEW + 1.2;     // đệm sau cửa sổ hiển thị (s)
+const NS = Math.round((T1 - T0) * FS);
+
+// Hướng của từng chuyển đạo (độ). Chi: mặt phẳng trán. Trước ngực: mặt phẳng ngang (0° = trái, 90° = trước).
+const LIMB = {I:0, II:60, III:120, aVR:-150, aVL:-30, aVF:90};
+const PREC = {V1:160, V2:130, V3:100, V4:70, V5:40, V6:10};
+const LEADS = ['I','II','III','aVR','aVL','aVF','V1','V2','V3','V4','V5','V6'];
+const LAYOUT = [['I','aVR','V1','V4'],['II','aVL','V2','V5'],['III','aVF','V3','V6']];
+// Hướng vector ST theo vùng (a: mặt phẳng trán, h: mặt phẳng ngang)
+const ST_VEC = {none:null, ant:{a:60, h:120, fm:0.1, hm:1}, inf:{a:100, h:60, fm:1, hm:0.2}, lat:{a:-30, h:10, fm:1, hm:0.8}};
+const P_VEC = {a:60, h:70};       // vector sóng P
+const A_VEC = {a:60, h:120};      // vector hoạt động nhĩ (sóng f)
+const F_VEC = {a:90, h:90};       // vector sóng cuồng nhĩ
+
+const SL = [
+  {id:'hr',    label:'Tần số (lần/phút)',          min:30,  max:200, step:1,     def:75},
+  {id:'pr',    label:'Khoảng PR (ms)',             min:100, max:320, step:10,    def:160},
+  {id:'qrs',   label:'Độ rộng QRS (ms)',           min:60,  max:200, step:5,     def:90},
+  {id:'qt',    label:'Khoảng QT (ms)',             min:280, max:560, step:10,    def:400},
+  {id:'rAmp',  label:'Biên độ R (mV)',             min:0.2, max:2,   step:0.1,   def:1},
+  {id:'pAmp',  label:'Biên độ P (mV)',             min:0,   max:0.3, step:0.01,  def:0.15},
+  {id:'noise', label:'Nhiễu (mV)',                 min:0,   max:0.05,step:0.005, def:0.01},
+  // Nâng cao
+  {id:'tAmp',  label:'Biên độ T (mV, âm = đảo)',   min:-0.5, max:0.8, step:0.05,  def:0.3,  adv:1},
+  {id:'stOff', label:'Chênh ST (mV, + lên / − xuống)', min:-0.3, max:0.4, step:0.01, def:0, adv:1},
+  {id:'uAmp',  label:'Biên độ U (mV)',             min:0,   max:0.1, step:0.005, def:0,    adv:1},
+  {id:'fAmp',  label:'Biên độ sóng f / F (mV)',    min:0,   max:0.2, step:0.01,  def:0.04, adv:1},
+  {id:'axis',  label:'Trục QRS mặt phẳng trán (°)', min:-90, max:180, step:5,    def:60,   adv:1},
+  {id:'hAxis', label:'Trục QRS mặt phẳng ngang (°)', min:-30, max:120, step:5,   def:30,   adv:1},
+  {id:'tAxis', label:'Trục T mặt phẳng trán (°)',  min:-90, max:180, step:5,     def:50,   adv:1},
+  {id:'tH',    label:'Trục T mặt phẳng ngang (°)', min:-30, max:120, step:5,     def:40,   adv:1},
+];
+const DEF = {tAmp:0.3, stOff:0, uAmp:0, fAmp:0.04, axis:60, hAxis:30, tAxis:50, tH:40};
+
+const RHYTHMS = {
+  sinus:   {label:'Nhịp xoang bình thường', p:{hr:75, pr:160, qrs:90,  qt:400},
+    desc:'Mỗi QRS có một sóng P đi trước. PR cố định trong khoảng 120–200 ms. Nhịp đều, QRS hẹp.'},
+  brady:   {label:'Nhịp xoang chậm', p:{hr:45, pr:160, qrs:90,  qt:460},
+    desc:'Nhịp xoang dưới 60 lần/phút. Các thành phần khác bình thường.'},
+  tachy:   {label:'Nhịp xoang nhanh', p:{hr:125, pr:140, qrs:85, qt:300},
+    desc:'Nhịp xoang trên 100 lần/phút. Vẫn có sóng P trước mỗi QRS.'},
+  block1:  {label:'Block nhĩ thất độ 1', p:{hr:70, pr:260, qrs:90, qt:420},
+    desc:'Mỗi sóng P đều dẫn xuống thất, nhưng PR kéo dài trên 200 ms và cố định.'},
+  mobitz1: {label:'Block nhĩ thất Mobitz I (Wenckebach)', p:{hr:75, pr:180, qrs:90, qt:400},
+    desc:'PR dài dần qua từng nhịp cho đến khi một QRS bị rớt. Sau đó chu kỳ lặp lại.'},
+  mobitz2: {label:'Block nhĩ thất Mobitz II', p:{hr:75, pr:200, qrs:90, qt:400},
+    desc:'PR cố định, nhưng đột ngột có sóng P không dẫn xuống thất (ở đây dẫn 2:1).'},
+  block3:  {label:'Block nhĩ thất độ 3', p:{hr:80, pr:160, qrs:130, qt:440},
+    desc:'Nhĩ và thất đập độc lập. P đều theo tần số nhĩ, QRS đều theo nhịp thoát khoảng 40 lần/phút, không có liên hệ PR.'},
+  af:      {label:'Rung nhĩ', p:{hr:100, pr:160, qrs:90, qt:360},
+    desc:'Không có sóng P, thay bằng sóng f hỗn loạn (rõ nhất ở V1 và II). Khoảng RR hoàn toàn không đều.'},
+  flutter: {label:'Cuồng nhĩ 2:1', p:{hr:150, pr:160, qrs:90, qt:340},
+    desc:'Sóng cuồng nhĩ răng cưa khoảng 300 lần/phút (âm ở II, III, aVF). Cứ hai sóng dẫn một QRS, tần số thất khoảng 150.'},
+  vt:      {label:'Nhịp nhanh thất', p:{hr:170, pr:160, qrs:160, qt:320},
+    desc:'Không có sóng P trước QRS. QRS rộng trên 120 ms, nhịp đều và nhanh. Sóng T thường đảo chiều so với QRS.'},
+  pvc:     {label:'Ngoại tâm thu thất', p:{hr:72, pr:160, qrs:90, qt:400},
+    desc:'Nhịp xoang nền, xen kẽ QRS rộng và sớm không có P đi trước. Sau đó thường có nghỉ bù.'},
+};
+
+// Các loại nhịp mà một số thông số không áp dụng
+const NO_PR = ['af','flutter','vt'];
+const NO_P  = ['af','flutter','vt'];
+const NO_HR = ['flutter'];
+const NO_F  = key => !(key === 'af' || key === 'flutter');
+
+// ---------- Tiện ích ----------
+const $ = id => document.getElementById(id);
+const params = {};
+SL.forEach(s => params[s.id] = s.def);
+let seed = 12345;
+let quiz = {on:false, type:null, score:0, total:0, answered:false};
+const ui = {adv:false};
+
+function rng(s){
+  let a = s >>> 0;
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+const rad = d => d * Math.PI / 180;
+// Hệ số chiếu của một vector (a: góc mặt phẳng trán, h: góc mặt phẳng ngang) lên 12 chuyển đạo
+function gains(a, h, fm = 1, hm = 1){
+  const o = {};
+  for (const L in LIMB) o[L] = fm * Math.cos(rad(a - LIMB[L]));
+  for (const L in PREC) o[L] = hm * Math.cos(rad(h - PREC[L]));
+  return o;
+}
+
+// ---------- Sinh sự kiện nhịp (thời điểm QRS, P, sóng cuồng nhĩ) ----------
+function generate(type, p, sd){
+  const R = rng(sd);
+  const rr = 60 / p.hr, w = p.qrs / 1000, pr = p.pr / 1000;
+  // Danh sách thời điểm đều đặn, bắt đầu trước cửa sổ hiển thị
+  const times = (period, t0) => {
+    const out = [];
+    const s = t0 - Math.ceil((t0 - (T0 - 1)) / period) * period;
+    for (let t = s; t < T1 + 1; t += period) out.push(t);
+    return out;
+  };
+  const beats = [], pw = [], fw = [], flags = {};
+
+  switch(type){
+    case 'sinus': case 'brady': case 'tachy': case 'block1':
+      times(rr, 0.6).forEach(tq => {
+        beats.push({tq, w});
+        pw.push(tq - w/2 - pr + 0.05);
+      });
+      break;
+
+    case 'mobitz1':
+      flags.wenck = true;
+      times(rr, 0.6).forEach((tp, i) => {
+        const c = i % 4, prc = pr + c * 0.06;   // PR tăng dần qua từng nhịp
+        pw.push(tp);
+        if (c !== 3) beats.push({tq: tp - 0.05 + prc + w/2, w});  // nhịp thứ 4 bị rớt
+      });
+      break;
+
+    case 'mobitz2':
+      flags.mob2 = true;
+      times(rr, 0.6).forEach((tp, i) => {
+        pw.push(tp);
+        if (i % 2 === 1) beats.push({tq: tp - 0.05 + pr + w/2, w}); // dẫn 2:1
+      });
+      break;
+
+    case 'block3':
+      flags.dissoc = true;
+      times(rr, 0.6).forEach(tp => pw.push(tp));
+      times(60/40, 0.3).forEach(tq => beats.push({tq, w, esc:true}));
+      break;
+
+    case 'flutter':
+      times(0.2, 0).forEach((tf, i) => {
+        fw.push(tf);
+        if (i % 2 === 1) beats.push({tq: tf + 0.04, w});
+      });
+      break;
+
+    case 'af':
+      for (let t = T0 - 1; t < T1 + 1; ) {
+        beats.push({tq: t, w});
+        t += Math.max(0.3, rr * (0.45 + 1.1 * R()));
+      }
+      break;
+
+    case 'vt':
+      times(rr, 0.6).forEach(tq => beats.push({tq, w, inv:true}));
+      break;
+
+    case 'pvc':
+      times(rr, 0.6).forEach((tq, k) => {
+        if (k % 5 === 4) {
+          beats.push({tq: tq - 0.3 * rr, w: 0.15, inv:true, rMult:1.2}); // PVC sớm
+        } else {
+          beats.push({tq, w});
+          pw.push(tq - w/2 - pr + 0.05);
+        }
+      });
+      break;
+  }
+  return {type, beats, pw, fw, flags};
+}
+
+// Vị trí các thành phần của một nhịp (giây), dùng chung cho vẽ sóng và nhãn
+function geom(b, p){
+  const w = b.w;
+  return {
+    tq: b.tq,
+    Q: b.tq - w * 0.35,
+    S: b.tq + w * 0.35,
+    J: b.tq + w / 2,
+    tT: b.tq - w / 2 + p.qt / 1000 - 0.08,   // sóng T kết thúc đúng QT
+  };
+}
+
+// ---------- Dựng tín hiệu (mV) của 12 chuyển đạo từ các thành phần Gauss ----------
+function render(g, p, sd, type){
+  const sig = {};
+  LEADS.forEach(L => sig[L] = new Float64Array(NS));
+  const R = rng(sd + 1);
+  const gauss = () => { let u = 0; while (u === 0) u = R(); return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*R()); };
+  const cache = {};
+  const gk = v => { const k = v.a + '_' + v.h + '_' + (v.fm ?? 1) + '_' + (v.hm ?? 1); return cache[k] || (cache[k] = gains(v.a, v.h, v.fm ?? 1, v.hm ?? 1)); };
+  // Thêm một sóng Gauss có biên độ `mag` theo vector (a, h); mỗi chuyển đạo nhận phần hình chiếu
+  const add = (t0, sigma, mag, v) => {
+    if (!mag) return;
+    const G = gk(v);
+    const i0 = Math.max(0, Math.floor((t0 - 4*sigma - T0) * FS));
+    const i1 = Math.min(NS - 1, Math.ceil((t0 + 4*sigma - T0) * FS));
+    for (let i = i0; i <= i1; i++) {
+      const z = (T0 + i/FS - t0) / sigma;
+      const e = mag * Math.exp(-0.5 * z * z);
+      for (let k = 0; k < 12; k++) sig[LEADS[k]][i] += e * G[LEADS[k]];
+    }
+  };
+
+  const qv = {a: p.axis, h: p.hAxis}, tv = {a: p.tAxis, h: p.tH};
+  const stv = ST_VEC[p.stPos] || tv;
+  const rAmp = p.rAmp;
+  g.beats.forEach(b => {
+    const G = geom(b, p), w = b.w, rm = b.rMult || 1, inv = b.inv ? -1 : 1;
+    add(G.tq, w/6, rAmp * rm, qv);                      // R
+    add(G.Q, w/8, -0.12 * rAmp * rm, qv);               // Q
+    add(G.S, w/8, -0.20 * rAmp * rm, qv);               // S
+    const Ts = G.tT - 0.08;                             // bắt đầu sóng T
+    if (p.stOff && Ts > G.J) {                          // đoạn ST nâng hoặc hạ
+      const s = Math.max(0.025, (Ts - G.J) / 4);
+      add((G.J + Ts) / 2, s, p.stOff, stv);
+    }
+    add(G.tT, 0.04, p.tAmp * inv, tv);                  // T
+    if (p.uAmp) add(G.tT + 0.2, 0.02, p.uAmp * inv, tv); // U
+  });
+  g.pw.forEach(tp => add(tp, 0.02, p.pAmp, P_VEC));     // sóng P
+  g.fw.forEach(tf => add(tf, 0.025, -p.fAmp * 3.5, F_VEC)); // sóng cuồng nhĩ F
+
+  const GA = gk(A_VEC);
+  const phase = LEADS.map(() => R() * Math.PI * 2);
+  for (let i = 0; i < NS; i++) {
+    const t = T0 + i/FS;
+    let f = 0;
+    if (type === 'af') {                                // sóng f hỗn loạn
+      f = p.fAmp * 0.75 * Math.sin(2*Math.PI*5.3*t) + p.fAmp * 0.5 * Math.sin(2*Math.PI*7.1*t + 1);
+    }
+    for (let k = 0; k < 12; k++) {
+      const L = LEADS[k];
+      sig[L][i] += 0.03 * Math.sin(2*Math.PI*0.25*t + phase[k]);   // trôi nền
+      sig[L][i] += f * GA[L];
+      sig[L][i] += p.noise * gauss();
+    }
+  }
+  return sig;
+}
+
+// ---------- Vẽ ----------
+const canvas = $('ecg'), ctx = canvas.getContext('2d');
+
+function fmtWhen(){
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  return `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+
+function draw(sig, g, p, labels){
+  const adv = ui.adv;
+  const speed = adv ? +$('speed').value : 25, gain = adv ? +$('gain').value : 10;
+  const dpr = window.devicePixelRatio || 1;
+  const host = canvas.parentElement;
+  const W = Math.max(host.clientWidth, adv ? 780 : 0);
+  canvas.style.width = adv ? W + 'px' : '100%';
+
+  const MARG = 8, totalMM = VIEW * speed + MARG + 4, mm = W / totalMM;   // mm giấy → pixel
+  const ROW = adv ? 34 : 60, HEAD = adv ? 18 : 0, ROWS = adv ? 4 : 1, FOOT = adv ? 6 : 0;
+  const H = (HEAD + ROWS * ROW + FOOT) * mm;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  ctx.fillStyle = css('--paper');
+  ctx.fillRect(0, 0, W, H);
+  ctx.lineWidth = 0.5;
+  for (let x = 0, i = 0; x <= W + 0.5; x += mm, i++) {
+    ctx.strokeStyle = i % 5 === 0 ? css('--grid2') : css('--grid1');
+    ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke();
+  }
+  for (let y = 0, j = 0; y <= H + 0.5; y += mm, j++) {
+    ctx.strokeStyle = j % 5 === 0 ? css('--grid2') : css('--grid1');
+    ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke();
+  }
+
+  const X = t => (MARG + t * speed) * mm, pxmV = gain * mm;
+  const rowY = r => (HEAD + (r + 0.5) * ROW) * mm;
+  const clampY = (y, y0) => Math.max(y0 - 0.62 * ROW * mm, Math.min(y0 + 0.62 * ROW * mm, y));
+
+  // Thông tin hành chính (không có họ tên)
+  if (adv) {
+    const fs = Math.max(11, Math.min(15, 4.2 * mm));
+    const mono = 'ui-monospace, Menlo, Consolas, monospace';
+    ctx.fillStyle = css('--fg'); ctx.font = `600 ${fs}px ${mono}`; ctx.textAlign = 'left';
+    ctx.fillText('REST   ' + fmtWhen(), 3 * mm, 6 * mm);
+    ctx.fillStyle = css('--muted'); ctx.font = `${fs - 1}px ${mono}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${speed} mm/s   ${gain} mm/mV   Bộ lọc: mô phỏng`, 3 * mm, 13 * mm);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Trục QRS ${p.axis}°   Trục T ${p.tAxis}°`, W - 3 * mm, 13 * mm);
+  }
+
+  // Trục thời gian
+  ctx.fillStyle = css('--muted'); ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'left';
+  for (let s = 0; s < VIEW; s++) ctx.fillText(s + ' s', X(s) + 3, H - 4);
+
+  ctx.strokeStyle = css('--trace');
+  ctx.lineWidth = adv ? 1.2 : 1.4;
+  ctx.lineJoin = 'round';
+
+  const plot = (L, t1, t2, y0) => {
+    const a = sig[L];
+    const i0 = Math.round((t1 - T0) * FS), i1 = Math.round((t2 - T0) * FS);
+    ctx.beginPath();
+    for (let i = i0; i <= i1; i++) {
+      const x = X(T0 + i / FS), y = clampY(y0 - a[i] * pxmV, y0);
+      if (i === i0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  };
+  const calib = y0 => {                                 // dấu định chuẩn 1 mV
+    ctx.beginPath();
+    ctx.moveTo(0.5 * mm, y0); ctx.lineTo(1 * mm, y0); ctx.lineTo(1 * mm, y0 - pxmV);
+    ctx.lineTo(4.5 * mm, y0 - pxmV); ctx.lineTo(4.5 * mm, y0); ctx.lineTo(6 * mm, y0);
+    ctx.stroke();
+  };
+  const tag = (txt, x, y) => {
+    ctx.fillStyle = css('--fg'); ctx.font = `bold ${Math.max(11, Math.min(14, 3.6 * mm))}px system-ui, sans-serif`;
+    ctx.textAlign = 'left'; ctx.fillText(txt, x, y);
+  };
+
+  let map;
+  if (adv) {
+    LAYOUT.forEach((row, r) => {
+      const y0 = rowY(r);
+      calib(y0);
+      row.forEach((L, c) => {
+        plot(L, c * 2.5, (c + 1) * 2.5, y0);
+        tag(L, X(c * 2.5) + 5, y0 - 0.36 * ROW * mm);
+        if (c > 0) { ctx.beginPath(); ctx.moveTo(X(c * 2.5), y0 + 0.4 * ROW * mm); ctx.lineTo(X(c * 2.5), y0 + 0.4 * ROW * mm + 2 * mm); ctx.stroke(); }
+      });
+    });
+    const y3 = rowY(3);                                 // dải nhịp II kéo dài 10 giây
+    calib(y3);
+    plot('II', 0, VIEW, y3);
+    tag('II', X(0) + 5, y3 - 0.36 * ROW * mm);
+    map = {X, y0: y3, pxmV, mm};
+  } else {
+    const y0 = H / 2;
+    calib(y0);
+    plot('II', 0, VIEW, y0);
+    tag('II', X(0) + 5, 16);
+    map = {X, y0, pxmV, mm};
+  }
+
+  if (labels && g) annotate(g, p, map, W);
+}
+
+// Nhãn sóng và thanh đo khoảng (chỉ vẽ khi bật "Hiện nhãn"), trên dải nhịp II
+function annotate(g, p, m, W){
+  const {X, y0, pxmV, mm} = m;
+  const put = (t, y, txt) => {
+    if (t < 0 || t > VIEW) return;
+    ctx.fillStyle = css('--fg');
+    ctx.font = 'bold 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(txt, X(t), y);
+  };
+
+  g.pw.forEach(tp => put(tp, y0 - p.pAmp * pxmV - 6, 'P'));
+  g.beats.forEach(b => {
+    if (b.tq < 0 || b.tq > VIEW) return;
+    const G = geom(b, p), inv = b.inv ? -1 : 1, rm = b.rMult || 1;
+    put(G.tq, y0 - p.rAmp * rm * pxmV - 6, 'R');
+    put(G.Q, y0 + 0.12 * p.rAmp * rm * pxmV + 12, 'Q');
+    put(G.S, y0 + 0.20 * p.rAmp * rm * pxmV + 12, 'S');
+    const ty = p.tAmp * inv;
+    put(G.tT, y0 - ty * pxmV - (ty >= 0 ? 6 : -12), 'T');
+    if (p.uAmp) put(G.tT + 0.2, y0 - p.uAmp * inv * pxmV - 6, 'U');
+  });
+  g.fw.forEach(tf => put(tf, y0 + p.fAmp * 3.5 * pxmV + 12, 'F'));
+
+  // Thanh đo PR, QRS, QT trên một nhịp mẫu (nhịp đầu có P trong khoảng 1–4 s)
+  const b = g.beats.find(bb => !bb.inv && !bb.esc && bb.tq > 1 && bb.tq < 4);
+  if (!b) return;
+  const G = geom(b, p);
+  const pw = g.pw.filter(t => t < b.tq && b.tq - t < 0.4).sort((a, c) => a - c).pop();
+  const step = Math.max(12, 3.6 * mm);
+  const bar = (t1, t2, row, label, col) => {
+    const yy = y0 + 8 * mm + row * step;
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(t1), yy); ctx.lineTo(X(t2), yy); ctx.stroke();
+    [t1, t2].forEach(t => { ctx.beginPath(); ctx.moveTo(X(t), yy - 4); ctx.lineTo(X(t), yy + 4); ctx.stroke(); });
+    ctx.font = '10px system-ui, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(label + ' ' + Math.round((t2 - t1) * 1000) + ' ms', X(t2) + 6, yy + 3);
+  };
+  const qOn = b.tq - b.w / 2;
+  if (pw !== undefined) bar(pw - 0.05, qOn, 0, 'PR', css('--mark'));
+  bar(qOn, b.tq + b.w / 2, 1, 'QRS', css('--accent'));
+  bar(qOn, qOn + p.qt / 1000, 2, 'QT', css('--muted'));
+}
+
+// ---------- Số liệu đọc được ----------
+const PR_NA = ['af','flutter','vt','block3'];
+
+function readout(g, key){
+  const win = g.beats.map(b => b.tq).filter(t => t >= 0 && t <= VIEW).sort((a,b) => a-b);
+  const rrs = [];
+  for (let i = 1; i < win.length; i++) rrs.push(win[i] - win[i-1]);
+
+  let hr = '—', reg = '—';
+  if (rrs.length >= 2) {
+    const mean = rrs.reduce((a,b) => a+b, 0) / rrs.length;
+    const sd = Math.sqrt(rrs.reduce((a,b) => a + (b-mean)**2, 0) / rrs.length);
+    const cv = sd / mean;
+    hr = Math.round(60 / mean) + ' lần/phút';
+    reg = cv < 0.06 ? 'Đều' : 'Không đều (CV ' + Math.round(cv*100) + '%)';
+  }
+  const pCount = g.pw.filter(t => t >= 0 && t <= VIEW).length;
+  const pTxt = key === 'af' || key === 'flutter' ? 'Không có (sóng f/F)'
+    : pCount > 0 ? 'Có (' + Math.round(pCount / VIEW * 60) + '/phút)' : 'Không thấy';
+  const prTxt = PR_NA.includes(key) ? '—' : params.pr + ' ms';
+  const st = (params.stOff >= 0 ? '+' : '') + params.stOff.toFixed(2) + ' mV';
+
+  $('readout').innerHTML =
+    `<dt>Tần số thất</dt><dd>${hr}</dd>` +
+    `<dt>Nhịp</dt><dd>${reg}</dd>` +
+    `<dt>Sóng P</dt><dd>${pTxt}</dd>` +
+    `<dt>PR</dt><dd>${prTxt}</dd>` +
+    `<dt>QRS</dt><dd>${params.qrs} ms${params.qrs > 120 ? ' (rộng)' : ' (hẹp)'}</dd>` +
+    `<dt>QT</dt><dd>${params.qt} ms</dd>` +
+    `<dt>T / ST / U</dt><dd>${params.tAmp.toFixed(2)} mV / ${st} / ${params.uAmp.toFixed(3)} mV</dd>` +
+    (ui.adv ? `<dt>Trục QRS / T</dt><dd>${params.axis}° / ${params.tAxis}°</dd>` : '');
+}
+
+// ---------- Phân tích tự động: phát hiện, gợi ý bệnh lý, hướng xử trí ----------
+// Ngưỡng ECG: ghi chú Notion "Điện tâm đồ cơ bản" (qua thư viện). Hướng xử trí bám các bài trong thư viện của bạn;
+// mục nào tài liệu không nêu thì ghi rõ, không tự bổ sung liều hay phác đồ.
+const ADJ = [['V1','V2'],['V2','V3'],['V3','V4'],['V4','V5'],['V5','V6'],['II','III'],['III','aVF'],['II','aVF'],['I','aVL']];
+const SEVNAME = {urgent:'Khẩn', warn:'Bất thường', note:'Lưu ý', ok:'Bình thường'};
+const SEVORD = {urgent:0, warn:1, note:2, ok:3};
+
+const pill = (s, gen) => s ? `<span class="src${gen ? ' gen' : ''}">${s}</span>` : '';
+const libLink = (id, label) => `<a href="../#/n/${id}" target="_top">${label}</a>`;
+
+// Hướng xử trí: t = nội dung, s = nguồn trong thư viện, gen = định hướng chung chưa có nguồn, l = bài liên quan
+const ACT = {
+  stable:   {t:'Đánh giá ngay có rối loạn huyết động hay không (mạch, huyết áp, ý thức). Nếu có, xử trí cấp cứu theo quy trình ACLS.', s:'VT2025 tr.206', l:['acls-nhip-soc-thuoc','Bài ACLS']},
+  vt:       {t:'Nhịp nhanh thất vô mạch hoặc rung thất: CPR, thở oxy, gắn máy phá rung; sốc không đồng bộ (hai pha cắt cụt 150 J, hai pha chữ nhật 120 J, một pha 360 J); epinephrine mỗi 3–5 phút; amiodarone ở lần sốc thứ ba; tìm và xử trí nguyên nhân điều trị được.', s:'BLS tr.16, 20', l:['acls-nhip-soc-thuoc','Bài ACLS']},
+  vtpulse:  {t:'Nhịp nhanh thất còn mạch: tài liệu của bạn không nêu cách xử trí cụ thể. Cần đánh giá huyết động ngay và hội chẩn chuyên khoa tim mạch.', gen:'tài liệu không nêu'},
+  blockhigh:{t:'Block nhĩ thất Mobitz II, cao độ hoặc độ III thuộc nhóm rối loạn nhịp nguy hiểm: theo dõi monitor liên tục, chuyển cấp cứu hoặc hội chẩn tim mạch. Ngưỡng cấp cứu và chỉ định máy tạo nhịp: tài liệu của bạn không nêu.', s:'128VĐ tr.92', l:['hoi-hop-roi-loan-nhip','Bài rối loạn nhịp']},
+  blocklow: {t:'Block độ I hoặc Mobitz I: theo dõi ECG, tìm nguyên nhân có thể đảo ngược (rối loạn điện giải, thiếu máu cơ tim, thuốc đang dùng). Chỉ định xử trí cụ thể: tài liệu không nêu.', s:'128VĐ tr.92', gen:'thuốc đang dùng: định hướng chung'},
+  af:       {t:'Rung nhĩ: xác định thể (lần đầu, kịch phát, dai dẳng…), đánh giá triệu chứng theo mEHRA, nguy cơ huyết khối theo CHA2DS2-VA (ESC 2024; luôn ghi rõ thang đang dùng) và khung AF-CARE. Rung nhĩ kèm rối loạn huyết động cấp: chỉ định sốc điện (loại I).', s:'VT2025 tr.197–202, 206', l:['rung-nhi','Bài rung nhĩ']},
+  flutter:  {t:'Cuồng nhĩ: tài liệu của bạn chỉ nhắc ngưỡng chống đông còn "chưa rõ" (loại IIa mức C). Cần ECG 12 chuyển đạo, đánh giá huyết động và hội chẩn tim mạch.', s:'VT2025 tr.170'},
+  stemi:    {t:'Nghi NMCT ST chênh lên: monitor điện tim liên tục; thở oxy khi SpO2 dưới 90%; aspirin liều nạp 150–300 mg nếu không chống chỉ định; tái thông sớm bằng can thiệp mạch vành qua da thì đầu (loại I khi khởi phát trong 12 giờ). Không dùng nitrat nếu huyết áp thấp, nhịp chậm dưới 50 hoặc nhanh, NMCT thất phải.', s:'VT2025 tr.308–310', l:['hoi-chung-vanh-cap','Bài hội chứng vành cấp']},
+  stdep:    {t:'ST chênh xuống: nghĩ thiếu máu cơ tim. ST chênh xuống V1–V3 gợi NMCT thành sau: ghi thêm V7–V9. ST chênh xuống ≥ 1 mm trên 6 chuyển đạo trở lên kèm chênh lên aVR hoặc V1 gợi bệnh nhiều nhánh hoặc tắc thân chung trái, nhất là khi có rối loạn huyết động.', s:'VT2025 tr.306', l:['hoi-chung-vanh-cap','Bài hội chứng vành cấp']},
+  tallT:    {t:'Sóng T cao nhọn: kiểm tra kali máu ngay. Tăng kali máu có thay đổi trên điện tim là cấp cứu.', s:'HSTC tr.131–132', l:['noi-tiet-dien-giai','Bài điện giải']},
+  qt:       {t:'QT dài: rà soát thuốc kéo dài QT (haloperidol, chống trầm cảm ba vòng, quinolone, macrolide, amiodarone), kiểm tra kali và magie; theo dõi nguy cơ nhanh thất và xoắn đỉnh.', s:'ghi chú Notion', gen:'chưa đối chiếu giáo trình'},
+  wide:     {t:'QRS rộng: phân biệt block nhánh, nhịp thất và kích thích sớm; so với ECG cũ. Nếu kèm nhịp nhanh đều, đánh giá huyết động ngay và hội chẩn chuyên khoa.', gen:'định hướng chung'},
+  tachy:    {t:'Nhịp xoang nhanh: tìm nguyên nhân ngoài tim (cường giáp, thiếu máu, sốt, thai kỳ, rối loạn điện giải, chất kích thích, stress).', s:'128VĐ tr.93'},
+  brady:    {t:'Nhịp chậm: đánh giá huyết động, tìm nguyên nhân ngoài tim và rối loạn điện giải, đối chiếu với thuốc đang dùng.', gen:'định hướng chung'},
+  pvc:      {t:'Ngoại tâm thu thất: tìm nguyên nhân (điện giải, thiếu máu cơ tim, bệnh tim cấu trúc); Holter ECG và siêu âm tim chọn lọc.', s:'VT2025 tr.199', gen:'phần còn lại: định hướng chung'},
+  lvh:      {t:'Điện thế lớn thất trái: siêu âm tim, tìm tăng huyết áp, bệnh van tim, bệnh cơ tim.', gen:'định hướng chung'},
+  rvh:      {t:'R trội ở V1 kèm trục lệch phải: nghĩ lớn thất phải; siêu âm tim, tìm bệnh phổi, tăng áp động mạch phổi, hẹp van 2 lá.', gen:'định hướng chung'},
+  lowv:     {t:'QRS điện thế thấp: tìm bệnh phổi tắc nghẽn mạn, tràn dịch màng ngoài tim, béo phì, bệnh cơ tim thâm nhiễm, bệnh mạch vành nhiều nhánh; siêu âm tim.', s:'ghi chú Notion', gen:'chưa đối chiếu giáo trình'},
+  axis:     {t:'Trục lệch: đối chiếu lâm sàng và siêu âm tim; lệch trái thường đi với lớn thất trái, lệch phải với lớn thất phải.', s:'ghi chú Notion', gen:'chưa đối chiếu giáo trình'},
+  prshort:  {t:'PR ngắn (dưới 120 ms): nghĩ hội chứng kích thích sớm (WPW); ECG lúc nghỉ và hội chẩn tim mạch.', s:'128VĐ tr.92'},
+  workup:   {t:'Làm ECG 12 chuyển đạo; công thức máu, điện giải, creatinin, glucose, chức năng tuyến giáp, siêu âm tim; troponin và NT-proBNP khi nghi thiếu máu cơ tim hoặc suy tim.', s:'VT2025 tr.199', l:['hoi-hop-roi-loan-nhip','Bài rối loạn nhịp']},
+  noncard:  {t:'Tìm nguyên nhân ngoài tim: cường giáp, thiếu máu, sốt, thai kỳ, rối loạn điện giải, chất kích thích, stress.', s:'128VĐ tr.93'},
+  compare:  {t:'So với ECG cũ và đối chiếu lâm sàng trước khi kết luận.', gen:'định hướng chung'},
+};
+const ACT_ORDER = ['stable','vt','vtpulse','blockhigh','stemi','af','flutter','stdep','tallT','qt','wide','blocklow','prshort','tachy','brady','pvc','lvh','rvh','lowv','axis','noncard','workup','compare'];
+
+function stThreshold(L){        // mV; 1 mm = 0,1 mV ở chuẩn 10 mm/mV
+  if (L !== 'V2' && L !== 'V3') return 0.1;
+  const sex = '', age = 55;
+  if (sex === 'Nữ') return 0.15;
+  if (sex === 'Nam') return age < 40 ? 0.25 : 0.2;
+  return 0.2;
+}
+function regionOf(leads){
+  const s = new Set(leads), v = ['V1','V2','V3','V4','V5','V6'].filter(L => s.has(L)).length;
+  if (v >= 5) return 'trước rộng';
+  if (['II','III','aVF'].some(L => s.has(L)) && !['V1','V2','V3','V4','V5','V6','I','aVL'].some(L => s.has(L))) return 'thành dưới';
+  if (['I','aVL','V5','V6'].some(L => s.has(L)) && !['V1','V2','V3'].some(L => s.has(L))) return 'bên / trước bên';
+  if (['V1','V2','V3','V4'].some(L => s.has(L))) return 'trước vách – mỏm';
+  return 'chưa xác định vùng';
+}
+
+function analyze(g, key, p, adv){
+  const F = [], C = new Map(), A = new Set(), T = [], OK = [];
+  const f = (sev, text) => F.push({sev, text});
+  const c = (name, why, src) => { if (!C.has(name)) C.set(name, {why, src}); };
+  const a = id => A.add(id);
+  const fl = g.flags || {};
+
+  const q = g.beats.filter(b => b.tq >= 0 && b.tq <= VIEW).sort((x, y) => x.tq - y.tq);
+  const rrs = [];
+  for (let i = 1; i < q.length; i++) rrs.push(q[i].tq - q[i - 1].tq);
+  const meanRR = rrs.length ? rrs.reduce((s, v) => s + v, 0) / rrs.length : 0;
+  const hr = meanRR ? Math.round(60 / meanRR) : 0;
+  const cv = meanRR ? Math.sqrt(rrs.reduce((s, v) => s + (v - meanRR) ** 2, 0) / rrs.length) / meanRR : 0;
+  const nP = g.pw.filter(t => t >= 0 && t <= VIEW).length;
+  const nPVC = q.filter(b => b.rMult).length;
+  const regular = cv < 0.06, wide = p.qrs > 120;   // sách: QRS tối đa 120 ms
+  const abnormalRhythm = () => { a('stable'); a('workup'); a('compare'); };
+
+  // 1. Nhịp
+  if (fl.dissoc) {
+    f('urgent', `Sóng P đều (~${Math.round(nP / VIEW * 60)}/phút) nhưng không liên quan với QRS, tần số thất chậm khoảng ${hr} lần/phút: phân ly nhĩ thất, gợi ý block nhĩ thất độ III.`);
+    c('Block nhĩ thất độ III', 'Không có xung nào dẫn từ nhĩ xuống thất; tần số nhĩ nhanh hơn tần số thất', 'ghi chú Notion');
+    a('blockhigh'); abnormalRhythm();
+  } else if (fl.mob2) {
+    f('urgent', `Sóng P dẫn xuống thất theo tỷ lệ 2:1 với PR cố định ${p.pr} ms: gợi ý block nhĩ thất độ II (Mobitz II hoặc block 2:1).`);
+    c('Block nhĩ thất độ II Mobitz II', 'PR không đổi trước sóng P không dẫn; tỷ lệ 2:1 không phân biệt được Mobitz I và II chỉ bằng một dải nhịp', 'ghi chú Notion');
+    a('blockhigh'); abnormalRhythm();
+  } else if (fl.wenck) {
+    f('warn', 'PR dài dần qua từng nhịp rồi rớt một QRS, sau đó chu kỳ lặp lại: gợi ý block nhĩ thất độ II Mobitz I (Wenckebach).');
+    c('Block nhĩ thất độ II Mobitz I', 'PR tăng dần đến khi có sóng P không dẫn', 'ghi chú Notion');
+    a('blocklow'); abnormalRhythm();
+  } else if (g.fw.length) {
+    f('warn', `Sóng cuồng nhĩ dạng răng cưa khoảng 300 lần/phút, dẫn 2:1 nên tần số thất khoảng ${hr} lần/phút, nhịp đều.`);
+    c('Cuồng nhĩ', 'Sóng răng cưa đều, không có sóng P', 'VT2025 tr.170');
+    a('flutter'); abnormalRhythm();
+  } else if (nPVC === 0 && nP === 0 && !regular && !wide) {
+    f('warn', `Nhịp không đều (CV ${Math.round(cv * 100)}%), không thấy sóng P, có sóng f lăn tăn; tần số thất khoảng ${hr} lần/phút${hr > 100 ? ' (đáp ứng thất nhanh)' : hr >= 60 ? ' (đáp ứng thất trung bình)' : ' (đáp ứng thất chậm)'}: gợi ý rung nhĩ.`);
+    c('Rung nhĩ', 'Nhịp không đều, mất sóng P, thay bằng sóng f 350–600 lần/phút', 'ghi chú Notion');
+    a('af'); abnormalRhythm(); a('noncard');
+  } else if (nP === 0 && wide && hr >= 100 && regular) {
+    f('urgent', `Nhịp nhanh đều ${hr} lần/phút, QRS rộng ${p.qrs} ms, không thấy sóng P: gợi ý nhịp nhanh thất.`);
+    c('Nhịp nhanh thất', 'Không có P trước QRS, QRS rộng trên 120 ms, nhịp đều và nhanh', '128VĐ tr.92');
+    a('vt'); a('vtpulse'); abnormalRhythm(); a('wide');
+  } else if (nPVC > 0) {
+    f('warn', `Có ${nPVC} nhịp QRS rộng, sớm, không có sóng P đi trước, xen trong nhịp xoang nền ${hr} lần/phút: ngoại tâm thu thất.`);
+    c('Ngoại tâm thu thất', 'QRS rộng, sớm, không có P, thường có nghỉ bù', 'ghi chú Notion');
+    a('pvc'); abnormalRhythm(); a('noncard');
+  } else {
+    if (hr < 60) { f('warn', `Nhịp xoang chậm, tần số khoảng ${hr} lần/phút.`); c('Nhịp xoang chậm', 'Tần số dưới 60 lần/phút', 'ghi chú Notion'); a('brady'); abnormalRhythm(); }
+    else if (hr > 100) { f('warn', `Nhịp xoang nhanh, tần số khoảng ${hr} lần/phút.`); c('Nhịp xoang nhanh', 'Tần số trên 100 lần/phút; thường do nguyên nhân ngoài tim', '128VĐ tr.93'); a('tachy'); abnormalRhythm(); }
+    else OK.push(`nhịp xoang đều, ${hr} lần/phút`);
+  }
+
+  // 2. Khoảng PR (chỉ khi có sóng P liên quan với QRS)
+  if (nP > 0 && !fl.dissoc) {
+    if (p.pr > 220) {   // sách: PR tối đa 220 ms
+      f('warn', `PR kéo dài (${p.pr} ms, trên 220 ms): block nhĩ thất độ I.`);
+      c('Block nhĩ thất độ I', 'PR trên 220 ms khi nghỉ, mọi P đều dẫn xuống thất (The ECG Made Easy tr.37)', 'ECG Made Easy');
+      a('blocklow'); a('compare');
+    } else if (p.pr < 120) {
+      f('warn', `PR ngắn (${p.pr} ms, dưới 120 ms): gợi ý hội chứng kích thích sớm.`);
+      c('Hội chứng kích thích sớm (WPW)', 'PR ngắn do dẫn truyền qua đường phụ', '128VĐ tr.92');
+      a('prshort'); a('compare');
+    } else if (!fl.wenck) OK.push(`PR ${p.pr} ms`);
+  }
+
+  // 3. QRS
+  if (wide) {
+    if (!(nP === 0 && hr >= 100 && regular)) f('warn', `QRS rộng (${p.qrs} ms, trên 120 ms).`);
+    c('Block nhánh, nhịp thất hoặc kích thích sớm', 'QRS bình thường 60–100 ms; rộng khi dẫn truyền trong thất chậm hoặc khởi phát từ thất', 'ghi chú Notion');
+    a('wide'); a('compare');
+  } else if (p.qrs > 100) {
+    f('note', `QRS kéo dài nhẹ (${p.qrs} ms, trên 100 ms).`);
+  } else OK.push(`QRS hẹp ${p.qrs} ms`);
+
+  // 4. QTc (QT / căn bậc hai RR)
+  if (meanRR && (hr > 120 || wide)) {
+    OK.push('QTc chưa đánh giá (nhịp trên 120 lần/phút hoặc QRS rộng, công thức hiệu chỉnh kém chính xác)');
+  } else if (meanRR) {
+    const qtc = Math.round(p.qt / Math.sqrt(meanRR));
+    const sex = '';
+    const thr = 450;   // sách: QT trên 450 ms là bất thường
+    const txt = 'ngưỡng 450 ms theo The ECG Made Easy';
+    if (qtc > thr) {
+      f(qtc > 500 ? 'urgent' : 'warn', `QTc kéo dài (khoảng ${qtc} ms; ${txt}). Nguy cơ nhanh thất, xoắn đỉnh.`);
+      c('Hội chứng QT dài (bẩm sinh hoặc do thuốc, rối loạn điện giải)', 'QTc vượt ngưỡng; nguyên nhân gồm hạ kali, hạ magie, thuốc, bệnh mạch vành', 'ghi chú Notion');
+      a('qt'); a('compare');
+    } else OK.push(`QTc ~${qtc} ms`);
+  }
+
+  // 5. Từ đây trở đi cần nhiều chuyển đạo
+  const L = adv ? LEADS : ['II'];
+  if (adv) {
+    const ax = p.axis;
+    if (ax >= -30 && ax <= 90) OK.push(`trục QRS trung gian (${ax}°)`);   // sách: -30° đến +90°
+    else {
+      const name = ax > 90 ? 'lệch phải' : ax >= -90 ? 'lệch trái' : 'vô định';
+      f('warn', `Trục QRS ${name} (${ax}°).`);
+      if (ax > 90) c('Lớn thất phải', 'Trục lệch phải (trên +90°), R/S > 1 ở V1', 'ECG Made Easy tr.15, 87');
+      else if (ax >= -90) c('Lớn thất trái', 'Trục lệch trái, R cao ở V5–V6, S sâu ở V1–V3', 'ghi chú Notion');
+      else c('Trục vô định', 'Loại trừ mắc nhầm điện cực trước (xem mục sai sót kỹ thuật)', 'ghi chú Notion');
+      a('axis'); a('compare');
+    }
+    if (Math.abs(ax) > 90) T.push({t:'DI âm toàn bộ (trục ngoài ±90°): nghi mắc nhầm điện cực hai tay; xem sóng P ở DII và aVF.', s:'ghi chú Notion'});
+
+    // Điện thế
+    const G = gains(p.axis, p.hAxis);
+    const limbMax = Math.max(...['I','II','III','aVR','aVL','aVF'].map(l => Math.abs(G[l]))) * p.rAmp;
+    const precMax = Math.max(...['V1','V2','V3','V4','V5','V6'].map(l => Math.abs(G[l]))) * p.rAmp;
+    if (limbMax < 0.5 && precMax < 1.0) {
+      f('warn', 'QRS điện thế thấp (chuyển đạo chi dưới 5 mm và trước tim dưới 10 mm ở chuẩn 10 mm/mV).');
+      c('Điện thế thấp: bệnh phổi tắc nghẽn mạn, tràn dịch màng ngoài tim, béo phì, bệnh cơ tim thâm nhiễm, bệnh mạch vành nhiều nhánh', 'Các nguyên nhân do ghi chú Notion nêu', 'ghi chú Notion');
+      a('lowv'); a('compare');
+    }
+    const sv1 = p.rAmp * Math.max(0, -G.V1), rv56 = p.rAmp * Math.max(G.V5, G.V6, 0);
+    const sok = (sv1 + rv56) * 10;
+    const rMaxMm = Math.max(G.V5, G.V6, 0) * p.rAmp * 10;
+    if (rMaxMm > 25 && sok < 35) {   // sách: R ở V5 hoặc V6 trên 25 mm gợi ý phì đại thất trái
+      f('warn', `R ở V5–V6 khoảng ${Math.round(rMaxMm)} mm (trên 25 mm): gợi ý phì đại thất trái theo The ECG Made Easy.`);
+      c('Lớn thất trái', 'R ở V5 hoặc V6 trên 25 mm (ECG Made Easy tr.90, 96)', 'ECG Made Easy');
+      a('lvh'); a('compare');
+    }
+    if (sok >= 35) {
+      f('warn', `Điện thế lớn thất trái: S(V1) + R(V5/V6) khoảng ${Math.round(sok)} mm, trên 35 mm (Sokolov–Lyon; sách ghi tiêu chuẩn này không đáng tin khi đứng một mình).`);
+      c('Lớn thất trái', 'Điện thế R cao ở V5–V6, S sâu ở V1–V3, trục lệch trái (ECG Made Easy tr.128, 147)', 'ECG Made Easy');
+      a('lvh'); a('compare');
+    }
+    if (G.V1 > 0.2 && p.axis > 90) {
+      f('warn', 'R trội ở V1 kèm trục lệch phải: gợi ý lớn thất phải.');
+      c('Lớn thất phải', 'Trục lệch phải (trên +90°), R/S > 1 ở V1; sóng T âm V1–V2 (ECG Made Easy tr.87–88)', 'ECG Made Easy');
+      a('rvh'); a('compare');
+    }
+  }
+
+  // 6. ST (12 chuyển đạo)
+  if (adv && p.stOff) {
+    const stv = ST_VEC[p.stPos] || {a: p.tAxis, h: p.tH};
+    const Gs = gains(stv.a, stv.h, stv.fm ?? 1, stv.hm ?? 1), val = {};
+    LEADS.forEach(l => val[l] = p.stOff * Gs[l]);
+    const up = LEADS.filter(l => val[l] >= stThreshold(l));
+    const down = LEADS.filter(l => l !== 'aVR' && val[l] <= -0.1);
+    const adjacent = ADJ.some(([x, y]) => up.includes(x) && up.includes(y));
+    if (adjacent) {
+      const leads = LEADS.filter(l => up.includes(l));
+      f('urgent', `ST chênh lên ở các chuyển đạo liền kề (${leads.join(', ')}), vùng ${regionOf(leads)}: gợi ý NMCT ST chênh lên.`);
+      c('Nhồi máu cơ tim cấp ST chênh lên', 'ST chênh lên ≥ ngưỡng ở ít nhất 2 chuyển đạo liền kề (V2–V3: 1,5 mm nữ, 2 mm nam từ 40 tuổi, 2,5 mm nam dưới 40; chuyển đạo khác: 1 mm)', 'VT2025 tr.306');
+      ['Cơn đau thắt ngực Prinzmetal', 'Viêm màng ngoài tim cấp', 'Tái cực sớm', 'Viêm cơ tim', 'Hội chứng Brugada (V1–V3)', 'Dày thất trái, block nhánh trái'].forEach(n => c(n, 'Cũng gây ST chênh lên; phân biệt bằng lâm sàng, ST đối xứng và diễn tiến', 'ghi chú Notion'));
+      a('stemi'); a('stable'); a('compare');
+    } else if (up.length) {
+      f('note', `ST chênh lên ở ${up.join(', ')} nhưng chưa đủ tiêu chuẩn ở 2 chuyển đạo liền kề.`);
+    }
+    if (down.length >= 2) {
+      f('warn', `ST chênh xuống ≥ 1 mm ở ${down.join(', ')}${up.length ? ' (có thể là hình ảnh soi gương của ST chênh lên)' : ''}.`);
+      c('Thiếu máu cơ tim', 'ST chênh xuống chủ yếu do thiếu máu cục bộ cơ tim', 'ghi chú Notion');
+      ['Phì đại thất', 'Block nhánh', 'Hạ kali máu', 'Ngộ độc digoxin'].forEach(n => c(n, 'Cũng gây ST chênh xuống', 'ghi chú Notion'));
+      if (['V1','V2','V3'].filter(l => down.includes(l)).length >= 2) c('Nhồi máu cơ tim thành sau', 'ST chênh xuống ở V1–V3', 'VT2025 tr.306');
+      a('stdep'); a('workup'); a('compare');
+    }
+  }
+
+  // 7. Sóng T
+  {
+    const tv = {a: p.tAxis, h: p.tH}, Gt = gains(tv.a, tv.h);
+    const amp = l => p.tAmp * Gt[l];
+    const inv = L.filter(l => !['aVR','V1','III'].includes(l) && amp(l) <= -0.1);
+    const tall = L.filter(l => amp(l) >= (LIMB[l] !== undefined ? 0.5 : 1.0));
+    if (inv.length) {
+      f('warn', `Sóng T đảo ở ${inv.join(', ')}.`);
+      c('Thiếu máu cơ tim, sau nhồi máu, bệnh mạch vành mạn', 'T âm ở các chuyển đạo thường dương', 'ghi chú Notion');
+      ['Viêm màng ngoài tim', 'Block nhánh', 'Sau cơn nhịp nhanh', 'Hạ kali máu'].forEach(n => c(n, 'Cũng gây sóng T âm (có thể bình thường ở trẻ em, thiếu niên)', 'ghi chú Notion'));
+      a('workup'); a('compare');
+    }
+    if (tall.length) {
+      f('warn', `Sóng T cao (≥ 5 mm ở chuyển đạo chi, ≥ 10 mm ở trước ngực) tại ${tall.join(', ')}.`);
+      c('Tăng kali máu, bệnh mạch vành, tai biến mạch máu não', 'T cao', 'ghi chú Notion');
+      a('tallT'); a('compare');
+    }
+  }
+  if (p.uAmp > 0) f('note', 'Có sóng U (thường không thấy trên ECG bình thường).');
+
+  // 8. Có thể là sai sót kỹ thuật
+  if (adv) {
+    if (+$('gain').value !== 10) T.push({t: +$('gain').value === 5 ? 'Dấu định chuẩn 5 mm/mV: biên độ đo được phải nhân đôi.' : 'Dấu định chuẩn 20 mm/mV: biên độ đo được phải chia đôi.', s:'ghi chú Notion'});
+    if (+$('speed').value !== 25) T.push({t:'Tốc độ giấy 50 mm/s: 1 ô nhỏ chỉ còn 0,02 s; công thức tần số 300/số ô lớn chỉ đúng ở 25 mm/s, ở 50 mm/s phải tính 600/số ô lớn.', s:'suy ra từ công thức 25 mm/s', gen:true});
+  }
+  if (p.noise > 0.03) T.push({t:'Nhiễu cao có thể che sóng P, sóng f hoặc đoạn ST: kiểm tra tiếp xúc điện cực, cử động bệnh nhân, trôi nền.', gen:true, s:'định hướng chung'});
+
+  if (OK.length) f('ok', 'Trong giới hạn: ' + OK.join('; ') + '.');
+  F.sort((x, y) => SEVORD[x.sev] - SEVORD[y.sev]);
+  return {F, C, A, T};
+}
+
+let lastG = null, lastKey = null;
+
+function renderAnalysis(g, key){
+  const box = $('analysis');
+  if (quiz.on && !quiz.answered) {
+    box.innerHTML = '<h3>Phân tích tự động</h3><p class="hold">Trả lời câu hỏi để xem phân tích, gợi ý bệnh lý và hướng xử trí.</p>';
+    return;
+  }
+  const {F, C, A, T} = analyze(g, key, params, ui.adv);
+  const abnormal = F.some(x => x.sev === 'urgent' || x.sev === 'warn');
+  const li = x => `<li class="f-${x.sev}"><span class="badge">${SEVNAME[x.sev]}</span><span>${x.text}</span></li>`;
+  let html = '<h3>Phân tích tự động</h3><p class="desc">Dựa trên đoạn ECG đang hiển thị' + (ui.adv ? ' (12 chuyển đạo).' : ' (chuyển đạo II; chuyển sang Nâng cao để phân tích trục, điện thế, ST và T theo vùng).') + '</p>';
+  html += '<h4>Phát hiện</h4><ul class="fl">' + F.map(li).join('') + '</ul>';
+  if (C.size) html += '<h4>Gợi ý bệnh lý cần nghĩ tới</h4><ul>' + [...C].map(([n, v]) => `<li><b>${n}</b>: ${v.why}${pill(v.src)}</li>`).join('') + '</ul>';
+  const acts = ACT_ORDER.filter(id => A.has(id));
+  if (acts.length) html += '<h4>Hướng xử trí / bước tiếp theo</h4><ol>' + acts.map(id => {
+    const x = ACT[id];
+    return `<li>${x.t}${pill(x.s)}${pill(x.gen, true)}${x.l ? ' ' + libLink(x.l[0], '→ ' + x.l[1]) : ''}</li>`;
+  }).join('') + '</ol>';
+  else if (!abnormal) html += '<h4>Hướng xử trí</h4><p class="hold">Không phát hiện bất thường cần xử trí trên đoạn này. Vẫn đối chiếu lâm sàng và ECG cũ.</p>';
+  if (T.length) html += '<h4>Có thể là sai sót kỹ thuật</h4><ul>' + T.map(x => `<li>${x.t}${pill(x.s, x.gen)}</li>`).join('') + '</ul>';
+  html += '<p class="note">Thẻ xám là nguồn lấy từ thư viện của bạn (VT2025, BLS, 128VĐ, HSTC). Ngưỡng PR 220 ms, QRS 120 ms, trục -30° đến +90°, QT 450 ms và R V5–V6 25 mm lấy từ The ECG Made Easy. Thẻ "ghi chú Notion" là ngưỡng chưa đối chiếu giáo trình. Thẻ nét đứt là định hướng chung hoặc phần tài liệu không nêu. Công cụ học tập, không thay thế phác đồ của cơ sở hay quyết định của bác sĩ.</p>';
+  box.innerHTML = html;
+}
+
+// ---------- Điều khiển ----------
+function fmt(v){ return Number.isInteger(v) ? String(v) : v.toFixed(3).replace(/0+$/, '').replace(/\.$/, ''); }
+
+function setSlider(id, v){
+  const s = SL.find(x => x.id === id);
+  let val = Math.min(s.max, Math.max(s.min, v));
+  val = Math.round(val / s.step) * s.step;
+  val = Math.round(val * 1000) / 1000;
+  params[id] = val;
+  $('s_' + id).value = val;
+}
+
+function resetAdvanced(){
+  Object.keys(DEF).forEach(k => setSlider(k, DEF[k]));
+  params.stPos = 'none';
+  $('stPos').value = 'none';
+}
+
+function applicability(key){
+  const na = {
+    hr: NO_HR.includes(key),
+    pr: PR_NA.includes(key),
+    pAmp: NO_P.includes(key),
+    fAmp: NO_F(key),
+  };
+  SL.forEach(s => {
+    const el = $('s_' + s.id);
+    const off = !!na[s.id];
+    el.disabled = off;
+    el.closest('.slider').classList.toggle('na', off);
+  });
+}
+
+function currentKey(){ return quiz.on ? quiz.type : $('rhythm').value; }
+
+function update(){
+  const key = currentKey();
+  applicability(key);
+  SL.forEach(s => $('o_' + s.id).textContent = fmt(params[s.id]));
+  const g = generate(key, params, seed);
+  const sig = render(g, params, seed, key);
+  const labels = $('chkLabels').checked && !quiz.on;
+  draw(sig, g, params, labels);
+  readout(g, key);
+  lastG = g; lastKey = key;
+  renderAnalysis(g, key);
+  if (!quiz.on) $('desc').textContent = RHYTHMS[key].desc;
+  $('legend').textContent = ui.adv
+    ? 'Bố cục chuẩn 3×4: cột 1 là I, II, III; cột 2 là aVR, aVL, aVF; cột 3 là V1–V3; cột 4 là V4–V6. Mỗi cột 2,5 giây, dải dưới cùng là chuyển đạo II kéo dài 10 giây.'
+    : 'Thứ tự sóng trong một nhịp: P → PR → Q → R → S → ST → T → U. Chuyển đạo II, tốc độ 25 mm/s, biên độ 10 mm/mV, đoạn hiển thị 10 giây.';
+}
+
+function applyPreset(key){
+  const P = RHYTHMS[key].p;
+  ['hr','pr','qrs','qt'].forEach(k => setSlider(k, P[k]));
+  resetAdvanced();
+}
+
+function setLevel(adv){
+  ui.adv = adv;
+  $('levelBasic').classList.toggle('on', !adv);
+  $('levelAdv').classList.toggle('on', adv);
+  $('advPanel').hidden = !adv;
+  document.querySelectorAll('.slider[data-adv]').forEach(w => w.hidden = !adv);
+  if (!adv) resetAdvanced();
+  update();
+}
+
+// ---------- Mẫu bệnh: đặt sẵn thông số gần với một bệnh để luyện đọc ----------
+const PRESETS = {
+  lvh:  {label:'Lớn thất trái', desc:'R cao ở V5–V6, S sâu ở V1–V2, trục lệch trái nhẹ, ST lệch đáy ở chuyển đạo bên. Mô phỏng bằng biên độ và trục.',
+         p:{qrs:100, rAmp:2.0, axis:-30, hAxis:0, tAmp:-0.2, stOff:-0.12, stPos:'lat'}},
+  ant:  {label:'NMCT ST chênh lên thành trước', desc:'ST chênh lên ở V1–V4 khoảng 0,3 mV, kèm sóng T cao. Dùng để luyện nhận diện và hướng xử trí khẩn; trên thực tế phải đo đủ 12 chuyển đạo và đối chiếu lâm sàng.',
+         p:{stOff:0.3, stPos:'ant', tAmp:0.35}},
+  inf:  {label:'NMCT ST chênh lên thành dưới', desc:'ST chênh lên ở II, III, aVF; ST chênh xuống đối xứng ở I, aVL (hình ảnh soi gương).',
+         p:{stOff:0.25, stPos:'inf', tAmp:0.3}},
+  lbbb: {label:'Block nhánh trái (xấp xỉ)', desc:'QRS rộng khoảng 150 ms, trục lệch trái, T đảo ở chuyển đạo bên. Hình khía R ở I, aVL, V5–V6 chưa được mô phỏng.',
+         p:{qrs:150, axis:-30, hAxis:0, tAmp:-0.2}},
+  rbbb: {label:'Block nhánh phải (xấp xỉ)', desc:'QRS rộng khoảng 140 ms, trục gần bình thường. Hình rSR′ ở V1 chưa được mô phỏng.',
+         p:{qrs:140, axis:70, hAxis:60}},
+};
+
+function applyDisease(k){
+  const P = PRESETS[k];
+  setMode(false);
+  $('rhythm').value = 'sinus';
+  applyPreset('sinus');
+  setLevel(true);
+  Object.entries(P.p).forEach(([id, v]) => {
+    if (id === 'stPos') { params.stPos = v; $('stPos').value = v; }
+    else setSlider(id, v);
+  });
+  $('presetDesc').textContent = P.label + ': ' + P.desc;
+  update();
+}
+
+// ---------- Chế độ luyện nhận dạng ----------
+function buildOptions(){
+  const box = $('options');
+  box.innerHTML = '';
+  Object.keys(RHYTHMS).forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = RHYTHMS[k].label;
+    b.dataset.key = k;
+    b.addEventListener('click', () => answer(k));
+    box.appendChild(b);
+  });
+}
+
+function newQuestion(){
+  const keys = Object.keys(RHYTHMS);
+  const k = keys[Math.floor(Math.random() * keys.length)];
+  const base = RHYTHMS[k].p;
+  const jit = (v, a) => v + Math.round((Math.random() * 2 - 1) * a);
+  quiz.type = k;
+  quiz.answered = false;
+  applyPreset(k);
+  setSlider('hr', k === 'flutter' ? 150 : jit(base.hr, 8));
+  setSlider('pr', jit(base.pr, 20));
+  setSlider('qt', jit(base.qt, 20));
+  setSlider('qrs', jit(base.qrs, 5));
+  seed = Math.floor(Math.random() * 1e9);
+  $('feedback').innerHTML = '';
+  document.querySelectorAll('#options button').forEach(b => b.classList.remove('right','wrong'));
+  $('score').textContent = `Điểm: ${quiz.score}/${quiz.total}`;
+  update();
+}
+
+function answer(key){
+  if (quiz.answered) return;
+  quiz.answered = true;
+  quiz.total++;
+  const ok = key === quiz.type;
+  if (ok) quiz.score++;
+  document.querySelectorAll('#options button').forEach(b => {
+    if (b.dataset.key === quiz.type) b.classList.add('right');
+    else if (b.dataset.key === key) b.classList.add('wrong');
+  });
+  $('feedback').innerHTML = ok
+    ? `<span class="ok">Đúng.</span> ${RHYTHMS[quiz.type].desc}`
+    : `<span class="bad">Chưa đúng.</span> Đáp án: <b>${RHYTHMS[quiz.type].label}</b>. ${RHYTHMS[quiz.type].desc}`;
+  $('score').textContent = `Điểm: ${quiz.score}/${quiz.total}`;
+  renderAnalysis(lastG, lastKey);
+}
+
+function setMode(q){
+  quiz.on = q;
+  $('modeExplore').classList.toggle('on', !q);
+  $('modeQuiz').classList.toggle('on', q);
+  $('explorePanel').hidden = q;
+  $('quizPanel').hidden = !q;
+  if (q) newQuestion(); else update();
+}
+
+// ---------- Khởi tạo ----------
+SL.forEach(s => {
+  const wrap = document.createElement('div');
+  wrap.className = 'slider';
+  if (s.adv) { wrap.dataset.adv = '1'; wrap.hidden = true; }
+  wrap.innerHTML = `<label for="s_${s.id}">${s.label} <output id="o_${s.id}"></output></label>` +
+    `<input type="range" id="s_${s.id}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.def}">`;
+  $('sliders').appendChild(wrap);
+  $('s_' + s.id).addEventListener('input', e => {
+    params[s.id] = parseFloat(e.target.value);
+    update();
+  });
+});
+params.stPos = 'none';
+
+Object.keys(RHYTHMS).forEach(k => {
+  const o = document.createElement('option');
+  o.value = k; o.textContent = RHYTHMS[k].label;
+  $('rhythm').appendChild(o);
+});
+$('rhythm').addEventListener('change', () => { applyPreset($('rhythm').value); update(); });
+$('applyPreset').addEventListener('click', () => { applyPreset($('rhythm').value); update(); });
+$('reseed').addEventListener('click', () => { seed = Math.floor(Math.random() * 1e9); update(); });
+$('modeExplore').addEventListener('click', () => setMode(false));
+$('modeQuiz').addEventListener('click', () => setMode(true));
+$('levelBasic').addEventListener('click', () => setLevel(false));
+$('levelAdv').addEventListener('click', () => setLevel(true));
+$('nextQ').addEventListener('click', newQuestion);
+$('chkLabels').addEventListener('change', update);
+$('stPos').addEventListener('change', e => { params.stPos = e.target.value; update(); });
+['speed','gain'].forEach(id => $(id).addEventListener('input', update));
+window.addEventListener('resize', update);
+
+Object.keys(PRESETS).forEach(k => {
+  const b = document.createElement('button');
+  b.className = 'btn';
+  b.textContent = PRESETS[k].label;
+  b.addEventListener('click', () => applyDisease(k));
+  $('presets').appendChild(b);
+});
+
+buildOptions();
+applyPreset('sinus');
+update();
+</script>
+</body>
+</html>
