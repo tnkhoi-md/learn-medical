@@ -1,8 +1,10 @@
 (() => {
 const NOTES = window.NOTES || [], MODULES = window.MODULES || {}, MODULES_EN = window.MODULES_EN || {}, MODSPEC = window.MODSPEC || {};
 // Module hiển thị dưới mục "Khác" thay vì danh sách Module (vẫn mở được bằng #/m/<id>/<mục>)
-const KHAC_MODS = ["doc-ecg"];
-const mainMods = () => Object.keys(MODULES).filter(m => !KHAC_MODS.includes(m));
+const KHAC_MODS = ["doc-ecg", "doc-xquang-nguc"];
+// Module "ẩn": không hiện trong danh sách Module; nội dung vào thư viện (khai báo "hidden": true trong _module.json)
+const isHiddenMod = m => !!(MODSPEC[m] && MODSPEC[m].hidden);
+const mainMods = () => Object.keys(MODULES).filter(m => !KHAC_MODS.includes(m) && !isHiddenMod(m));
 // Tên module kèm tên tiếng Anh (nhỏ, sau tên Việt) khi có
 const modLabel = m => esc(MODULES[m] || m) + (MODULES_EN[m] ? ` <small class="en">${esc(MODULES_EN[m])}</small>` : "");
 // Khung các mục của một chuyên khoa (module)
@@ -32,7 +34,7 @@ function curMod() {
   const m = a && MODULES[a[1]] ? a[1] : (b && byId[b[1]] ? byId[b[1]].module : null);
   if (m) { try { localStorage.setItem("ykkb_mod", m); } catch {} return m; }
   let saved = null; try { saved = localStorage.getItem("ykkb_mod"); } catch {}
-  return saved && MODULES[saved] ? saved : Object.keys(MODULES)[0];
+  return saved && MODULES[saved] && !isHiddenMod(saved) ? saved : mainMods()[0] || Object.keys(MODULES)[0];
 }
 // Số hiển thị trong trang bệnh: 5.1–5.7 (số nội bộ 3,4,5,6,7,10,8); 9 = Tóm tắt
 const DISPNUM = { 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 10: 6, 8: 7 };
@@ -63,7 +65,6 @@ const byId = Object.fromEntries(NOTES.map(n => [n.id, n]));
 const byTitle = Object.fromEntries(NOTES.map(n => [n.title.toLowerCase(), n]));
 const resolve = k => { k = k.trim(); return byId[k] || byTitle[k.toLowerCase()]; };
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const css = v => getComputedStyle(document.documentElement).getPropertyValue("--" + v).trim();
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -90,7 +91,7 @@ const inline = s => esc(s)
     const t = resolve(k.replace(/&amp;/g, "&"));
     return t ? `<a class="wl" href="#/n/${t.id}">${label || t.title}</a>` : `<a class="wl broken" title="Chưa có bài này">${label || k}</a>`;
   })
-  .replace(/!\[([^\]]*)\]\((data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+\/=]+|ecg\/[\w.\-\/]+)\)/g, '<img class="ecgimg" src="$2" alt="$1" loading="lazy">')
+  .replace(/!\[([^\]]*)\]\((data:image\/(?:webp|png|jpeg);base64,[A-Za-z0-9+\/=]+|(?:ecg|cxr)\/[\w.\-\/]+)\)/g, '<img class="ecgimg" src="$2" alt="$1" loading="lazy">')
   .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
   .replace(/\[([^\]]+)\]\((#\/[^)]+)\)/g, '<a href="$2">$1</a>');
 
@@ -433,20 +434,21 @@ const gId = (mod, k, g) => "grp-" + groupList(mod, k).indexOf(g);
 // ---- Thư viện học tập: tra cứu theo loại kiến thức, gom từ mọi chuyên khoa ----
 // [khóa, tên, mô tả, màu (--s…), tab bệnh liên quan]: loại của một bài lấy từ `lib` của nhóm/mục trong _module.json hoặc `lib:` trong bài
 const LIBS = [
+  ["khoahoccoban", "Khoa học cơ sở", "Sinh học, hóa sinh và nền tảng cơ bản làm cơ sở cho lâm sàng.", "s1", []],
+  ["thamkham", "Thăm khám lâm sàng", "Từng kỹ năng thăm khám một trang riêng, xếp từ tổng quát đến chi tiết: hỏi bệnh, sinh hiệu, khám cấp cứu, khám từng hệ cơ quan, thang điểm.", "s9", []],
   ["trieuchung", "Triệu chứng học", "Từ triệu chứng và hội chứng đến chẩn đoán: hỏi bệnh, khám, bệnh án.", "s3", [4]],
-  ["hoichung", "Các hội chứng trong thực hành lâm sàng", "Nhóm dấu hiệu đi cùng nhau gợi ý một nhóm nguyên nhân: nhận diện hội chứng, biện luận và đi tới chẩn đoán phân biệt.", "s13", []],
-  ["benhhoc", "Bệnh học", "Cơ chế, nguyên nhân và từng bệnh: lâm sàng, chẩn đoán, điều trị, tiên lượng.", "s5", []],
+  ["hoichung", "Các dấu hiệu trong thực hành lâm sàng", "Dấu hiệu khám và nhóm dấu hiệu (hội chứng) điển hình của các chuyên khoa: tim mạch, hô hấp, tiêu hóa, thần kinh, nội tiết, da, nhiễm trùng, huyết học, cơ xương khớp. Biết cách làm, ý nghĩa và bệnh gợi ý.", "s13", []],
   ["cls", "Cận lâm sàng", "Chọn và đọc xét nghiệm, hình ảnh, giải phẫu bệnh, phân giai đoạn.", "s4", [5, 6]],
+  ["thangdiem", "Các thang điểm thường dùng", "Thang điểm và công thức lâm sàng thường dùng: ý nghĩa, khi nào dùng, cách chấm từng mục, kèm công cụ tự tính tổng và diễn giải.", "s12", []],
+  ["trogiatri", "Giá trị bình thường (dự kiến)", "Ngưỡng xét nghiệm và chỉ số huyết học, sinh hóa, huyết động, kèm nguồn trang cho từng con số. Đang xây dựng.", "s11", []],
+  ["benhhoc", "Bệnh học", "Cơ chế, nguyên nhân và từng bệnh: lâm sàng, chẩn đoán, điều trị, tiên lượng.", "s5", []],
   ["capcuu", "Cấp cứu", "Nhận diện nhanh và xử trí ban đầu các tình huống cấp cứu.", "s6", []],
   ["dieutri", "Điều trị", "Nguyên tắc và phương pháp điều trị.", "s10", [7, 10]],
-  ["phongngua", "Phòng ngừa", "Phòng ngừa, tầm soát, tiên lượng và theo dõi.", "s2", [8]],
-  ["khoahoccoban", "Khoa học cơ sở", "Sinh học, hóa sinh và nền tảng cơ bản làm cơ sở cho lâm sàng.", "s1", []],
   ["duocly", "Dược lý", "Dược lý đại cương và các nhóm thuốc theo hệ: thần kinh tự chủ, tim mạch, hô hấp–tiêu hóa, thần kinh trung ương, nội tiết, kháng nhiễm, ung thư, độc chất.", "s7", []],
+  ["phongngua", "Phòng ngừa", "Phòng ngừa, tầm soát, tiên lượng và theo dõi.", "s2", [8]],
   ["dinhduong", "Dinh dưỡng (dự kiến)", "Nhu cầu dinh dưỡng, can thiệp và theo dõi theo đối tượng và theo bệnh. Đang xây dựng.", "s8", []],
-  ["thamkham", "Thăm khám", "Cách hỏi bệnh và khám lâm sàng theo từng hệ cơ quan.", "s9", []],
-  ["trogiatri", "Giá trị bình thường (dự kiến)", "Ngưỡng xét nghiệm và chỉ số huyết học, sinh hóa, huyết động, kèm nguồn trang cho từng con số. Đang xây dựng.", "s11", []],
 ];
-// Hội chứng lâm sàng: vừa nằm trong thư viện "Các hội chứng", vừa hiện ở mục Tiếp cận bệnh nhân của từng module
+// Hội chứng lâm sàng: vừa nằm trong thư viện "Các dấu hiệu trong thực hành lâm sàng", vừa hiện ở mục Tiếp cận bệnh nhân của từng module
 const isSyn = n => n.lib === "hoichung";
 function libOf(n) {
   if (n.lib) return n.lib;
@@ -468,7 +470,7 @@ function libItems(cat) {
     return { mod, notes, di: diseases().filter(d => d.module === mod && !d.tong), tabs };   // bài gom vào bài tổng hợp chỉ hiện qua thẻ tổng hợp
   }).filter(x => x.notes.length || (x.di.length && (cat === "benhhoc" || x.tabs.length)));
 }
-const libCount = cat => cat === "trieuchung" ? sympCount() : libItems(cat).reduce((c, x) => c + x.notes.length + ((cat === "benhhoc" || x.tabs.length) ? x.di.length : 0), 0) + (cat === "benhhoc" ? NOTES.filter(n => n.kind === "tong").length : 0);
+const libCount = cat => cat === "trieuchung" ? sympCount() : cat === "thamkham" ? examNotes().length : cat === "thangdiem" ? scaleNotes().length : libItems(cat).reduce((c, x) => c + x.notes.length + ((cat === "benhhoc" || x.tabs.length) ? x.di.length : 0), 0) + (cat === "benhhoc" ? NOTES.filter(n => n.kind === "tong").length : 0);
 // các tab của từng bệnh thuộc một loại (ví dụ Điều trị = tab 7 của mọi bệnh)
 const diseaseChips = (di, tabs, mod) => `<div class="rgrid">${di.map(d => { const { secs } = diseaseParts(d); const have = tabs.filter(t => secs[t]); return have.length ? `<div class="rcard"><b>${esc(d.short || d.title)}</b>${have.map(t => `<a class="chip wide" href="#/n/${d.id}/${t}">${dnum(t, mod)} ${esc(SECNAME[t])}</a>`).join("")}</div>` : ""; }).join("")}</div>`;
 // Bài tổng hợp (kind: tong) gom các bài bệnh có `tong: <id>` của hai module: thư viện chỉ hiện một thẻ, không tách nội và ngoại
@@ -481,39 +483,110 @@ function tongCards() {
 function tongLinks(t) {
   return [];
 }
-// Triệu chứng học xếp theo LÝ DO ĐẾN KHÁM, không theo bệnh: mỗi vấn đề của Khung 128 (đau bụng, nôn ói, vàng da…)
-// dẫn tới các bài tiếp cận và các bệnh cần nghĩ tới. Liên kết lấy từ `khung:` trong frontmatter của bài và của bệnh.
-function sympRows() {
-  const K = window.KHUNG; if (!K) return [];
-  const gname = Object.fromEntries(((K.qd22 || {}).groups || []).map(g => [g.id, g.name]));
-  const fo = NOTES.filter(n => n.kind === "foundation" && (n.khung || []).length), ds = diseases();
-  return K.items.map(it => ({ no: it.no, title: it.title, group: it.group, gname: gname[it.group] || "Khác",
-    notes: fo.filter(n => n.khung.includes(it.no)), di: ds.filter(d => (d.khung || []).includes(it.no)) }));
-}
-const sympGeneral = () => NOTES.filter(n => n.kind === "foundation" && libOf(n) === "trieuchung" && !(n.khung || []).length);
-const sympCount = () => sympRows().filter(r => r.notes.length || r.di.length).length + sympGeneral().length;
+// Thư viện Triệu chứng học chỉ gồm các bài của module Triệu chứng học (chín nhóm biểu hiện lâm sàng)
+const symptomNotes = () => NOTES.filter(n => n.module === "trieu-chung-hoc" && n.kind === "foundation" && libOf(n) === "trieuchung" && !isSelfTest(n));
+const sympCount = () => symptomNotes().length;
 function symptomPage(L) {
-  const [, title, , col] = L, rows = sympRows(), gen = sympGeneral(), nEmpty = rows.filter(r => !r.notes.length && !r.di.length).length;
-  const modTag = m => esc(MODULES[m] || m);
-  const chipN = n => `<a class="chip wide" href="#/n/${n.id}" title="${modTag(n.module)}">${esc(n.short || n.title)}</a>`;
-  const chipD = (d, multi) => `<a class="chip wide dz" href="#/n/${d.id}/4" title="${modTag(d.module)}">${esc(d.short || d.title)}${multi ? ` <small>· ${modTag(d.module)}</small>` : ""}</a>`;   // nhiều chuyên khoa trong một dòng: ghi rõ chuyên khoa
-  const byG = {}; rows.forEach(r => (byG[r.group] = byG[r.group] || { name: r.gname, rows: [] }).rows.push(r));
-  const list = Object.entries(byG).sort((a, b) => a[0] - b[0]).map(([, G]) => `<section class="symgrp"><h2>${esc(G.name)}</h2>${G.rows.map(r => {
-    const any = r.notes.length || r.di.length;
-    return `<div class="symrow${any ? "" : " empty"}" data-t="${esc(noDia(r.title))}"><div class="symhead"><span class="no">${r.no}</span><b>${esc(r.title)}</b><a class="chip wide" href="#/khung/${r.no}" title="Mở trong Đề cương ôn thi">Đề cương</a></div>${r.notes.length ? `<div class="symline"><span>Cách tiếp cận</span>${r.notes.map(chipN).join("")}</div>` : ""}${r.di.length ? `<div class="symline"><span>Bệnh cần nghĩ tới</span>${r.di.map(d => chipD(d, new Set(r.di.map(x => x.module)).size > 1)).join("")}</div>` : ""}${any ? "" : `<div class="symline meta">Chưa có bài.</div>`}</div>`;
-  }).join("")}</section>`).join("");
+  const [, title, , col] = L, mod = "trieu-chung-hoc";
+  const notes = symptomNotes();
+  const order = groupsOf(mod).map(gKey), byG = {};
+  notes.forEach(n => (byG[n.group || "Khác"] = byG[n.group || "Khác"] || []).push(n));
+  const names = [...order.filter(g => byG[g]), ...Object.keys(byG).filter(g => !order.includes(g))];
+  const ov = byId["trieu-chung-hoc-tong-quan"];   // trang tổng quan của module làm mục giới thiệu của thư viện
+  const intro = ov ? `<section class="libintro"><h2>Giới thiệu</h2><div class="notepage" style="--c:var(--${col})">${md(ov.body)}</div></section>` : "";
+  const list = names.map(g => `<section class="symgrp"><h2>${esc(g)}</h2><div class="rgrid">${byG[g].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).map(n => `<a class="rcard symrow" href="#/n/${n.id}" data-t="${esc(noDia((n.short || n.title) + " " + (n.tags || "")))}"><b>${esc(n.short || n.title)}</b></a>`).join("")}</div></section>`).join("");
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
-    ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: `${esc(title)}`, desc: `Bệnh nhân đến khám vì một lý do: đau bụng, đau đầu, nôn ói, vàng da… Chọn lý do đến khám để đọc cách tiếp cận, hỏi bệnh tiếp, rồi xem các bệnh cần nghĩ tới. Các vấn đề theo Khung 128 của kỳ thi.` })}
-    <div class="symctl"><input id="symq" type="search" placeholder="Lọc theo lý do đến khám: đau bụng, ho, vàng da…" autocomplete="off"><label><input type="checkbox" id="symall"> Hiện cả vấn đề chưa có bài (${nEmpty})</label></div>
-    <div class="modpage" style="--c:var(--${col})">${list}
-      ${gen.length ? `<section class="symgen"><h2>Hỏi bệnh, khám và bệnh án</h2><p class="meta">Kỹ năng và khái quát dùng chung cho mọi lý do đến khám.</p><div class="rgrid">${gen.map(n => `<a class="rcard" href="#/n/${n.id}"><small>${modTag(n.module)}</small><b>${esc(n.short || n.title)}</b></a>`).join("")}</div></section>` : ""}</div>`;
+    ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: `${esc(title)}`, desc: `Từ triệu chứng đến chẩn đoán phân biệt: hỏi bệnh, khám, dấu hiệu báo động, cận lâm sàng cần chọn. ${notes.length} bài theo chín nhóm biểu hiện lâm sàng (Harrison's phần 2).` })}
+    ${intro}
+    <div class="symctl"><input id="symq" type="search" placeholder="Lọc triệu chứng: đau ngực, khó thở, vàng da…" autocomplete="off"></div>
+    <div class="modpage" style="--c:var(--${col})">${list || '<p class="meta">Chưa có bài nào.</p>'}</div>
+    <p class="meta">Xem thêm: ${["trieu-chung-hoc-nguon"].filter(id => byId[id]).map(id => `<a href="#/n/${id}">${esc(byId[id].short || byId[id].title)}</a>`).join(" · ")}</p>`;
   const apply = () => {
-    const q = noDia($("#symq").value.trim()), all = $("#symall").checked;
-    document.querySelectorAll(".symrow").forEach(r => { r.hidden = !!((q && !r.dataset.t.includes(q)) || (r.classList.contains("empty") && !all && !q)); });
+    const q = noDia($("#symq").value.trim());
+    document.querySelectorAll(".symrow").forEach(r => { r.hidden = !!(q && !r.dataset.t.includes(q)); });
     document.querySelectorAll(".symgrp").forEach(g => { g.hidden = ![...g.querySelectorAll(".symrow")].some(r => !r.hidden); });
   };
-  $("#symq").oninput = apply; $("#symall").onchange = apply; apply();
+  $("#symq").oninput = apply; apply();
+  window.scrollTo(0, 0);
+}
+// Thăm khám lâm sàng: mỗi kỹ năng là một trang riêng, xếp theo thứ tự học từ tổng quát đến chi tiết (số mục của module Thăm khám; khám chuyên khoa chen trước thang điểm)
+const EXAM_MOD = "kham-lam-sang", EXAM_SPEC = 5.5, EXAM_LAST = 6;
+const examKey = n => n.module === EXAM_MOD ? sectionOfNote(n) : EXAM_SPEC;
+const examNotes = () => NOTES.filter(n => n.kind === "foundation" && libOf(n) === "thamkham" && !isSelfTest(n))
+  .sort((a, b) => examKey(a) - examKey(b) || (a.order ?? 99) - (b.order ?? 99) || (a.short || a.title).localeCompare(b.short || b.title, "vi"));
+// Thang điểm xếp từ tổng quát (mọi người bệnh) đến từng cơ quan / chuyên khoa; id bài -> nhóm
+const SCALE_GROUPS = [
+  ["Tổng quát và mức độ nặng", ["kls-thang-tri-giac", "kls-thang-canh-bao-som", "kls-thang-nhiem-trung", "kls-thang-the-trang"]],
+  ["Tim mạch", ["kls-thang-dau-nguc", "kls-thang-rung-nhi", "kls-thang-huyet-dong"]],
+  ["Hô hấp và khí máu", ["kls-thang-ho-hap", "kls-thang-thuyen-tac-phoi", "kls-thang-kiem-toan"]],
+  ["Tiêu hóa và gan mật", ["kls-thang-dau-bung-cap", "kls-thang-tieu-hoa-cap", "kls-thang-chuc-nang-gan"]],
+  ["Thận và điện giải", ["kls-thang-chuc-nang-than", "kls-thang-dien-giai"]],
+  ["Thần kinh và tâm thần", ["kls-thang-dot-quy", "kls-thang-sa-sut-tri-tue", "kls-thang-tam-than"]],
+  ["Nội tiết, chuyển hóa và dinh dưỡng", ["kls-thang-chuyen-hoa", "kls-thang-dinh-duong", "kls-thang-nhu-cau-dinh-duong"]],
+  ["Ung bướu", ["kls-thang-ung-buou"]],
+  ["Sản khoa và sơ sinh", ["kls-thang-chuyen-da", "kls-thang-so-sinh"]],
+];
+const scaleRank = n => { const g = SCALE_GROUPS.findIndex(([, ids]) => ids.includes(n.id)); return g < 0 ? [SCALE_GROUPS.length, 0] : [g, SCALE_GROUPS[g][1].indexOf(n.id)]; };
+const scaleNotes = () => NOTES.filter(n => n.kind === "foundation" && libOf(n) === "thangdiem" && !isSelfTest(n)).sort((a, b) => { const x = scaleRank(a), y = scaleRank(b); return x[0] - y[0] || x[1] - y[1]; });
+function scalePage(L) {
+  const [, title, desc, col] = L, notes = scaleNotes(), byGrp = {};
+  notes.forEach(n => { const g = scaleRank(n)[0]; (byGrp[g] = byGrp[g] || []).push(n); });
+  const gs = Object.keys(byGrp).map(Number).sort((a, b) => a - b).map(g => ({ g, t: g < SCALE_GROUPS.length ? SCALE_GROUPS[g][0] : "Khác", items: byGrp[g] }));
+  const chips = gs.map(x => `<button type="button" class="chip wide scjump" data-g="${x.g}">${esc(x.t)}</button>`).join("");
+  const cards = gs.map(x => `<section class="symgrp scgrp" id="scg-${x.g}"><h2>${esc(x.t)} <small>${x.items.length}</small></h2><div class="rgrid">${x.items.map(n => `<a class="rcard symrow scard" href="#/n/${n.id}" data-t="${esc(noDia((n.short || n.title) + " " + (n.tags || []).join(" ")))}"><b>${esc(n.short || n.title)}</b><span>${esc((n.tags || []).slice(0, 4).join(" · "))}</span></a>`).join("")}</div></section>`).join("");
+  $("#main").style.maxWidth = "1080px";
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
+    ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: esc(title), desc: `${notes.length} thang điểm và công thức, xếp từ tổng quát (mọi người bệnh) đến từng cơ quan. Mỗi bài một trang, có công cụ tự tính và diễn giải.` })}
+    <div class="symctl"><input id="symq" type="search" placeholder="Lọc thang điểm: GCS, NEWS2, Wells…" autocomplete="off"></div>
+    <div class="scchips">${chips}</div>
+    <div class="modpage" style="--c:var(--${col})">${cards}</div>`;
+  const apply = () => {
+    const q = noDia($("#symq").value.trim());
+    document.querySelectorAll(".scard").forEach(r => { r.hidden = !!(q && !r.dataset.t.includes(q)); });
+    document.querySelectorAll(".scgrp").forEach(g => { g.hidden = ![...g.querySelectorAll(".scard")].some(r => !r.hidden); });
+  };
+  $("#symq").oninput = apply; apply();
+  document.querySelectorAll(".scjump").forEach(b => b.onclick = () => { const s = $("#scg-" + b.dataset.g); if (s) s.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  window.scrollTo(0, 0);
+}
+const examGroupTitle = (n, key) => key === EXAM_SPEC ? "Khám chuyên khoa" : secOf(EXAM_MOD, key).title;
+function examPage(L) {
+  const [, title, , col] = L, notes = examNotes();
+  const ov = byId["kham-lam-sang-tong-quan"];
+  const intro = ov ? `<section class="libintro"><h2>Giới thiệu</h2><div class="notepage" style="--c:var(--${col})">${md(ov.body)}</div></section>` : "";
+  const groups = []; notes.forEach(n => { const k = examKey(n), g = groups[groups.length - 1]; if (g && g.k === k) g.items.push(n); else groups.push({ k, t: examGroupTitle(n, k), items: [n] }); });
+  let i = 0;
+  const list = groups.map(g => `<section class="symgrp"><h2>${esc(g.t)}</h2><ol class="examlist" start="${(i += g.items.length) - g.items.length + 1}">${g.items.map(n => `<li><a class="rcard symrow" href="#/n/${n.id}" data-t="${esc(noDia((n.short || n.title) + " " + (n.tags || []).join(" ")))}"><b>${esc(n.short || n.title)}</b></a></li>`).join("")}</ol></section>`).join("");
+  $("#main").style.maxWidth = "1080px";
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
+    ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: esc(title), desc: `${notes.length} bài, mỗi kỹ năng một trang, xếp từ tổng quát đến chi tiết. Học lần lượt từ trên xuống để không bỏ sót.` })}
+    ${intro}
+    <div class="symctl"><input id="symq" type="search" placeholder="Lọc bài: khám bụng, hô hấp, ABCDE…" autocomplete="off"></div>
+    <div class="modpage" style="--c:var(--${col})">${list || '<p class="meta">Chưa có bài nào.</p>'}</div>
+    <p class="meta">Xem thêm: ${["kham-lam-sang-nguon"].filter(id => byId[id]).map(id => `<a href="#/n/${id}">${esc(byId[id].short || byId[id].title)}</a>`).join(" · ")}</p>`;
+  const apply = () => {
+    const q = noDia($("#symq").value.trim());
+    document.querySelectorAll(".symrow").forEach(r => { r.parentElement.hidden = !!(q && !r.dataset.t.includes(q)); });
+    document.querySelectorAll(".symgrp").forEach(g => { g.hidden = ![...g.querySelectorAll(".symrow")].some(r => !r.parentElement.hidden); });
+  };
+  $("#symq").oninput = apply; apply();
+  window.scrollTo(0, 0);
+}
+// Thư viện "Các dấu hiệu trong thực hành lâm sàng": mỗi bài là một thẻ, xếp theo chuyên khoa (trường spec; bài của module Hô hấp, Ung bướu lấy theo module)
+const SPEC_ORDER = ["Tim mạch", "Hô hấp", "Tiêu hóa – gan mật", "Thận – niệu", "Nội tiết – chuyển hóa", "Thần kinh", "Huyết học", "Da liễu", "Cơ xương khớp", "Truyền nhiễm", "Ung bướu"];
+function specPage(L) {
+  const [, title, desc, col] = L;
+  const notes = NOTES.filter(n => n.kind === "foundation" && libOf(n) === "hoichung" && !isSelfTest(n));
+  const specOf = n => n.spec || (n.module === "ho-hap" ? "Hô hấp" : n.module === "ung-buou" ? "Ung bướu" : "Khác");
+  const groups = {};
+  notes.forEach(n => (groups[specOf(n)] = groups[specOf(n)] || []).push(n));
+  const names = [...SPEC_ORDER.filter(s => groups[s]), ...Object.keys(groups).filter(s => !SPEC_ORDER.includes(s))];
+  const body = names.map(s => `<section class="symgrp"><h2>${esc(s)}</h2><div class="rgrid">${groups[s].sort((a, b) => (a.short || a.title).localeCompare(b.short || b.title, "vi")).map(n => `<a class="rcard" href="#/n/${n.id}"><b>${esc(n.short || n.title)}</b></a>`).join("")}</div></section>`).join("");
+  $("#main").style.maxWidth = "1080px";
+  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
+    ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: esc(title), desc: esc(desc) })}
+    <div class="modpage" style="--c:var(--${col})">${body || '<p class="meta">Chưa có bài nào.</p>'}</div>`;
   window.scrollTo(0, 0);
 }
 // Biểu tượng cho từng thư viện (đường nét 24×24)
@@ -527,6 +600,7 @@ const LIB_ICON = {
   khoahoccoban: '<ellipse cx="12" cy="12" rx="9" ry="4"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(-60 12 12)"/><circle cx="12" cy="12" r="1.6"/>',
   duocly: '<path d="M4.5 19.5l15-15a4.2 4.2 0 0 1 6 6l-15 15a4.2 4.2 0 0 1-6-6z"/><path d="M9 9l6 6"/>',
   dinhduong: '<path d="M12 7c0-2.5 1.5-4 4-4 0 2.5-1.5 4-4 4z"/><path d="M12 7C7 7 4 10 4 14.5 4 18.5 7.5 21 12 21s8-2.5 8-6.5C20 10 17 7 12 7z"/>',
+  thangdiem: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 8h7M8.5 12.5l1.5 1.5 3-3M8.5 17h7"/>',
   thamkham: '<path d="M6 3v6a4 4 0 0 0 8 0V3"/><path d="M10 13v2a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="11" r="2"/>',
   trogiatri: '<path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-4"/><path d="M12 6v2M5.6 9.6l1.4 1.4M18.4 9.6l-1.4 1.4"/>',
   hoichung: '<circle cx="8.5" cy="9" r="3.2"/><circle cx="15.5" cy="9" r="3.2"/><path d="M2.5 19.5c.8-2.8 3-4.2 6-4.2s5.2 1.4 6 4.2M12.5 19.5c.8-2.8 3-4.2 6-4.2s4.5 1.2 5 3.2"/>',
@@ -540,6 +614,11 @@ function libIndex() {
 }
 // Bài trong một chuyên khoa, xếp theo từng mục lớn (Đại cương, Hệ máu…), mỗi mục một tiêu đề
 function secBlocks(mod, notes) {
+  if (isHiddenMod(mod)) {   // module ẩn: chia nhóm theo trường group (thứ tự theo số order nhỏ nhất của nhóm)
+    const g = {}; notes.forEach(n => (g[n.group || "Khác"] = g[n.group || "Khác"] || []).push(n));
+    const ord = k => Math.min(...g[k].map(n => n.order ?? 99));
+    return Object.keys(g).sort((a, b) => ord(a) - ord(b)).map(k => `<h3>${esc(k)}</h3><div class="rgrid">${g[k].sort((x, y) => (x.order ?? 99) - (y.order ?? 99)).map(n => `<a class="rcard" href="#/n/${n.id}"><b>${esc(n.short || n.title)}</b></a>`).join("")}</div>`).join("");
+  }
   const bySec = {};
   notes.forEach(n => { const k = sectionOfNote(n); bySec[k] = bySec[k] || []; bySec[k].push(n); });
   return Object.keys(bySec).map(Number).sort((a, b) => a - b).map(k => `<h3>${esc(secOf(mod, k).title)}</h3><div class="rgrid">${bySec[k].map(n => `<a class="rcard" href="#/n/${n.id}">${n.group ? `<small>${esc(gSide(mod, n.group))}</small>` : ""}<b>${esc(n.short || n.title)}</b></a>`).join("")}</div>`).join("");
@@ -547,6 +626,9 @@ function secBlocks(mod, notes) {
 function libPage(cat) {
   const L = LIBS.find(l => l[0] === cat); if (!L) return libIndex();
   if (cat === "trieuchung") return symptomPage(L);
+  if (cat === "hoichung") return specPage(L);
+  if (cat === "thamkham") return examPage(L);
+  if (cat === "thangdiem") return scalePage(L);
   const [, title, desc, col] = L, items = libItems(cat);
   const body = items.map(({ mod, notes, di, tabs }) => `<section><h2>${modLabel(mod)}</h2>
     ${secBlocks(mod, notes)}
@@ -559,16 +641,21 @@ function libPage(cat) {
   window.scrollTo(0, 0);
 }
 let MOD_HTML = "";   // danh sách module (cho ngăn Module trên điện thoại)
+// Trạng thái đóng/mở do người dùng tự bấm trong thanh bên: giữ nguyên khi chuyển trang (thanh bên được vẽ lại mỗi lần)
+const treeState = {};
 function tree(cur, sec) {
   const curN = byId[cur], curSec = curN ? sectionOfNote(curN) : +((location.hash.match(/^#\/m\/[^/]+\/(\d+)$/) || [])[1] || 0);   // đang ở trang mục thì mở đúng mục đó
+  const onModPage = /^#\/(m|n)\//.test(location.hash);
   const here = curMod(), hashM = location.hash.match(/^#\/m\/([^/]+)\/(\d+)$/) || [];
   const renderMod = mod => {
     const ns = NOTES.filter(n => n.module === mod), di = diseases().filter(n => n.module === mod);
-    const isHere = mod === here;
+    const isHere = mod === here && onModPage;   // chỉ tự mở module khi đang xem trang của chính module đó
+    const K = (...p) => ` data-k="${[mod, ...p].join(":")}"`;
+    const op = (def, ...p) => (def || treeState[[mod, ...p].join(":")]) ? " open" : "";   // trang hiện tại luôn mở nhánh của nó; còn lại theo lựa chọn của người dùng
     const link = (n, s, label, c) => `<a href="#/n/${n.id}${s ? "/" + s : ""}" class="${n.id === cur && (!s || +s === sec) ? "on" : ""}"${c ? ` style="--c:var(--${c})"` : ""}>${esc(label || n.short || n.title)}</a>`;
     const gen = k => ns.filter(n => n.kind === "foundation" && sectionOfNote(n) === k).sort((x, y) => (x.order ?? 99) - (y.order ?? 99));
-    const isDis = !!(curN && curN.kind === "disease" && curN.module === mod), open = c => c ? " open" : "";
-    const sub = (s, body, isOpen) => `<details${open(isOpen)} style="--c:var(--s${secC(mod, s.n)})"><summary><b>${s.n}</b> ${esc(s.title)}</summary>${body}</details>`;
+    const isDis = !!(curN && curN.kind === "disease" && curN.module === mod);
+    const sub = (s, body, isOpen) => `<details${K(s.n)}${op(isOpen, s.n)} style="--c:var(--s${secC(mod, s.n)})"><summary><b>${s.n}</b> ${esc(s.title)}</summary>${body}</details>`;
     const top = (s, on) => `<a class="top ${on ? "on" : ""}" style="--c:var(--s${secC(mod, s.n)})" href="#/m/${mod}/${s.n}"><b>${s.n}</b> ${esc(s.title)}</a>`;
     const ms = h => hashM[1] === mod && hashM[2] === String(h);
     const srcN = secByType(mod, "sources");
@@ -576,7 +663,7 @@ function tree(cur, sec) {
       const on = isHere && curSec === s.n;
       if (s.type === "overview") return top(s, on && !ms(srcN));
       if (s.type === "groups") return sub(s, groupList(mod, s.n).map(g => `<a href="#/m/${mod}/${s.n}" data-g="${gId(mod, s.n, g)}" class="${on && curN && (curN.group || "Khác") === g ? "on" : ""}">${esc(gSide(mod, g))}</a>`).join(""), on);
-      if (s.type === "diseases") return sub(s, di.map(d => `<details${open(isDis && curN.id === d.id)}><summary>${esc(d.short || d.title)}</summary>${SECS.map(([num, name]) => link(d, num, dnum(num, mod) + " " + name, SECCOL[num])).join("")}${link(d, 9, "★ Tóm tắt", "tsum")}</details>`).join(""), isDis);
+      if (s.type === "diseases") return sub(s, di.map(d => `<details${K(s.n, d.id)}${op(isDis && curN.id === d.id, s.n, d.id)}><summary>${esc(d.short || d.title)}</summary>${SECS.map(([num, name]) => link(d, num, dnum(num, mod) + " " + name, SECCOL[num])).join("")}${link(d, 9, "★ Tóm tắt", "tsum")}</details>`).join(""), isDis);
       if (s.type === "notes" && s.byDisease) return sub(s, `<a href="#/m/${mod}/${s.n}">${esc(s.overviewLabel || "Khái quát")}</a>` + gen(s.n).filter(n => !isSyn(n)).map(n => link(n)).join("") + (gen(s.n).some(isSyn) ? `<div class="lay">Các hội chứng</div>` + gen(s.n).filter(isSyn).map(n => link(n)).join("") : "") + `<div class="lay">Theo bệnh</div>` + di.map(d => link(d, s.byDisease[0], d.short || d.title)).join(""), on || (isDis && isHere && s.byDisease.includes(sec)));
       if (s.type === "notes" && s.tree === "list") {
         const kids = gen(s.n), syn = kids.filter(isSyn);
@@ -584,7 +671,7 @@ function tree(cur, sec) {
       }
       return top(s, on);
     });
-    return `<details class="mod"${isHere ? " open" : ""}><summary>${modLabel(mod)}</summary>
+    return `<details class="mod" data-mod="${mod}"${K("mod")}${op(isHere, "mod")}><summary>${modLabel(mod)}</summary>
       ${rows.join("\n      ")}
     </details>`;
   };
@@ -597,6 +684,11 @@ function tree(cur, sec) {
     <div class="sbh">Module</div>${modsHtml}
     <div class="sbh"><a href="#/lib">Thư viện học tập</a></div>${LIBS.map(([k, t, , col]) => `<a class="sblib${libCur === k ? " on" : ""}" style="--c:var(--${col})" href="#/lib/${k}"><span>${esc(t)}</span><small>${libCount(k)}</small></a>`).join("")}`;
 }
+document.addEventListener("click", e => {   // ghi nhớ lựa chọn đóng/mở của người dùng ở thanh bên và ngăn Module
+  const sm = e.target.closest("summary"), d = sm && sm.parentElement;
+  if (!d || !d.dataset.k || !d.closest("#tree, #sheet, #sbmore")) return;
+  setTimeout(() => { treeState[d.dataset.k] = d.open; }, 0);
+});
 // ---- thanh công cụ: tìm kiếm, cài đặt hiển thị, điều hướng dưới (điện thoại) ----
 const noDia = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 const plain = s => s.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, k, label) => label || k).replace(/\{\{\+?[^}]*\}\}/g, "").replace(/==|\*\*|\{[rgbop]\|/g, "").replace(/[{}>@#|\[\]!`]/g, " ").replace(/\s+/g, " ").trim();
@@ -902,7 +994,7 @@ function modSection(mod, k, openId) {
     // mục chỉ có một bài: hiện nội dung luôn, không cần thanh mở/đóng
     const syn = gen.filter(isSyn), sym = gen.filter(n => !isSyn(n));
     body = gen.length === 1 ? `<section id="t-${gen[0].id}"><h2>${esc(gen[0].short || gen[0].title)}</h2>${md(gen[0].body)}</section>`
-      : sp.pages && gen.length ? `<div class="rgrid">${gen.map(n => `<div class="rcard"><b>${esc(n.short || n.title)}</b><p class="meta">${esc(n.tags.slice(0, 4).join(", "))}</p><a class="chip wide" href="#/n/${n.id}">Mở trang →</a></div>`).join("")}</div>`
+      : sp.pages && gen.length ? `<div class="rgrid">${gen.map(n => `<a class="rcard" href="#/n/${n.id}"><b>${esc(n.short || n.title)}</b><p class="meta">${esc(n.tags.slice(0, 4).join(", "))}</p></a>`).join("")}</div>`
       : gen.length ? allBtn + (sym.length ? noteToggles(sym, openSet) : "") + (syn.length ? `<section id="syn-${k}"><h2>Các hội chứng</h2>${noteToggles(syn, openSet)}</section>` : "")
       : "<p class='meta'>Chưa có.</p>";
   } else if (type === "sim") {   // công cụ tương tác đứng riêng (trang HTML trong 5-khac/, nhúng bằng iframe)
@@ -1000,11 +1092,19 @@ function note(id, sec) {
   pushRecent(id, 0);
   if (n.kind === "foundation" && ["groups", "notes"].includes(sp.type) && !sp.pages) return modSection(mod, k, id);   // mục "pages": mỗi bài là một trang riêng
   const cont = withToc(md(n.body));
-  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${k} ${sp.title}`, href: `#/m/${mod}/${k}` }])}
-    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title) })}
+  const hid = isHiddenMod(mod), libKey = n.kind === "foundation" ? libOf(n) : "trieuchung", libT = (LIBS.find(l => l[0] === libKey) || [libKey, MODULES[mod] || mod])[1];
+  const trail = hid ? [{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: libT, href: `#/lib/${libKey}` }] : [{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${k} ${sp.title}`, href: `#/m/${mod}/${k}` }];
+  $("#main").innerHTML = `${crumb(trail)}
+    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: hid ? `Thư viện học tập · ${esc(libT)}${(["thamkham", "thangdiem"].includes(libKey) ? sp.title : n.group) ? " · " + esc(["thamkham", "thangdiem"].includes(libKey) ? sp.title : n.group) : ""}` : `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title) })}
     <div class="notepage" style="--c:var(--s${secC(mod, k)})">${tocBox(cont.items)}${cont.html}</div>
-    ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
+    ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}${["thamkham", "thangdiem"].includes(libKey) ? examNav(id, libKey) : ""}`;
   window.scrollTo(0, 0);
+}
+// Bài trước / bài sau trong thứ tự học của Thăm khám lâm sàng
+function examNav(id, libKey) {
+  const ns = libKey === "thangdiem" ? scaleNotes() : examNotes(), i = ns.findIndex(x => x.id === id); if (i < 0) return "";
+  const a = (n, cls, lab) => n ? `<a class="${cls}" href="#/n/${n.id}"><small>${lab}</small><b>${esc(n.short || n.title)}</b></a>` : "<span></span>";
+  return `<nav class="examnav" aria-label="Bài trước và bài sau">${a(ns[i - 1], "prev", "← Bài trước")}${a(ns[i + 1], "next", "Bài sau →")}</nav>`;
 }
 
 // ---- ôn thẻ theo bệnh học: mỗi bệnh (hoặc bài chung) là một bộ thẻ; thẻ nhắc lại theo hộp Leitner ----
@@ -1113,24 +1213,93 @@ function fcLayout(g) {
     const lines = wrap(n.t, 24), w = Math.max(150, Math.min(230, Math.max(...lines.map(l => l.length)) * 7.4 + 30));
     box[n.id] = { n, lines, w, h: lines.length * 18 + (n.k === "dec" ? 26 : 24) };
   });
-  const GAPX = 36, GAPY = 46, rowH = layers.map(L => Math.max(0, ...L.map(id => box[id].h)));
+  const GAPX = 36, GAPY = 62, rowH = layers.map(L => Math.max(0, ...L.map(id => box[id].h)));
   const layerW = layers.map(L => L.reduce((s, id) => s + box[id].w, 0) + GAPX * (L.length - 1));
   const W = Math.max(...layerW, 300) + 90, rowY = []; let y = 24;
   for (let r = 0; r <= maxR; r++) { rowY[r] = y; y += rowH[r] + GAPY; }
   layers.forEach((L, r) => { let x = (W - layerW[r]) / 2; L.forEach(id => { const b = box[id]; b.x = x; b.y = rowY[r] + (rowH[r] - b.h) / 2; x += b.w + GAPX; }); });
-  return { box, W, H: y + 10, back: [...back], fwd, idx };
+  // Cạnh nối không liền tầng (hoặc quay lại) đi qua một "làn" bên phải toàn sơ đồ để không cắt qua nút khác
+  // Cạnh nối không liền tầng (hoặc quay lại) đi qua một làn đứng ngoài sơ đồ: làn bên phải nếu nút đích ở bên phải nút nguồn, ngược lại làn bên trái
+  // Cạnh dài đi thẳng xuống theo đường dọc rồi vào đỉnh hoặc mép bên của nút đích khi không vướng nút nào; chỉ khi vướng mới dùng làn ngoài sơ đồ
+  const exitX = e => { const list = g.edges.filter(x => x[0] === e[0]).sort((p, q) => (box[p[1]].x + box[p[1]].w / 2) - (box[q[1]].x + box[q[1]].w / 2)); const a = box[e[0]]; return a.x + a.w * (list.indexOf(e) + 1) / (list.length + 1); };
+  const direct = new Map();
+  g.edges.forEach(e => {
+    if (back.has(e) || rank[e[1]] - rank[e[0]] <= 1) return;
+    const a = box[e[0]], b = box[e[1]], sx = exitX(e), ab = a.y + a.h, tcy = b.y + b.h / 2;
+    const others = Object.values(box).filter(c => c !== a && c !== b);
+    if (sx > b.x + 10 && sx < b.x + b.w - 10) {
+      if (!others.some(c => c.y < b.y && c.y + c.h > ab && sx > c.x - 8 && sx < c.x + c.w + 8)) direct.set(e, { type: "top" });
+    } else {
+      const sideX = sx > b.x + b.w ? b.x + b.w : b.x, xl = Math.min(sx, sideX), xr = Math.max(sx, sideX);
+      const blockV = others.some(c => c.y < tcy && c.y + c.h > ab && sx > c.x - 8 && sx < c.x + c.w + 8);
+      const blockH = others.some(c => c.y - 4 < tcy && tcy < c.y + c.h + 4 && c.x < xr && c.x + c.w > xl);
+      if (!blockV && !blockH) direct.set(e, { type: "side", right: sx > b.x + b.w });
+    }
+  });
+  const routed = g.edges.filter(e => !direct.has(e) && (back.has(e) || rank[e[1]] - rank[e[0]] > 1));
+  const cxOf = id => box[id].x + box[id].w / 2;
+  const sideOf = new Map(routed.map(e => [e, cxOf(e[1]) >= cxOf(e[0]) ? "R" : "L"]));
+  const nL = routed.filter(e => sideOf.get(e) === "L").length, nR = routed.length - nL;
+  const minX = Math.min(...Object.values(box).map(b => b.x));
+  const shift = nL ? Math.max(0, 52 + (nL - 1) * 14 - minX) : 0;
+  Object.values(box).forEach(b => { b.x += shift; });
+  const left = minX + shift, right = Math.max(...Object.values(box).map(b => b.x + b.w));
+  const lane = new Map(), iL = { n: 0 }, iR = { n: 0 };
+  routed.forEach(e => {
+    if (sideOf.get(e) === "L") lane.set(e, left - 24 - iL.n++ * 14);
+    else lane.set(e, right + 24 + iR.n++ * 14);
+  });
+  const Wf = Math.max(W + shift, right + 24 + nR * 14 + 24);
+  const laneSide = sideOf;
+  return { box, W: Wf, H: y + 10, back: [...back], fwd, idx, lane, laneSide, direct, rowY, rowH, rank };
 }
 function luudoGraph(g) {
-  const { box, W, H, back, fwd } = fcLayout(g), cx = b => b.x + b.w / 2, cy = b => b.y + b.h / 2;
-  const edgeSvg = e => {
+  const { box, W, H, back, fwd, lane, laneSide, direct, rowY, rowH, rank } = fcLayout(g), cx = b => b.x + b.w / 2, cy = b => b.y + b.h / 2;
+  // Điểm nối trên mỗi nút được chia đều theo số cạnh, để các mũi tên không chồng lên nhau
+  const port = {}, addPort = (id, side, e, other) => { const k = id + side; (port[k] = port[k] || []).push({ e, other }); };
+  g.edges.forEach(e => { addPort(e[0], "out", e, e[1]); if (!direct.has(e)) addPort(e[1], "in", e, e[0]); });
+  // Nút có từ 3 mũi tên trở lên đi vào: các mũi tên dồn về một điểm giữa và chỉ còn một mũi tên vào nút
+  const indeg = {}; g.edges.forEach(e => { if (!direct.has(e)) indeg[e[1]] = (indeg[e[1]] || 0) + 1; });
+  const at = (id, side, e) => {
+    if (side === "in" && indeg[id] >= 3) return cx(box[id]);
+    const list = port[id + side].slice().sort((p, q) => cx(box[p.other]) - cx(box[q.other]));
+    const i = list.findIndex(p => p.e === e), b = box[id];
+    return b.x + b.w * (i + 1) / (list.length + 1);
+  };
+  // Mỗi cạnh qua cùng một khe giữa hai tầng có kênh ngang riêng, để các đường không nhập thành một thanh chung
+  const chan = new Map(), gaps = {};
+  g.edges.forEach(e => { if (!lane.has(e)) { const key = rank[e[0]] + ">" + rank[e[1]]; (gaps[key] = gaps[key] || []).push(e); } });
+  Object.values(gaps).forEach(list => list.forEach((e, i) => chan.set(e, { i, n: list.length })));
+  const edgeSvg = (e, k) => {
     const a = box[e[0]], b = box[e[1]];
-    const ym = (a.y + a.h + b.y) / 2, yn = e[2] === "Có" ? " fc-yes" : e[2] === "Không" ? " fc-no" : "";
-    const lab = e[2] ? `<text class="fc-lab${yn}" x="${(cx(b) + 7).toFixed(1)}" y="${((ym + b.y) / 2 + 4).toFixed(1)}">${esc(e[2])}</text>` : "";
-    if (back.includes(e)) {
-      const xr = Math.max(a.x + a.w, b.x + b.w) + 26, y1 = cy(a), y2 = cy(b);
-      return `<path class="fc-edge fc-back" d="M${a.x + a.w},${y1} H${xr} V${y2} H${b.x + b.w}" marker-end="url(#fc-arr)"/><text class="fc-lab" x="${xr + 6}" y="${(y1 + y2) / 2}">lặp lại</text>`;
+    const d = direct.get(e), sx = at(e[0], "out", e), ab = a.y + a.h, tt = b.y;
+    // Nút đích chỉ có một mũi tên vào thì mũi tên vào ngay vị trí gần nút nguồn nhất, để đường đi thẳng nhất có thể
+    const tx = d ? sx : indeg[e[1]] === 1 && !lane.has(e) ? Math.min(Math.max(sx, b.x + 12), b.x + b.w - 12) : at(e[1], "in", e);
+    const yn = e[2] === "Có" ? " fc-yes" : e[2] === "Không" ? " fc-no" : "";
+    // Nhãn đặt về phía ngoài so với các nhánh cùng xuất phát từ một nút, để hai nhãn Có/Không không chạm nhau
+    const outs = port[e[0] + "out"].slice().sort((p, q) => cx(box[p.other]) - cx(box[q.other])), oi = outs.findIndex(p => p.e === e);
+    const toLeftLab = outs.length > 1 && oi < outs.length / 2;
+    const labX = toLeftLab ? sx - 6 : sx + 6, anchor = toLeftLab ? ' text-anchor="end"' : "";
+    const lab = e[2] ? `<text class="fc-lab${yn}" x="${labX.toFixed(1)}" y="${(ab + 15).toFixed(1)}"${anchor}>${esc(e[2])}</text>` : "";
+    if (d) return d.type === "top"
+      ? `<path class="fc-edge" d="M${sx},${ab} V${tt}" marker-end="url(#fc-arr)"/>${lab}`
+      : `<path class="fc-edge" d="M${sx},${ab} V${cy(b)} H${d.right ? b.x + b.w : b.x}" marker-end="url(#fc-arr)"/>${lab}`;
+    if (lane.has(e)) {
+      const lx = lane.get(e);
+      if (back.includes(e)) {
+        const y1 = cy(a), y2 = cy(b);
+        // Làn nằm bên trái thì cạnh xuất phát và đi vào ở mép trái của nút, để không đi xuyên qua nút
+        const toLeft = laneSide.get(e) === "L";
+        // Đi ra từ đáy nút nguồn rồi vòng qua khe giữa hai tầng, để không cắt qua các nút cùng tầng
+        const x2 = toLeft ? b.x : b.x + b.w, yb = rowY[rank[e[0]]] + rowH[rank[e[0]]] + 14;
+        return `<path class="fc-edge fc-back" d="M${sx},${ab} V${yb} H${lx} V${y2} H${x2}" marker-end="url(#fc-arr)"/><text class="fc-lab" transform="rotate(-90 ${toLeft ? lx - 4 : lx + 12} ${((y1 + y2) / 2).toFixed(1)})" x="${toLeft ? lx - 4 : lx + 12}" y="${((y1 + y2) / 2).toFixed(1)}" text-anchor="middle">lặp lại</text>`;
+      }
+      const yCh = rowY[rank[e[0]]] + rowH[rank[e[0]]] + 22, yCt = rowY[rank[e[1]]] - 12;
+      return `<path class="fc-edge" d="M${sx},${ab} V${yCh} H${lx} V${yCt} H${tx} V${tt}" marker-end="url(#fc-arr)"/>${lab}`;
     }
-    return `<path class="fc-edge" d="M${cx(a)},${a.y + a.h} V${ym} H${cx(b)} V${b.y}" marker-end="url(#fc-arr)"/>${lab}`;
+    const gapTop = rowY[rank[e[0]]] + rowH[rank[e[0]]], gapBot = rowY[rank[e[1]]];
+    const ch = chan.get(e) || { i: 0, n: 1 }, ym = gapTop + 26 + (gapBot - gapTop - 36) * (ch.i + 1) / (ch.n + 1);
+    return `<path class="fc-edge" d="M${sx},${ab} V${ym} H${tx} V${tt}" marker-end="url(#fc-arr)"/>${lab}`;
   };
   const nodeSvg = n => {
     const b = box[n.id], x = b.x, y = b.y, w = b.w, h = b.h;
@@ -1141,7 +1310,7 @@ function luudoGraph(g) {
     const inner = `<g class="fc-node ${cls}">${shape}${t}</g>`;
     return n.href ? `<a href="${esc(n.href)}">${inner}</a>` : n.bai && n.bai.length && byId[n.bai[0]] ? `<a href="#/n/${n.bai[0]}">${inner}</a>` : inner;
   };
-  return `<div class="fcwrap"><svg class="fc" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Lưu đồ"><defs><marker id="fc-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${g.edges.map(edgeSvg).join("")}${g.nodes.map(nodeSvg).join("")}</svg></div>`;
+  return `<div class="fcwrap"><svg class="fc" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Lưu đồ"><defs><marker id="fc-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>${g.edges.map((e, k) => edgeSvg(e, k)).join("")}${g.nodes.map(nodeSvg).join("")}</svg></div>`;
 }
 // Lưu đồ tiếp cận: cây câu hỏi Có/Không, lá là kết luận và các bài liên quan (nội dung lấy từ bài đã có)
 const LUUDO = [
@@ -1769,7 +1938,6 @@ const GLOSS_NOT = {
   "dò": { b: ["đầu ", "thăm "] },
   "phù": { a: [" hợp"] },
 };
-let glossOn = false;
 // Đánh dấu thuật ngữ trong phần nội dung bài (chỉ module Ung bướu, chỉ khi bật); chạm vào để xem nghĩa
 function glossApply() {
   const box = document.querySelector("#main .notepage, #main .modpage");
@@ -1824,7 +1992,7 @@ function volume() {
 
 // ---- thanh module: Ung bướu › 1 … 5 ----
 function renderModbar(active) {
-  const mod = curMod(), mods = Object.keys(MODULES), secs = secsOf(mod), cur = secs.find(x => x.n === active);
+  const mod = curMod(), mods = mainMods(), secs = secsOf(mod), cur = secs.find(x => x.n === active);
   const pick = `<select class="secpick" aria-label="Chọn mục" style="--c:var(--s${cur ? cur.c || cur.n : 1})">${cur ? "" : '<option value="" selected disabled>Chọn mục…</option>'}${secs.map(x => `<option value="${x.n}"${x.n === active ? " selected" : ""}>${x.n}. ${esc(x.title)}</option>`).join("")}</select>`;
   $("#modbar").innerHTML = (mods.length > 1
       ? `<select class="modpick" aria-label="Chọn chuyên khoa">${mods.map(m => `<option value="${m}"${m === mod ? " selected" : ""}>${esc(MODULES[m] || m)}</option>`).join("")}</select>`
@@ -1889,7 +2057,10 @@ pomoRender();
 // ---- định tuyến ----
 function route() {
   cancelAnimationFrame(raf);
-  window.scrollTo(0, 0);   // chuyển trang luôn bắt đầu từ đầu trang (mục/bài có điểm đến sẽ tự cuộn sau)
+  // Nút Lùi/Tiến của trình duyệt: quay về đúng vị trí đã đọc; chuyển trang bình thường thì bắt đầu từ đầu trang
+  const savedY = navBack ? savedScroll : undefined; navBack = false; savedScroll = undefined;
+  if (savedY !== undefined) requestAnimationFrame(() => window.scrollTo(0, savedY));
+  else window.scrollTo(0, 0);   // mục/bài có điểm đến sẽ tự cuộn sau
   $("#main").style.maxWidth = ""; closeSheet();
   let h = decodeURIComponent(location.hash.slice(1)) || "/";
   if (h === "/pareto") h = `/m/${curMod()}/${secByType(curMod(), "summary")}`;
@@ -1905,10 +2076,10 @@ function route() {
   else if (m) { sec = note(m[1], m[2]) || 0; modActive = byId[m[1]] ? sectionOfNote(byId[m[1]]) : 0; }
   else if (lb) { lb[1] ? libPage(lb[1]) : libIndex(); }
   else if (h === "/volume") volume(); else if (lu) luudo(lu[1] || ""); else if (cc) congCu(cc[1] || ""); else if (mp) mindmap(mp[1] || ""); else if (cd) cards(cd[1] || "", cd[2] === "all"); else home();
-  const navKey = kh ? "khung" : lu ? "luudo" : cc ? "congcu" : mp ? "mindmap" : h === "/volume" ? "volume" : cd ? "cards" : lb ? "lib" : (!m && !mm) ? "home" : "";
+  const navKey = kh ? "khung" : lu ? "luudo" : cc ? "congcu" : mp ? "mindmap" : h === "/volume" ? "volume" : cd ? "cards" : lb ? "lib" : (m && byId[m[1]] && isHiddenMod(byId[m[1]].module)) ? "lib" : (!m && !mm) ? "home" : "";
   document.querySelectorAll("[data-nav]").forEach(x => x.classList.toggle("on", x.dataset.nav === navKey));
   $("#bnMenu").classList.toggle("on", !!(mm || m)); $("#bnMore").classList.toggle("on", navKey === "khung" || navKey === "volume" || navKey === "luudo" || navKey === "congcu" || navKey === "mindmap");
-  const inMod = !!(mm || m);   // thanh mục của chuyên khoa chỉ hiện khi đang trong một chuyên khoa
+  const inMod = !!(mm || m) && !(m && byId[m[1]] && isHiddenMod(byId[m[1]].module));   // thanh mục của chuyên khoa chỉ hiện khi đang trong một chuyên khoa (module ẩn thì không)
   $("#modbar").hidden = !inMod; document.documentElement.classList.toggle("no-modbar", !inMod);
   renderModbar(modActive);
   tree(m && m[1], sec || (m && +m[2]) || 0);
@@ -1947,6 +2118,14 @@ function stickyTables() {
     (t.parentElement.classList.contains("tw") ? t.parentElement : t).classList.add("tall");
   });
 }
+// Vị trí cuộn được ghi vào mục lịch sử của chính trang đang xem (history.state), nên nút Lùi/Tiến quay lại đúng chỗ
+let navBack = false, savedScroll;
+addEventListener("popstate", e => { navBack = true; savedScroll = e.state && typeof e.state.y === "number" ? e.state.y : undefined; });
+let scrollTick = 0;
+addEventListener("scroll", () => {
+  if (scrollTick) return;
+  scrollTick = requestAnimationFrame(() => { scrollTick = 0; history.replaceState({ ...(history.state || {}), y: window.scrollY }, ""); });
+}, { passive: true });
 addEventListener("hashchange", route);
 route();
 })();
