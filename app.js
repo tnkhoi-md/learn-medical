@@ -11,7 +11,7 @@ const modLabel = m => esc(MODULES[m] || m) + (MODULES_EN[m] ? ` <small class="en
 // Các tab của trang bệnh (số nội bộ trong file: 3–9; 10 = "Theo dõi" tách từ mục 8 khi hiển thị)
 // Màu của từng tab bệnh (--t1…--t7, --tsum): mỗi tab một màu riêng, không trùng nhau
 const SECS = [
-  [3, "Tổng quan", "t1"],
+  [3, "Bệnh học", "t1"],   // khớp tiêu đề "## 3. Bệnh học" trong bài
   [4, "Triệu chứng học", "t2"],
   [5, "Cận lâm sàng", "t3"],
   [6, "Chẩn đoán", "t4"],
@@ -45,7 +45,10 @@ const TAB12 = [[3, "Tổng quan", "t1"], [11, "Cơ chế bệnh sinh", "t2"], [1
 let curScheme = "";   // khung của bài đang hiển thị, để đánh số tab đúng
 const tabsOf = n => n && n.scheme === "12" ? TAB12 : SECS.filter(([num]) => num !== 9);
 const colOf = (n, num) => (tabsOf(n).find(x => x[0] === num) || [])[2] || SECCOL[num];
-const dnum = (n, mod) => n === 9 ? "★" : curScheme === "12" && DISP12[n] ? (secByType(mod || curMod(), "diseases") || 5) + "." + DISP12[n] : (secByType(mod || curMod(), "diseases") || 5) + "." + DISPNUM[n];
+// Số hiển thị của một mục; truyền bài (nb) để theo đúng khung của bài đó, không phụ thuộc bài vừa mở
+const dnum = (n, mod, nb) => { const sch = nb ? nb.scheme || "" : curScheme; return n === 9 ? "★" : sch === "12" && DISP12[n] ? (secByType(mod || curMod(), "diseases") || 5) + "." + DISP12[n] : (secByType(mod || curMod(), "diseases") || 5) + "." + DISPNUM[n]; };
+// Tên mục theo khung của bài (khung 12 mục có tên riêng cho các mục 11–14)
+const secName = (nb, key) => ((tabsOf(nb).find(x => x[0] === key) || [])[1]) || SECNAME[key];
 
 // Mục của thanh module mà một bài thuộc về (số mục lấy từ _module.json của module đó).
 function sectionOfNote(n) {
@@ -675,7 +678,7 @@ function tree(cur, sec) {
       const on = isHere && curSec === s.n;
       if (s.type === "overview") return top(s, on && !ms(srcN));
       if (s.type === "groups") return sub(s, groupList(mod, s.n).map(g => `<a href="#/m/${mod}/${s.n}" data-g="${gId(mod, s.n, g)}" class="${on && curN && (curN.group || "Khác") === g ? "on" : ""}">${esc(gSide(mod, g))}</a>`).join(""), on);
-      if (s.type === "diseases") return sub(s, di.map(d => `<details${K(s.n, d.id)}${op(isDis && curN.id === d.id, s.n, d.id)}><summary>${esc(d.short || d.title)}</summary>${SECS.map(([num, name]) => link(d, num, dnum(num, mod) + " " + name, SECCOL[num])).join("")}${link(d, 9, "★ Tóm tắt", "tsum")}</details>`).join(""), isDis);
+      if (s.type === "diseases") return sub(s, di.map(d => `<details${K(s.n, d.id)}${op(isDis && curN.id === d.id, s.n, d.id)}><summary>${esc(d.short || d.title)}</summary>${tabsOf(d).map(([num, name, c]) => link(d, num, dnum(num, mod, d) + " " + name, c)).join("")}${link(d, 9, "★ Tóm tắt", "tsum")}</details>`).join(""), isDis);
       if (s.type === "notes" && s.byDisease) return sub(s, `<a href="#/m/${mod}/${s.n}">${esc(s.overviewLabel || "Khái quát")}</a>` + gen(s.n).filter(n => !isSyn(n)).map(n => link(n)).join("") + (gen(s.n).some(isSyn) ? `<div class="lay">Các hội chứng</div>` + gen(s.n).filter(isSyn).map(n => link(n)).join("") : "") + `<div class="lay">Theo bệnh</div>` + di.map(d => link(d, s.byDisease[0], d.short || d.title)).join(""), on || (isDis && isHere && s.byDisease.includes(sec)));
       if (s.type === "notes" && s.tree === "list") {
         const kids = gen(s.n), syn = kids.filter(isSyn);
@@ -787,7 +790,7 @@ function renderResults() {
     const sec = pos >= 0 ? secAt(n, pos) : 0;
     const href = `#/n/${n.id}${sec ? "/" + sec : ""}`;
     const sc = secOf(n.module, sectionOfNote(n));
-    const where = n.kind === "tong" ? "Nội và ngoại khoa" : n.kind === "disease" ? (sec ?`${dnum(sec, n.module)} ${SECNAME[sec]}` : (sc.title || "Bệnh học")) : (n.kind === "overview" ? "Tổng quan" : (sc.title || "Nền tảng"));
+    const where = n.kind === "tong" ? "Nội và ngoại khoa" : n.kind === "disease" ? (sec ?`${dnum(sec, n.module, n)} ${secName(n, sec)}` : (sc.title || "Bệnh học")) : (n.kind === "overview" ? "Tổng quan" : (sc.title || "Nền tảng"));
     const snip = pos >= 0 ? esc(plain(n.body.slice(Math.max(0, pos - 40), pos + 90))) : "";
     const reason = why && why.length ? `<em class="why">khớp: ${esc(why.join(", "))}</em>` : "";
     return `<a href="${href}"><b>${esc(n.short || n.title)}</b> <span class="where">${esc(where)}</span>${reason}${snip ? `<small>…${snip}…</small>` : ""}</a>`;
@@ -892,9 +895,9 @@ function badge() { const el = $("#dueBadge"); if (el) el.textContent = dueCards(
 function hasPareto(d) { return /^## \d+\.[^\n]*Tóm tắt/m.test(d.body); }
 function diseaseGrid(ds, mod = curMod()) {
   return `<div class="dgrid">${ds.map(d => { const { secs } = diseaseParts(d), nc = cardsBy(d.id).length; curScheme = d.scheme || ""; const tabs = tabsOf(d); return `<article class="dcard"><a class="dtitle" href="#/n/${d.id}/3">${esc(d.short || d.title)}</a>
-      <div class="dchips">${tabs.map(([n, t, c]) => secs[n] ? `<a class="chip" style="--c:var(--${c})" href="#/n/${d.id}/${n}" title="${dnum(n, mod)} ${esc(t)}">${dnum(n, mod)}</a>` : `<span class="chip off" title="${dnum(n, mod)} ${esc(t)} (chưa có)">${dnum(n, mod)}</span>`).join("")}</div>
+      <div class="dchips">${tabs.map(([n, t, c]) => secs[n] ? `<a class="chip" style="--c:var(--${c})" href="#/n/${d.id}/${n}" title="${dnum(n, mod, d)} ${esc(t)}">${dnum(n, mod, d)}</a>` : `<span class="chip off" title="${dnum(n, mod, d)} ${esc(t)} (chưa có)">${dnum(n, mod, d)}</span>`).join("")}</div>
       <div class="dfoot">${hasPareto(d) ? `<a class="pill9" href="#/n/${d.id}/9">★ Tóm tắt</a>` : '<span class="meta">Chưa có tóm tắt</span>'}${nc ? `<a class="dcards" href="#/cards/${d.id}">${nc} thẻ</a>` : ""}</div></article>`; }).join("")}</div>
-    <p class="legend2 meta">${SECS.map(([n, t, c]) => `<span><i class="dot" style="background:var(--${c})"></i>${dnum(n, mod)} ${esc(t)}</span>`).join("")}</p>`;
+    <p class="legend2 meta">${SECS.map(([n, t, c]) => `<span><i class="dot" style="background:var(--${c})"></i>${dnum(n, mod, { scheme: "" })} ${esc(t)}</span>`).join("")}</p>${ds.some(d => d.scheme === "12") ? `<p class="legend2 meta"><b>${esc(ds.filter(d => d.scheme === "12").map(d => d.short || d.title).join(", "))}:</b> ${TAB12.map(([n, t, c]) => `<span><i class="dot" style="background:var(--${c})"></i>${dnum(n, mod, { scheme: "12" })} ${esc(t)}</span>`).join("")}</p>` : ""}`;
 }
 
 function home() {
@@ -940,7 +943,7 @@ function home() {
       <div class="oathact"><a class="btn p" href="#/n/${oath.id}">Đọc lời thề</a><a class="btn" href="#/m/y-duc-ky-nang-an-toan/2">Y đức</a></div></div>` : ""}
   </section>
   <section class="quick">${tiles.map(([h, c, i, t, s]) => `<a class="qtile" style="--c:${c}" href="${h}"><span class="qico">${i}</span><span class="qtxt"><b>${t}</b><small>${s}</small></span></a>`).join("")}</section>
-  ${recent.length ? `<section><h2>Tiếp tục</h2><div class="rgrid">${recent.map(r => `<a class="rcard" href="#/n/${r.id}${r.sec ? "/" + r.sec : ""}"><small>${r.sec ? dnum(r.sec, r.n.module) + " · " + SECNAME[r.sec] : esc(r.n.group || (r.n.kind === "overview" ? "Tổng quan" : "Bài"))}</small><b>${esc(r.n.short || r.n.title)}</b></a>`).join("")}</div></section>` : ""}
+  ${recent.length ? `<section><h2>Tiếp tục</h2><div class="rgrid">${recent.map(r => `<a class="rcard" href="#/n/${r.id}${r.sec ? "/" + r.sec : ""}"><small>${r.sec ? dnum(r.sec, r.n.module, r.n) + " · " + secName(r.n, r.sec) : esc(r.n.group || (r.n.kind === "overview" ? "Tổng quan" : "Bài"))}</small><b>${esc(r.n.short || r.n.title)}</b></a>`).join("")}</div></section>` : ""}
   <section><h2>Chuyên khoa</h2><div class="mgrid">${ready.map(mcard).join("")}</div>
     ${soon.length ? `<details class="soonbox"><summary>Đang xây dựng (${soon.length} module)</summary><div class="mgrid">${soon.map((m, i) => mcard(m, i + ready.length)).join("")}</div></details>` : ""}</section>
   <details class="guide"><summary>Giới thiệu và cách đọc một trang</summary>
@@ -977,7 +980,7 @@ function modSection(mod, k, openId) {
   const flat = type === "groups" ? groups.flatMap(g => gen.filter(n => (n.group || "Khác") === g)) : gen;
   const openSet = sp.openAll ? new Set(gen.map(n => n.id)) : openByDefault(flat, openId);
   const allBtn = gen.length ? `<p><button class="btn" data-act="toggleall" data-scope="details.note-t">Mở / đóng tất cả</button></p>` : "";
-  const byDisease = (secNums) => `<div class="rgrid">${di.map(d => `<div class="rcard"><b>${esc(d.short || d.title)}</b>${secNums.map(s => `<a class="chip wide" href="#/n/${d.id}/${s}">${dnum(s, mod)} ${esc(SECNAME[s])}</a>`).join("")}</div>`).join("")}</div>`;
+  const byDisease = (secNums) => `<div class="rgrid">${di.map(d => `<div class="rcard"><b>${esc(d.short || d.title)}</b>${secNums.map(s => `<a class="chip wide" href="#/n/${d.id}/${s}">${dnum(s, mod, d)} ${esc(secName(d, s))}</a>`).join("")}</div>`).join("")}</div>`;
   let body = "";
   if (type === "groups") {
     body = allBtn + groups.map(g => `<section id="${gId(mod, k, g)}"><h2>${esc(gTitle(mod, g))}</h2>${noteToggles(flat.filter(n => (n.group || "Khác") === g), openSet)}</section>`).join("");
