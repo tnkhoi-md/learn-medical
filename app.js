@@ -38,7 +38,14 @@ function curMod() {
 }
 // Số hiển thị trong trang bệnh: 5.1–5.7 (số nội bộ 3,4,5,6,7,10,8); 9 = Tóm tắt
 const DISPNUM = { 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 10: 6, 8: 7 };
-const dnum = (n, mod) => n === 9 ? "★" : (secByType(mod || curMod(), "diseases") || 5) + "." + DISPNUM[n];
+// Bài theo khung 12 mục (khai báo scheme: 12 trong phần đầu; hiện chỉ Ung thư vú): số trong bài → khóa nội bộ, số hiển thị, nhãn tab
+const KEY12 = { 1: 3, 2: 11, 3: 12, 4: 4, 5: 13, 6: 5, 7: 6, 8: 7, 9: 10, 10: 8, 11: 14, 12: 9 };
+const DISP12 = { 3: 1, 11: 2, 12: 3, 4: 4, 13: 5, 5: 6, 6: 7, 7: 8, 10: 9, 8: 10, 14: 11 };
+const TAB12 = [[3, "Tổng quan", "t1"], [11, "Cơ chế bệnh sinh", "t2"], [12, "Phân loại và diễn tiến", "t3"], [4, "Triệu chứng học", "t4"], [13, "Thăm khám lâm sàng", "t5"], [5, "Cận lâm sàng", "t6"], [6, "Chẩn đoán", "t7"], [7, "Điều trị", "t1"], [10, "Theo dõi", "t2"], [8, "Tiên lượng", "t3"], [14, "Dự phòng", "t4"]];
+let curScheme = "";   // khung của bài đang hiển thị, để đánh số tab đúng
+const tabsOf = n => n && n.scheme === "12" ? TAB12 : SECS.filter(([num]) => num !== 9);
+const colOf = (n, num) => (tabsOf(n).find(x => x[0] === num) || [])[2] || SECCOL[num];
+const dnum = (n, mod) => n === 9 ? "★" : curScheme === "12" && DISP12[n] ? (secByType(mod || curMod(), "diseases") || 5) + "." + DISP12[n] : (secByType(mod || curMod(), "diseases") || 5) + "." + DISPNUM[n];
 
 // Mục của thanh module mà một bài thuộc về (số mục lấy từ _module.json của module đó).
 function sectionOfNote(n) {
@@ -78,13 +85,15 @@ NOTES.forEach(n => {
 });
 
 // ---- markdown mở rộng: hộp màu, đánh dấu, tab, thẻ gập, danh sách lồng ----
-const CALL = { key: "Ý chính", warn: "Lưu ý – bẫy thi", tip: "Mẹo nhớ", ext: "Tham khảo ngoài tài liệu", doc: "Theo văn bản Bộ Y tế", note: "Ghi chú", red: "Cấp cứu – nguy hiểm" };
+const CALL = { study: "Ôn tập", key: "Ý chính", warn: "Lưu ý – bẫy thi", tip: "Mẹo nhớ", ext: "Tham khảo ngoài tài liệu", doc: "Theo văn bản Bộ Y tế", note: "Ghi chú", red: "Cấp cứu – nguy hiểm" };
 const inline = s => esc(s)
   .replace(/`([^`]+)`/g, "<code>$1</code>")
   .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
   .replace(/\*([^*\s][^*]*)\*/g, "<em>$1</em>")
+  .replace(/==(.+?)==\{\?([^}]+)\}/g, '<mark class="gl" data-def="$2">$1</mark>')   // ==chữ=={?giải thích}: chữ tô vàng có chú thích gạch chân, chạm để xem vì sao
   .replace(/==(.+?)==/g, "<mark>$1</mark>")
-  .replace(/\{(r|g|b|o|p)\|([^}]+)\}/g, (_, c, t) => `<span class="c-${c}">${t}</span>`)
+  .replace(/\{(r|g|b|o|p|t|a|v|i)\|([^}]+)\}/g, (_, c, t) => `<span class="c-${c}">${t}</span>`)
+  .replace(/(^|\s)(Lý do [^:<]{1,40}:)/g, '$1<span class="lylbl">$2</span>')   // "Lý do …:" đứng đầu đoạn: nhãn riêng để không bị chìm trong chữ
   .replace(/\{\{\+([^}]+)\}\}/g, '<span class="src ext" title="Nguồn ngoài tài liệu của bạn">$1</span>')
   .replace(/\{\{([^}]+)\}\}/g, '<span class="src">$1</span>')
   .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, k, label) => {
@@ -105,7 +114,7 @@ function md(src) { return blocks(src.split("\n")); }
 //   tùy chọn:  "- điểm | nhãn"      mức kết quả:  "- từ..đến | diễn giải | màu (r,g,o,p,b; không bắt buộc)"
 let calcN = 0, calcNoLink = false;
 function calcBlock(title, lines) {
-  const id = "calc" + (++calcN), parts = [], bands = [], plain = s => s.replace(/\{[rgbop]\|([^}]*)\}/g, "$1").replace(/\*\*/g, "");
+  const id = "calc" + (++calcN), parts = [], bands = [], plain = s => s.replace(/\{[rgbopiatv]\|([^}]*)\}/g, "$1").replace(/\*\*/g, "");
   const fin = [], groups = [];
   let cur = null, mode = "opt", grp = null, m;
   for (const x of lines) {
@@ -120,9 +129,9 @@ function calcBlock(title, lines) {
     if (mode === "rule") {
       if (!grp) { grp = { t: "", rules: [] }; groups.push(grp); }
       const a = s.replace(/^-\s*/, "").split("|").map(z => z.trim());
-      if (a.length >= 2) grp.rules.push({ e: a[0], txt: plain(a[1]), c: /^[rgbop]$/.test(a[2] || "") ? a[2] : "" });
+      if (a.length >= 2) grp.rules.push({ e: a[0], txt: plain(a[1]), c: /^[rgbopiatv]$/.test(a[2] || "") ? a[2] : "" });
     } else if (mode === "band") {
-      if ((m = s.match(/^-\s*(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)\s*\|\s*(.+?)(?:\s*\|\s*([rgbop]))?\s*$/))) bands.push({ lo: +m[1], hi: +m[2], txt: plain(m[3]), c: m[4] || "" });
+      if ((m = s.match(/^-\s*(-?[\d.]+)\s*\.\.\s*(-?[\d.]+)\s*\|\s*(.+?)(?:\s*\|\s*([rgbopiatv]))?\s*$/))) bands.push({ lo: +m[1], hi: +m[2], txt: plain(m[3]), c: m[4] || "" });
     } else if (cur && (m = s.match(/^-\s*(-?[\d.]+)\s*\|\s*(.+)$/))) cur.opts.push({ v: +m[1], t: m[2] });
   }
   if (fin.length) {
@@ -142,7 +151,7 @@ function calcBlock(title, lines) {
   return `<div class="calc" data-req="${req}" data-bands="${esc(JSON.stringify(bands))}"><div class="calc-head"><span>🧮 ${inline(title)}</span>${calcLink(title)}<button type="button" class="calc-reset">Đặt lại</button></div>${body}` +
     `<div class="calc-out"><div class="calc-score"><b class="calc-total">0</b><small>/ ${max} điểm</small></div><div class="calc-res" aria-live="polite">Chọn các mục để tính điểm</div></div></div>`;
 }
-const calcLink = title => { if (calcNoLink) return ""; const c = calcByTitle(title.replace(/\{\{[^}]*\}\}/g, "").replace(/\{[rgbop]\|([^}]*)\}/g, "$1").replace(/\*\*/g, "").trim()); return c ? `<a class="calc-open" href="#/congcu/${c.id}" title="Mở riêng trong trang Công cụ tính toán">Mở công cụ ↗</a>` : ""; };
+const calcLink = title => { if (calcNoLink) return ""; const c = calcByTitle(title.replace(/\{\{[^}]*\}\}/g, "").replace(/\{[rgbopiatv]\|([^}]*)\}/g, "$1").replace(/\*\*/g, "").trim()); return c ? `<a class="calc-open" href="#/congcu/${c.id}" title="Mở riêng trong trang Công cụ tính toán">Mở công cụ ↗</a>` : ""; };
 const CALC_FN = { min: Math.min, max: Math.max, abs: Math.abs, log: Math.log, log10: Math.log10, sqrt: Math.sqrt, round: Math.round, floor: Math.floor, ceil: Math.ceil, exp: Math.exp };
 function calcEval(expr, vars) {
   if (!/^[\w\s.+\-*\/%()<>=!&|,]+$/.test(expr)) return NaN;
@@ -289,7 +298,7 @@ function blocks(L) {
     if ((m = t.match(/^@@fold(!?)\s+(.+)$/))) {
       closeLists();
       const end = findEnd(i + 1);
-      h.push(`<details class="fold"${m[1] ? " open" : ""}><summary>${inline(m[2])}</summary>${blocks(L.slice(i + 1, end))}</details>`);
+      h.push(`<details class="fold${/^Nguồn/.test(m[2]) ? " src" : ""}"${m[1] ? " open" : ""}><summary>${inline(m[2])}</summary>${blocks(L.slice(i + 1, end))}</details>`);
       i = end + 1; continue;
     }
     if ((m = l.match(/^(#{1,4})\s+(.*)$/))) {
@@ -312,7 +321,7 @@ function blocks(L) {
       while (i < L.length && L[i].trim().startsWith("|")) rows.push(L[i++].trim());
       // Tách ô theo "|", nhưng giữ nguyên "|" bên trong đánh dấu {x|…} và liên kết [[id|nhãn]]
       const cells = r => r.replace(/^\||\|$/g, "")
-        .replace(/\{([rgbop])\|([^}]*)\}/g, (_, col, t) => "{" + col + "\u0001" + t + "}")
+        .replace(/\{([rgbopiatv])\|([^}]*)\}/g, (_, col, t) => "{" + col + "\u0001" + t + "}")
         .replace(/\[\[[^\]]*\]\]/g, m => m.replace(/\|/g, "\u0001"))
         .split("|").map(c => c.replace(/\u0001/g, "|").trim());
       // Gộp ô: "<<" gộp ngang với ô bên trái, "^^" gộp dọc với ô phía trên (không gộp qua dòng tiêu đề)
@@ -323,11 +332,14 @@ function blocks(L) {
         if (v === "<<") { let k = x - 1; while (k >= 0 && row[k] === "<<") k--; if (k >= 0) { sp[y][k].c++; sp[y][x].hide = true; } }
         if (v === "^^") { let k = y - 1; while (k >= 1 && grid[k][x] === "^^") k--; if (k >= 1) { sp[k][x].r++; sp[y][x].hide = true; } else grid[y][x] = ""; }
       }));
+      // Cột "Nguồn": thu hẹp để dành chỗ cho kiến thức, các nhãn nguồn xếp dọc
+      const srcX = grid[0].map(v => v.trim() === "Nguồn");
       const td = (y, x, tag) => {
         const s = sp[y][x];
         if (s.hide) return "";
         const v = grid[y][x] === "<<" ? "" : grid[y][x];
-        const a = (s.c > 1 ? ` colspan="${s.c}"` : "") + (s.r > 1 ? ` rowspan="${s.r}" class="mg"` : "");
+        const cls = [s.r > 1 ? "mg" : "", srcX[x] ? "src-col" : ""].filter(Boolean).join(" ");
+        const a = (s.c > 1 ? ` colspan="${s.c}"` : "") + (cls ? ` class="${cls}"` : "");
         return `<${tag}${a}>${inline(v)}</${tag}>`;
       };
       const bodyHtml = grid.slice(1).map((_, y) => "<tr>" + Array.from({ length: W }, (_, x) => td(y + 1, x, "td")).join("") + "</tr>").join("");
@@ -691,7 +703,7 @@ document.addEventListener("click", e => {   // ghi nhớ lựa chọn đóng/m�
 });
 // ---- thanh công cụ: tìm kiếm, cài đặt hiển thị, điều hướng dưới (điện thoại) ----
 const noDia = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
-const plain = s => s.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, k, label) => label || k).replace(/\{\{\+?[^}]*\}\}/g, "").replace(/==|\*\*|\{[rgbop]\|/g, "").replace(/[{}>@#|\[\]!`]/g, " ").replace(/\s+/g, " ").trim();
+const plain = s => s.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, k, label) => label || k).replace(/\{\{\+?[^}]*\}\}/g, "").replace(/==|\*\*|\{[rgbopiatv]\|/g, "").replace(/[{}>@#|\[\]!`]/g, " ").replace(/\s+/g, " ").trim();
 NOTES.forEach(n => { n._t = noDia(n.title + " " + (n.short || "")); n._tr = (n.title + " " + (n.short || "")).toLowerCase(); n._g = noDia(n.tags.join(" ")); n._b = noDia(n.body); });
 function secAt(n, pos) {
   if (n.kind !== "disease") return 0;
@@ -877,10 +889,10 @@ const dueCards = () => { const p = prog(), now = Date.now(); return allCards.fil
 function badge() { const el = $("#dueBadge"); if (el) el.textContent = dueCards().length || ""; }
 
 // ---- trang ----
-function hasPareto(d) { return /^## 9\.[^\n]*Tóm tắt/m.test(d.body); }
+function hasPareto(d) { return /^## \d+\.[^\n]*Tóm tắt/m.test(d.body); }
 function diseaseGrid(ds, mod = curMod()) {
-  return `<div class="dgrid">${ds.map(d => { const { secs } = diseaseParts(d), nc = cardsBy(d.id).length; return `<article class="dcard"><a class="dtitle" href="#/n/${d.id}/3">${esc(d.short || d.title)}</a>
-      <div class="dchips">${SECS.map(([n, t, c]) => secs[n] ? `<a class="chip" style="--c:var(--${c})" href="#/n/${d.id}/${n}" title="${dnum(n, mod)} ${esc(t)}">${dnum(n, mod)}</a>` : `<span class="chip off" title="${dnum(n, mod)} ${esc(t)} (chưa có)">${dnum(n, mod)}</span>`).join("")}</div>
+  return `<div class="dgrid">${ds.map(d => { const { secs } = diseaseParts(d), nc = cardsBy(d.id).length; curScheme = d.scheme || ""; const tabs = tabsOf(d); return `<article class="dcard"><a class="dtitle" href="#/n/${d.id}/3">${esc(d.short || d.title)}</a>
+      <div class="dchips">${tabs.map(([n, t, c]) => secs[n] ? `<a class="chip" style="--c:var(--${c})" href="#/n/${d.id}/${n}" title="${dnum(n, mod)} ${esc(t)}">${dnum(n, mod)}</a>` : `<span class="chip off" title="${dnum(n, mod)} ${esc(t)} (chưa có)">${dnum(n, mod)}</span>`).join("")}</div>
       <div class="dfoot">${hasPareto(d) ? `<a class="pill9" href="#/n/${d.id}/9">★ Tóm tắt</a>` : '<span class="meta">Chưa có tóm tắt</span>'}${nc ? `<a class="dcards" href="#/cards/${d.id}">${nc} thẻ</a>` : ""}</div></article>`; }).join("")}</div>
     <p class="legend2 meta">${SECS.map(([n, t, c]) => `<span><i class="dot" style="background:var(--${c})"></i>${dnum(n, mod)} ${esc(t)}</span>`).join("")}</p>`;
 }
@@ -1024,6 +1036,11 @@ function splitSections(body) {
 }
 // Các mục hiển thị của một bệnh: tách "Theo dõi" khỏi mục 8
 function diseaseParts(n) {
+  if (n.scheme === "12") {   // khung 12 mục: số hai chữ số (10–12) cũng được tách; đổi sang khóa nội bộ
+    const parts = n.body.split(/^## (\d+)\.\s*(.*)$/m), out = {};
+    for (let k = 1; k < parts.length; k += 3) { const key = KEY12[+parts[k]]; if (key) out[key] = { title: parts[k + 1].trim(), body: parts[k + 2] }; }
+    return { pre: parts[0], secs: out };
+  }
   const { pre, secs } = splitSections(n.body), out = { ...secs };
   if (secs[8]) {
     const parts = secs[8].body.split(/^(?=###\s)/m);
@@ -1047,23 +1064,23 @@ function foldBody(body, prefix) {
 function pagerOf(n, have, secs, sec) {
   const order = [...have, ...(secs[9] ? [9] : [])], i = order.indexOf(sec);
   if (order.length < 2 || i < 0) return "";
-  const nm = num => num === 9 ? "★ Tóm tắt" : `${dnum(num)} ${SECS.find(x => x[0] === num)[1]}`;
+  const nm = num => num === 9 ? "★ Tóm tắt" : `${dnum(num)} ${tabsOf(n).find(x => x[0] === num)[1]}`;
   const link = (k, cls, lab) => k >= 0 && k < order.length ? `<a class="pg ${cls}" href="#/n/${n.id}/${order[k]}"><small>${lab}</small><b>${nm(order[k])}</b></a>` : "<span></span>";
   return `<nav class="pager" aria-label="Chuyển tab">${link(i - 1, "prev", "← Trước")}<button type="button" class="pg up" aria-label="Lên đầu trang"><span aria-hidden="true">↑</span><b>Lên đầu trang</b></button>${link(i + 1, "next", "Tiếp →")}</nav>`;
 }
 function diseasePage(n, sec) {
-  const { pre, secs } = diseaseParts(n);
-  const have = SECS.filter(([num]) => secs[num]).map(([num]) => num);
+  const { pre, secs } = diseaseParts(n); curScheme = n.scheme || "";
+  const have = tabsOf(n).filter(([num]) => secs[num]).map(([num]) => num);
   if (!have.length && !secs[9]) return tongPage(n);   // bài khai báo kind: disease nhưng chưa có mục "## N.": đọc liền một trang, không báo lỗi
   const isSummary = +sec === 9 && secs[9];
   sec = isSummary ? 9 : (secs[sec] ? sec : have[0]);
   const khung = (n.khung || []).length ? `<span class="stt"><small>Khung STT</small>${n.khung.map(k => `<a class="chip wide" href="#/khung/${k}">${k}</a>`).join("")}</span>` : "";
   pushRecent(n.id, sec);
   const mod = n.module, dk = secByType(mod, "diseases") || 5, body = isSummary ? summaryOnly(secs[9].body) : secs[sec].body;
-  const col = `var(--${SECCOL[sec]})`, cont = withToc(md(relabel(body)));
+  const col = `var(--${colOf(n, sec)})`, cont = withToc(md(relabel(body)));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${dk} ${secOf(mod, dk).title}`, href: `#/m/${mod}/${dk}` }, { t: n.title }])}
     ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: `${esc(n.title)}${n.en ? ` <small class="en">${esc(n.en)}</small>` : ""}`, badges: khung })}
-    <div class="dtabs">${SECS.filter(([num]) => secs[num]).map(([num, t, c]) => `<a class="dt${num === sec ? " on" : ""}" style="--c:var(--${c})" href="#/n/${n.id}/${num}"><b>${dnum(num)}</b> ${t}</a>`).join("")}${secs[9] ? `<a class="dt sum${isSummary ? " on" : ""}" href="#/n/${n.id}/9">★ Tóm tắt</a>` : ""}</div>
+    <div class="dtabs">${tabsOf(n).filter(([num]) => secs[num]).map(([num, t, c]) => `<a class="dt${num === sec ? " on" : ""}" style="--c:var(--${c})" href="#/n/${n.id}/${num}"><b>${dnum(num)}</b> ${t}</a>`).join("")}${secs[9] ? `<a class="dt sum${isSummary ? " on" : ""}" href="#/n/${n.id}/9">★ Tóm tắt</a>` : ""}</div>
     ${!isSummary && sec === have[0] && pre.trim() ? `<div class="pre">${md(relabel(pre))}</div>` : ""}
     <div class="notepage" style="--c:${col}">${tocBox(cont.items)}${cont.html}</div>
     ${pagerOf(n, have, secs, +sec)}
@@ -1305,7 +1322,7 @@ function luudoGraph(g) {
     const b = box[n.id], x = b.x, y = b.y, w = b.w, h = b.h;
     const cls = n.k === "dec" ? "fc-dec" : n.k === "start" ? "fc-start" : n.k === "proc" ? "fc-proc" : `fc-leaf tone-${n.tone || "ok"}`;
     const shape = n.k === "start" ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>` : n.k === "dec" ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" stroke-dasharray="5 3"/>` : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10"/>`;
-    const text = b.lines.map((l, i) => `<tspan x="${cx(b)}" dy="${i ? 18 : 0}">${esc(l)}</tspan>`).join("");
+    const text = b.lines.map((l, i) => `<tspan x="${cx(b)}" dy="${i ? 18 : 0}">${esc(l.replace(/\{[rgbopiatv]\|([^}]*)\}/g, "$1").replace(/\*\*|==/g, ""))}</tspan>`).join("");   // nhãn sơ đồ là chữ thuần: bỏ đánh dấu
     const t = `<text class="fc-txt" x="${cx(b)}" y="${y + (h - b.lines.length * 18) / 2 + 13}" text-anchor="middle">${text}</text>`;
     const inner = `<g class="fc-node ${cls}">${shape}${t}</g>`;
     return n.href ? `<a href="${esc(n.href)}">${inner}</a>` : n.bai && n.bai.length && byId[n.bai[0]] ? `<a href="#/n/${n.bai[0]}">${inner}</a>` : inner;
@@ -1515,17 +1532,14 @@ const GLOSS = [
   ["thiếu máu", "Số lượng hồng cầu hoặc hemoglobin thấp, thường gây mệt, xanh xao và chóng mặt."],
   ["ho ra máu", "Khạc máu từ đường thở. Khác với nôn ra máu, là máu từ dạ dày."],
   ["tắc ruột", "Thức ăn và hơi không đi qua được ruột, gây đau bụng, nôn và bí trung đại tiện."],
-  ["núm vú", "Đầu núm vú. Thay đổi như lõm, tiết dịch hoặc lệch có thể cần khám."],
   ["nuốt nghẹn", "Cảm giác vướng hoặc khó khi nuốt, nhất là với thức ăn đặc."],
   ["vàng da", "Da và lòng trắng mắt ngả vàng, do bilirubin trong máu tăng."],
-  ["tiết dịch", "Dịch chảy ra từ núm vú hoặc một vết thương, cơ quan nào đó."],
   ["táo bón", "Đi cầu ít hơn bình thường, phân cứng, khó đi."],
   ["tiêu chảy", "Đi cầu lỏng hoặc nhiều lần hơn bình thường trong thời gian ngắn."],
   ["hạch thượng đòn", "Hạch nổi ở hõm phía trên xương đòn, thường sờ thấy được dưới da."],
   ["đau xương", "Đau âm ỉ ở xương, có thể tăng về đêm, không liên quan đến vận động."],
   ["mót rặn", "Muốn đi đại tiện liên tục dù ruột đã rỗng. Khi rặn chỉ ra ít hoặc không ra."],
   ["tiểu máu", "Nước tiểu có màu hồng hoặc đỏ do lẫn máu."],
-  ["khối ở vú", "Một khối sờ thấy trong vú. Không phải khối nào cũng là ung thư, nhưng cần khám."],
   ["nhức đầu", "Đau vùng đầu. Đau đầu tăng dần hoặc kèm buồn nôn cần được khám sớm."],
   ["mệt mỏi", "Cảm giác mệt kéo dài, nghỉ ngơi không hết."],
   ["co giật", "Cơn co cứng hoặc giật không kiểm soát, thường do não bị kích thích."],
@@ -1541,8 +1555,6 @@ const GLOSS = [
   ["tràn dịch màng phổi", "Dịch tích tụ giữa hai lá màng phổi, gây đau ngực và khó thở."],
   ["báng bụng", "Dịch tích tụ trong ổ bụng làm bụng to lên. Cùng nghĩa với cổ trướng."],
   ["loét", "Tổn thương hở trên da hoặc niêm mạc, khó lành."],
-  ["nốt", "Một tổn thương nhỏ nổi lên trên da hoặc niêm mạc."],
-  ["hạch", "Cấu trúc nhỏ dọc đường bạch huyết. Hạch to, chắc, không đau có thể do ung thư lan đến."],
   ["nuốt đau", "Đau khi nuốt thức ăn, nước bọt hoặc thuốc."],
   ["đau ngực", "Cảm giác đau, tức hoặc nặng ở vùng ngực."],
   ["ho khan", "Ho không có đờm, kéo dài nhiều tuần cần khám."],
@@ -1560,7 +1572,6 @@ const GLOSS = [
   ["khối vùng chậu", "Khối u hoặc cục sờ thấy trong vùng chậu (bụng dưới)."],
   ["yếu dần hai chi dưới", "Chân yếu dần, khó đi lại, có thể do khối u chèn ép tủy sống."],
   ["dò", "Đường thông bất thường từ một cơ quan ra ngoài hoặc sang cơ quan khác, có thể chảy dịch hoặc phân."],
-  ["cục ở vú", "Cục hoặc khối sờ thấy trong vú."],
   ["khối ở bụng", "Khối u sờ thấy được trong bụng."],
   ["thăm trực tràng", "Khám bằng ngón tay đưa vào trực tràng để tìm khối hoặc bất thường."],
   ["tăng áp lực nội sọ", "Áp lực trong hộp sọ tăng, gây đau đầu, nôn và rối loạn ý thức."],
@@ -1595,15 +1606,14 @@ const GLOSS = [
   ["phát hiện tình cờ", "Phát hiện khi khám vì lý do khác, không do có triệu chứng."],
   ["không triệu chứng", "Không có biểu hiện bệnh, thường phát hiện qua tầm soát."],
   ["sẹo phỏng cũ", "Ung thư phát sinh trên vết sẹo bỏng cũ, hiếm gặp."],
+  ["độ nhạy", "Tỉ lệ người thật sự mắc bệnh mà xét nghiệm cho kết quả dương tính."],
+  ["độ đặc hiệu", "Tỉ lệ người không mắc bệnh mà xét nghiệm cho kết quả âm tính."],
+  ["tân bổ trợ", "Điều trị trước phẫu thuật (thường hóa chất) để thu nhỏ khối u, tạo điều kiện bảo tồn."],
+  ["bổ trợ", "Điều trị thêm sau phẫu thuật để diệt tế bào ung thư còn sót, giảm nguy cơ tái phát."],
 ];
 // Chữ viết tắt trong module Ung bướu (khớp đúng hoa thường, không chặn số lần xuất hiện)
 const ABBR = [
-  ["UT", "Ung thư (cancer)"],
-  ["CT", "Chụp cắt lớp vi tính"],
-  ["MRI", "Chụp cộng hưởng từ"],
   ["HER2", "Gen mã hóa một thụ thể tyrosine kinase, dấu ấn sinh học"],
-  ["PET", "Kỹ thuật chẩn đoán hình ảnh chuyển hóa bằng positron"],
-  ["DNA", "Axit deoxyribonucleic (ADN), vật chất di truyền"],
   ["ER", "Thụ thể estrogen, dấu ấn sinh học trong ung thư"],
   ["TNM", "Hệ thống phân loại khối u, hạch và di căn (T: khối u; N: hạch; M: di căn xa)"],
   ["PSA", "Kháng nguyên đặc hiệu tuyến tiền liệt (prostate-specific antigen), dấu ấn sinh học do tuyến tiền liệt tiết ra"],
@@ -1622,11 +1632,9 @@ const ABBR = [
   ["SCLC", "Ung thư phổi tế bào nhỏ"],
   ["BRAF", "Gen mã hóa một enzym kinase"],
   ["BRCA1", "Gen mã hóa protein sửa chữa DNA (ung thư vú, buồng trứng)"],
-  ["BYT", "Cơ quan ban hành hướng dẫn và phác đồ điều trị quốc gia"],
   ["KRAS", "Gen mã hóa một protein GTPase nhỏ (họ RAS)"],
   ["ALK", "Gen mã hóa một thụ thể tyrosine kinase"],
   ["RAS", "Nhóm gen mã hóa protein G nhỏ (gen sinh ung)"],
-  ["WHO", "Tổ chức Y tế Thế giới"],
   ["EBV", "Virus thuộc họ herpes"],
   ["GPB", "Giải phẫu bệnh: chẩn đoán bệnh qua mẫu mô và tế bào"],
   ["AUC", "Diện tích dưới đường cong nồng độ–thời gian của thuốc"],
@@ -1638,7 +1646,6 @@ const ABBR = [
   ["FAP", "Hội chứng đa polyp tuyến gia đình, di truyền"],
   ["BRCA1/2", "Nhóm gen mã hóa protein sửa chữa ADN"],
   ["MMR", "Hệ thống sửa chữa ghép cặp sai trong DNA"],
-  ["ACS", "Hiệp hội Ung thư Hoa Kỳ (tổ chức ban hành khuyến cáo)"],
   ["HCC", "Ung thư biểu mô tế bào gan"],
   ["dMMR", "Mất chức năng sửa chữa ghép cặp sai"],
   ["pTNM", "Phân loại TNM dựa trên đánh giá sau mổ, giải phẫu bệnh"],
@@ -1672,8 +1679,6 @@ const ABBR = [
   ["cTNM", "Phân giai đoạn TNM lâm sàng, trước phẫu thuật"],
   ["IARC", "Cơ quan Nghiên cứu Ung thư Quốc tế, thuộc WHO"],
   ["CD4", "Dấu ấn bề mặt tế bào lympho T hỗ trợ"],
-  ["HIV", "Virus gây suy giảm miễn dịch ở người"],
-  ["FDA", "Cục Quản lý Thực phẩm và Dược phẩm Hoa Kỳ"],
   ["LDH", "Enzym lactat dehydrogenase, dấu ấn sinh học"],
   ["SPECT", "Chụp cắt lớp phát xạ photon đơn"],
   ["BRCA2", "Gen ức chế khối u, tham gia sửa chữa DNA"],
@@ -1722,7 +1727,6 @@ const ABBR = [
   ["IHC", "Hóa mô miễn dịch"],
   ["CDH1", "Gen mã hóa một protein kết dính tế bào (E-cadherin)"],
   ["IBS", "Hội chứng ruột kích thích"],
-  ["RNA", "Axit ribonucleic (ARN), phân tử sinh học"],
   ["PCR", "Phản ứng chuỗi polymerase, kỹ thuật khuếch đại DNA"],
   ["RFA", "Đốt u bằng sóng cao tần"],
   ["VEGF", "Yếu tố tăng trưởng nội mô mạch máu, một protein"],
@@ -1809,7 +1813,6 @@ const ABBR = [
   ["ALP", "Enzym phosphatase kiềm, một chỉ số men gan"],
   ["ISH", "Lai tại chỗ"],
   ["MALT", "U lympho mô lympho liên quan niêm mạc"],
-  ["ECG", "Điện tâm đồ"],
   ["FOLFOX/CapeOX", "Phác đồ hóa chất FOLFOX hoặc CapeOX, đều có oxaliplatin"],
   ["CTL", "Lympho T độc tế bào (CD8+)"],
   ["FNAC", "Chọc hút kim nhỏ lấy tế bào làm xét nghiệm"],
@@ -1929,6 +1932,8 @@ const ABBR = [
   ["GOG", "Nhóm nghiên cứu hợp tác ung thư phụ khoa Hoa Kỳ"],
   ["BTP", "Phác đồ hóa chất gồm bevacizumab, topotecan và paclitaxel"],
   ["VPP", "Giá trị tiên đoán dương hoặc âm của xét nghiệm"],
+  ["CC", "Tư thế chụp nhũ ảnh từ trên xuống (craniocaudal)"],
+  ["AVBS", "Siêu âm vú tự động thể tích (ext: chưa đối chiếu nguồn)"],
 ];
 // Cụm chứa thuật ngữ nhưng không phải nghĩa của thuật ngữ đó (ví dụ "tuyến tiền liệt" không phải "liệt")
 // Cụm chứa thuật ngữ nhưng không mang nghĩa của thuật ngữ đó: b = chữ đứng trước không được có, a = chữ đứng sau không được có
@@ -1938,6 +1943,18 @@ const GLOSS_NOT = {
   "dò": { b: ["đầu ", "thăm "] },
   "phù": { a: [" hợp"] },
 };
+// Phân loại thuật ngữ theo nghĩa (dựa trên lời giải thích): gạch chân đổi màu theo nhóm, chú thích hiện tên nhóm
+// Thứ tự quan trọng: nhóm đứng trước được ưu tiên khi một định nghĩa khớp nhiều nhóm
+const GLOSS_CAT = [
+  ["pdd", "Phác đồ hóa chất", /phác đồ|hóa chất gồm/i],
+  ["tk", "Chỉ số thống kê", /tỉ lệ|tiên đoán|độ nhạy|độ đặc hiệu|diện tích dưới/i],
+  ["pl", "Hệ thống phân loại", /hệ thống phân|phân loại|thang đánh giá|phân giai đoạn|tổ chức|hiệp hội|ủy ban|liên đoàn/i],
+  ["tt", "Điều trị, thuốc", /hóa trị|điều trị|\bthuốc\b|nút mạch|liệu pháp/i],
+  ["ha", "Chẩn đoán hình ảnh", /chụp|siêu âm|cộng hưởng|nhũ ảnh|tư thế|hình ảnh/i],
+  ["xn", "Xét nghiệm, thủ thuật", /xét nghiệm|chọc hút|sinh thiết|\blai\b|giải phẫu bệnh|khám|thăm|soi/i],
+  ["gen", "Gen", /\bgen\b|họ gen|nhóm gen/i],
+  ["dau", "Dấu ấn, thụ thể, enzym", /dấu ấn|thụ thể|enzym|kinase|hormon|kháng nguyên|protein|ligand|chemokine|yếu tố/i],
+];
 // Đánh dấu thuật ngữ trong phần nội dung bài (chỉ module Ung bướu, chỉ khi bật); chạm vào để xem nghĩa
 function glossApply() {
   const box = document.querySelector("#main .notepage, #main .modpage");
@@ -1949,7 +1966,7 @@ function glossApply() {
     const ex = GLOSS_NOT[term] || {}, pre = ex.b ? "(?<!" + ex.b.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")" : "";
     const post = ex.a ? "(?!" + ex.a.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")" : "";
     const re = new RegExp("(^|[^\\p{L}\\p{N}])" + pre + "(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")" + post + "(?=[^\\p{L}\\p{N}]|$)", ci ? "giu" : "gu");
-    const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, { acceptNode: x => x.parentElement && x.parentElement.closest("a,code,pre,abbr,.gl,.glpop,h1,h2,h3,h4,h5") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT, { acceptNode: x => x.parentElement && x.parentElement.closest("a,code,pre,abbr,.gl,.glpop,h1,h2,h3,h4,h5,svg") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const tn of nodes) {
       if (!re.test(tn.nodeValue)) continue;
@@ -1962,6 +1979,7 @@ function glossApply() {
         if (ci && seen[term] >= 2) break;
         frag.append(tn.nodeValue.slice(last, start));
         const sp = document.createElement("span"); sp.className = "gl"; sp.dataset.def = def; sp.textContent = m[2];
+        const cat = GLOSS_CAT.find(c => c[2].test(def)); if (cat) sp.classList.add("cat-" + cat[0]);
         frag.append(sp); last = start + m[2].length; if (ci) seen[term] = (seen[term] || 0) + 1;
       }
       frag.append(tn.nodeValue.slice(last));
@@ -1975,7 +1993,8 @@ document.addEventListener("click", e => {
   document.querySelectorAll(".glpop").forEach(p => p.remove());
   if (!g) return;
   const pop = document.createElement("div"); pop.className = "glpop"; pop.setAttribute("role", "note");
-  pop.innerHTML = `<b>${esc(g.textContent)}</b>${esc(g.dataset.def)}`;
+  const cat = GLOSS_CAT.find(c => g.classList.contains("cat-" + c[0]));
+  pop.innerHTML = `${cat ? `<i class="glcat cat-${cat[0]}">${cat[1]}</i>` : ""}<b>${esc(g.textContent)}</b>${esc(g.dataset.def)}`;
   g.after(pop);
 });
 // Biểu đồ lượng kiến thức: số bài của từng chuyên khoa và tổng quan
@@ -2101,7 +2120,7 @@ function route() {
 // vuốt ngang để chuyển tab của một bệnh (điện thoại, máy tính bảng); bỏ qua khi đang cuộn bảng, chọn chữ hay chạm vào ô nhập
 (() => {
   let sx = 0, sy = 0, ok = false;
-  document.addEventListener("touchstart", e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; ok = e.touches.length === 1 && !e.target.closest(".tw,table,pre,canvas,input,textarea,select,.dtabs,.tall,#sheet,#results,details.toc,.kctl"); }, { passive: true });
+  document.addEventListener("touchstart", e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; ok = e.touches.length === 1 && !e.target.closest(".tw,table,pre,canvas,input,textarea,select,.dtabs,.modbar,.pager,.botnav,.tall,#sheet,#results,details.toc,.kctl,.cc-bar,.calc,#tree,aside,.glpop"); }, { passive: true });
   document.addEventListener("touchend", e => {
     if (!ok) return; ok = false;
     const on = document.querySelector(".dtabs .dt.on"); if (!on) return;
@@ -2121,10 +2140,11 @@ function stickyTables() {
 // Vị trí cuộn được ghi vào mục lịch sử của chính trang đang xem (history.state), nên nút Lùi/Tiến quay lại đúng chỗ
 let navBack = false, savedScroll;
 addEventListener("popstate", e => { navBack = true; savedScroll = e.state && typeof e.state.y === "number" ? e.state.y : undefined; });
+// Ghi vị trí cuộn vào history.state khi cuộn dừng (không ghi theo từng khung hình: trình duyệt iOS giới hạn số lần replaceState và làm trang khựng)
 let scrollTick = 0;
 addEventListener("scroll", () => {
-  if (scrollTick) return;
-  scrollTick = requestAnimationFrame(() => { scrollTick = 0; history.replaceState({ ...(history.state || {}), y: window.scrollY }, ""); });
+  clearTimeout(scrollTick);
+  scrollTick = setTimeout(() => { try { history.replaceState({ ...(history.state || {}), y: window.scrollY }, ""); } catch {} }, 200);
 }, { passive: true });
 addEventListener("hashchange", route);
 route();
