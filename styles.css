@@ -22,6 +22,14 @@
   --c-doc:#1d4ed8;--b-doc:#eaf1fd;      /* theo văn bản Bộ Y tế */
   --c-ext:#b84509;--b-ext:#fff1e6;      /* ngoài tài liệu của bạn */
   --c-note:#4f5f58;--b-note:#eef2ef;    /* ghi chú */
+  --c-crit:#0e6ba8;--b-crit:#e8f3fb;    /* tiêu chuẩn chẩn đoán */
+  --c-goal:#6d4fb3;--b-goal:#f4f1fc;    /* mục tiêu điều trị */
+  --c-ind:#0f766e;--b-ind:#eef9f7;      /* chỉ định */
+  --c-contra:#8e2a4f;--b-contra:#fbeef3; /* chống chỉ định */
+  --c-ae:#475569;--b-ae:#f1f5f9;        /* tác dụng phụ */
+  --c-score:#6b7a1a;--b-score:#f7f9ea;  /* thang điểm, công thức */
+  --c-conflict:#7c5a3a;--b-conflict:#f8f3ee; /* mâu thuẫn giữa các tài liệu */
+  --c-def:#4338ca;--b-def:#eef2ff; /* định nghĩa vấn đề */
   --hl:#fff1a8;
   --h4:#1d4f7a;                          /* tiêu đề mục nhỏ (h4) */
   --onc:#fff;--onb:#fff;--hsb:rgba(255,255,255,.96);--hdr:56px;--mbar:46px;--hdr2:calc(var(--hdr) + var(--mbar));--fs:1;
@@ -34,7 +42,7 @@
   --s1:#9aa8ba;--s2:#86a9d8;--s3:#62bccb;--s4:#a898d8;--s5:#e09a68;--s6:#e08585;--s7:#e28fba;--s8:#d9b863;--s9:#a9a9b3;--s10:#79c98f;--s11:#d9b062;--s12:#e69cc3;--s13:#5fd0bf;--s14:#a9d65a;--s15:#c3a7ec;--s16:#77bde6;
   --c-key:#86cfa8;--b-key:#203830;--c-tip:#82c8cf;--b-tip:#1f3a3b;--c-warn:#dcb86c;--b-warn:#38301c;
   --c-red:#eb9d95;--b-red:#3d2623;--c-doc:#9dbcf2;--b-doc:#212f48;--c-ext:#f0b48c;--b-ext:#3b2d1f;
-  --c-note:#b9c6bf;--b-note:#2a3330;--hl:#4d4416;--h4:#93b8d6;--onc:#14221d;--onb:#dfe6e2;--hsb:rgba(226,233,229,.92);
+  --c-note:#b9c6bf;--b-note:#2a3330;--c-crit:#8fcdf0;--b-crit:#1d2e3c;--c-goal:#b9a4ef;--b-goal:#2b2640;--c-ind:#7ed8cc;--b-ind:#1b3330;--c-contra:#f2a7c0;--b-contra:#3d2230;--c-ae:#b8c4d4;--b-ae:#262e3a;--c-score:#c9d67e;--b-score:#2c3220;--c-conflict:#d9b898;--b-conflict:#332a22;--c-def:#a5b4fc;--b-def:#1f2340;--hl:#4d4416;--h4:#93b8d6;--onc:#14221d;--onb:#dfe6e2;--hsb:rgba(226,233,229,.92);
 }}
 :root[data-theme="dark"]{
   --bg:#1a201e;--panel:#232b28;--ink:#cdd5d0;--mute:#a2afa8;--line:#36423e;
@@ -43,7 +51,7 @@
   --s1:#9aa8ba;--s2:#86a9d8;--s3:#62bccb;--s4:#a898d8;--s5:#e09a68;--s6:#e08585;--s7:#e28fba;--s8:#d9b863;--s9:#a9a9b3;--s10:#79c98f;--s11:#d9b062;--s12:#e69cc3;--s13:#5fd0bf;--s14:#a9d65a;--s15:#c3a7ec;--s16:#77bde6;
   --c-key:#86cfa8;--b-key:#203830;--c-tip:#82c8cf;--b-tip:#1f3a3b;--c-warn:#dcb86c;--b-warn:#38301c;
   --c-red:#eb9d95;--b-red:#3d2623;--c-doc:#9dbcf2;--b-doc:#212f48;--c-ext:#f0b48c;--b-ext:#3b2d1f;
-  --c-note:#b9c6bf;--b-note:#2a3330;--hl:#4d4416;--h4:#93b8d6;--onc:#14221d;--onb:#dfe6e2;--hsb:rgba(226,233,229,.92);
+  --c-note:#b9c6bf;--b-note:#2a3330;--c-crit:#8fcdf0;--b-crit:#1d2e3c;--c-goal:#b9a4ef;--b-goal:#2b2640;--c-ind:#7ed8cc;--b-ind:#1b3330;--c-contra:#f2a7c0;--b-contra:#3d2230;--c-ae:#b8c4d4;--b-ae:#262e3a;--c-score:#c9d67e;--b-score:#2c3220;--c-conflict:#d9b898;--b-conflict:#332a22;--c-def:#a5b4fc;--b-def:#1f2340;--hl:#4d4416;--h4:#93b8d6;--onc:#14221d;--onb:#dfe6e2;--hsb:rgba(226,233,229,.92);
 }
 
 /* ---------- Màu tab bệnh: 5.1–5.7 và ★ Tóm tắt, mỗi tab một màu riêng ----------
@@ -153,7 +161,7 @@ main p,main li,main .callout,.hero p{text-wrap:pretty}
 :is(#tree,#sheet,#khacmods) details>summary::-webkit-details-marker{display:none}
 :root{--chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 6l6 6-6 6' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
 :is(#tree,#sheet,#khacmods) details>summary::before{content:"";flex:0 0 14px;width:14px;height:14px;background:var(--c,var(--mute));-webkit-mask:var(--chev) center/contain no-repeat;mask:var(--chev) center/contain no-repeat;transition:transform .15s ease}
-:is(#tree,#sheet,#khacmods) a.top::before{content:"";flex:0 0 14px}   /* chừa chỗ mũi tên để mọi mục cùng một cột số */
+:is(#tree,#sheet,#khacmods) a.top::before{content:"➢";flex:0 0 14px;text-align:center;color:var(--c,var(--brand))}   /* ký hiệu mục chuyên khoa; cột cố định để mọi mục cùng một cột số */
 /* mục cấp 1 trong module: cùng cỡ chữ, khoảng đệm, chiều cao cho mục phẳng (Tổng quan) và mục mở được (Đại cương…) */
 :is(#tree,#sheet,#khacmods) details.mod>details>summary,:is(#tree,#sheet,#khacmods) details.mod>a.top{display:flex;align-items:center;min-height:36px;height:auto;margin:2px 0;padding:6px 8px;border-radius:0 10px 10px 0;font-size:14.5px;font-weight:600;line-height:1.4}
 :is(#tree,#sheet,#khacmods) details.mod>a.top{position:static;z-index:auto;background:none;border-bottom:0;box-shadow:none}   /* bỏ kiểu của thanh tiêu đề (.top) để hàng mục giống hệt các mục khác */
@@ -191,14 +199,38 @@ main p,main li,main .callout,.hero p{text-wrap:pretty}
 .callout{margin:12px 0;padding:10px 14px 10px 16px;border-left:5px solid var(--cc,var(--c-note));border-radius:0 12px 12px 0;background:var(--cb,var(--b-note))}
 .callout .ct{margin-bottom:4px;font-size:calc(11.5px * var(--fs));font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cc,var(--c-note))}
 .callout p,.callout ul,.callout ol{margin:4px 0}
+.callout.key .ct::before{content:"📌 "}
+.callout.red .ct::before{content:"🆘 "}
+.callout.warn .ct::before{content:"⚠️ "}
+.callout.ind .ct::before{content:"✅ "}
+.callout.ae .ct::before{content:"⁉️ "}
+.callout.goal .ct::before{content:"🎯 "}
+.callout.def .ct::before{content:"🫆 "}
 .callout.key{--cc:var(--c-key);--cb:var(--b-key)}
 .callout.study{--cc:var(--c-key);--cb:var(--b-key)}
-.callout.tip{--cc:var(--c-tip);--cb:var(--b-tip)}
-.callout.warn{--cc:var(--c-warn);--cb:var(--b-warn)}
-.callout.red{--cc:var(--c-red);--cb:var(--b-red)}
+.callout.tip{--cc:var(--c-tip);--cb:var(--b-tip);position:relative;margin:22px 0 14px;padding:14px 16px 10px;border:1px solid var(--cc);border-radius:12px}
+.callout.tip .ct{position:absolute;top:-22px;left:-1px;margin:0;padding:3px 10px;border-radius:8px 8px 0 0;background:var(--cc);color:var(--onc,#fff);line-height:1.3}
+.callout.warn{--cc:var(--c-warn);--cb:var(--b-warn);border:1.5px dotted var(--cc);border-radius:12px}
+.callout.red{--cc:var(--c-red);--cb:var(--b-red);border:1px solid var(--cc);border-radius:12px}
 .callout.doc{--cc:var(--c-doc);--cb:var(--b-doc)}
 .callout.ext{--cc:var(--c-ext);--cb:var(--b-ext);border-left-style:dashed}
 .callout.note{--cc:var(--c-note);--cb:var(--b-note)}
+.callout.criteria{--cc:var(--c-crit);--cb:var(--b-crit)}
+.callout.score{--cc:var(--c-score);--cb:var(--b-score)}
+.callout.conflict{--cc:var(--c-conflict);--cb:var(--b-conflict);border:1px solid var(--cc);border-radius:12px}
+.callout.def{--cc:var(--c-def);--cb:var(--b-def);position:relative;margin:14px 0;padding:8px 14px 8px 36px;border:0;border-left:3px solid var(--cc);border-radius:0 12px 12px 0;background:var(--cb)}
+.callout.def::before{content:"\201C";position:absolute;left:9px;top:-4px;font-size:36px;line-height:1;color:var(--cc);font-family:var(--font-voice,Georgia,serif)}
+.callout.criteria,.callout.score{position:relative;margin:22px 0 14px;padding:14px 16px 10px;border:1px solid var(--cc);border-radius:12px}
+.callout.criteria .ct,.callout.score .ct{position:absolute;top:-9px;left:12px;margin:0;padding:0 6px;background:var(--bg);line-height:1.3}
+.callout.goal{--cc:var(--c-goal);--cb:var(--b-goal);border:3px double var(--cc);border-radius:6px}
+.callout.ind{--cc:var(--c-ind);--cb:var(--b-ind)}
+.callout.contra{--cc:var(--c-contra);--cb:var(--b-contra);border:1.5px solid var(--cc);border-radius:12px}
+.callout.contra .ct::before{content:"❌ "}
+.callout.ae{--cc:var(--c-ae);--cb:var(--b-ae)}
+.callout.ind,.callout.ae{border:0;border-radius:0;background-color:var(--cb);background-repeat:no-repeat;background-size:14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px;background-position:0 0,0 0,100% 0,100% 0,0 100%,0 100%,100% 100%,100% 100%;background-image:linear-gradient(var(--cc),var(--cc)),linear-gradient(var(--cc),var(--cc)),linear-gradient(var(--cc),var(--cc)),linear-gradient(var(--cc),var(--cc)),linear-gradient(var(--cc),var(--cc)),linear-gradient(var(--cc),var(--cc)),linear-gradient(var(--cc),var(--cc)),linear-gradient(var(--cc),var(--cc));padding:12px 16px}
+.srcbox{margin:12px 0;padding:10px 14px;border:1px solid var(--line);border-radius:12px}
+.srcbox p{margin:0}
+.legend3 .callout.tip{margin-top:24px}
 
 /* ---------- 9. Bảng: đầu màu đậm, dòng so le ---------- */
 table{display:block;overflow-x:auto;width:100%;margin:12px 0;border:1px solid var(--line);border-radius:12px;border-collapse:separate;border-spacing:0;font-size:calc(14px * var(--fs))}
@@ -484,8 +516,11 @@ html.side-off .edge .ico{transform:rotate(180deg)}
 .rcard.lib small{font-weight:800;color:var(--c)}
 .rcard.lib span{font-size:calc(13.5px * var(--fs));line-height:1.5;color:var(--mute)}
 .intro p{max-width:none;line-height:1.7}
+.rcard>b::before{content:"➵ ";color:var(--c,var(--brand))}
 .legend3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:10px 0 14px}
-.legend3 .callout{margin:0}
+.legend3 .callout{margin:16px 0 0}
+.legend3 .lg-t{grid-column:1/-1;margin-top:12px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.legend3 .lg-t:first-child{margin-top:0}
 @media (max-width:820px){
   .edge{display:none}
 }
@@ -860,6 +895,7 @@ h2 .en,h3 .en,summary .en{font-size:.72em;font-weight:500;opacity:.7;margin-left
 .soonbox summary,.guide summary{cursor:pointer;font-weight:700;color:var(--mute)}
 .soonbox[open] summary,.guide[open] summary{margin-bottom:12px}
 .guide{margin-top:24px}
+.guide-t{margin-bottom:12px;font-weight:700;color:var(--mute)}
 @media (max-width:860px){
   .hero2{grid-template-columns:1fr;padding:20px 16px;border-radius:16px}
   .hero2 h1{font-size:calc(28px * var(--fs))}

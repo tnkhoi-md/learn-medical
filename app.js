@@ -88,7 +88,7 @@ NOTES.forEach(n => {
 });
 
 // ---- markdown mở rộng: hộp màu, đánh dấu, tab, thẻ gập, danh sách lồng ----
-const CALL = { study: "Ôn tập", key: "Ý chính", warn: "Lưu ý – bẫy thi", tip: "Mẹo nhớ", ext: "Tham khảo ngoài tài liệu", doc: "Theo văn bản Bộ Y tế", note: "Ghi chú", red: "Cấp cứu – nguy hiểm" };
+const CALL = { study: "Ôn tập", key: "Ý chính", warn: "Lưu ý – bẫy thi", tip: "Mẹo nhớ", ext: "Tham khảo ngoài tài liệu", doc: "Theo văn bản Bộ Y tế", note: "Ghi chú", red: "Cấp cứu – nguy hiểm", criteria: "Tiêu chuẩn chẩn đoán", goal: "Mục tiêu điều trị", ind: "Chỉ định", contra: "Chống chỉ định", ae: "Tác dụng phụ", score: "Thang điểm – công thức", conflict: "Mâu thuẫn giữa các tài liệu", def: "Định nghĩa" };
 const inline = s => esc(s)
   .replace(/`([^`]+)`/g, "<code>$1</code>")
   .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -943,18 +943,27 @@ function home() {
       <div class="oathact"><a class="btn p" href="#/n/${oath.id}">Đọc lời thề</a><a class="btn" href="#/m/y-duc-ky-nang-an-toan/2">Y đức</a></div></div>` : ""}
   </section>
   <section class="quick">${tiles.map(([h, c, i, t, s]) => `<a class="qtile" style="--c:${c}" href="${h}"><span class="qico">${i}</span><span class="qtxt"><b>${t}</b><small>${s}</small></span></a>`).join("")}</section>
-  ${recent.length ? `<section><h2>Tiếp tục</h2><div class="rgrid">${recent.map(r => `<a class="rcard" href="#/n/${r.id}${r.sec ? "/" + r.sec : ""}"><small>${r.sec ? dnum(r.sec, r.n.module, r.n) + " · " + secName(r.n, r.sec) : esc(r.n.group || (r.n.kind === "overview" ? "Tổng quan" : "Bài"))}</small><b>${esc(r.n.short || r.n.title)}</b></a>`).join("")}</div></section>` : ""}
-  <section><h2>Chuyên khoa</h2><div class="mgrid">${ready.map(mcard).join("")}</div>
-    ${soon.length ? `<details class="soonbox"><summary>Đang xây dựng (${soon.length} module)</summary><div class="mgrid">${soon.map((m, i) => mcard(m, i + ready.length)).join("")}</div></details>` : ""}</section>
-  <details class="guide"><summary>Giới thiệu và cách đọc một trang</summary>
+  <section class="guide"><div class="guide-t">Giới thiệu và cách đọc một trang</div>
     <p>Học tập Y khoa là kho kiến thức cá nhân để ôn thi chứng chỉ hành nghề bác sĩ đa khoa. Nội dung được soạn lại từ giáo trình giảng dạy và văn bản của Bộ Y tế; các nhận định chính đều gắn nguồn (tên tài liệu và số trang) để kiểm tra lại. Đây là tài liệu học tập, không thay cho hướng dẫn chuyên môn hay quyết định lâm sàng.</p>
     <div class="legend3">
+      <div class="lg-t">Nhấn mạnh</div>
       <div class="callout key"><div class="ct">Ý chính</div><p>Điều cần nhớ nhất của bài.</p></div>
       <div class="callout warn"><div class="ct">Lưu ý – bẫy thi</div><p>Chỗ dễ nhầm và nơi các nguồn khác nhau.</p></div>
       <div class="callout red"><div class="ct">Cấp cứu – nguy hiểm</div><p>Dấu hiệu cần xử trí hoặc chuyển tuyến ngay.</p></div>
+      <div class="lg-t">Chẩn đoán và điều trị</div>
+      <div class="callout criteria"><div class="ct">Tiêu chuẩn chẩn đoán</div><p>Ngưỡng dùng để xác định bệnh, ví dụ HbA1c hoặc huyết áp.</p></div>
+      <div class="callout goal"><div class="ct">Mục tiêu điều trị</div><p>Đích cần đạt khi điều trị, ví dụ đưa huyết áp về dưới ngưỡng.</p></div>
+      <div class="callout ind"><div class="ct">Chỉ định</div><p>Khi nào nên dùng thuốc hoặc thủ thuật này.</p></div>
+      <div class="callout contra"><div class="ct">Chống chỉ định</div><p>Trường hợp không được dùng.</p></div>
+      <div class="callout ae"><div class="ct">Tác dụng phụ</div><p>Phản ứng không mong muốn cần theo dõi.</p></div>
+      <div class="lg-t">Công cụ và đối chiếu</div>
+      <div class="callout score"><div class="ct">Thang điểm – công thức</div><p>Cách tính điểm hoặc công thức, ghi rõ từng thành phần.</p></div>
+      <div class="callout conflict"><div class="ct">Mâu thuẫn giữa các tài liệu</div><p>Hai nguồn nói khác nhau, ghi rõ cả hai và số trang.</p></div>
+      <div class="callout def"><div class="ct">Định nghĩa</div><p>Mô tả vấn đề ngắn gọn, ví dụ tăng huyết áp.</p></div>
+      <div class="callout tip"><div class="ct">Mẹo nhớ</div><p>Ví dụ: tam chứng khó thở gợi ý suy tim.</p></div>
     </div>
-    <p>Ô nguồn như <span class="src">Y5 tr.12</span> cho biết ý lấy từ trang nào của tài liệu nào (số trang là số trang trong file PDF nguồn; nhiều trang viết <span class="src">Y5 tr.12–14, 20</span>; nhiều nguồn cách nhau dấu chấm phẩy). Ô cam <span class="src ext">+StatPearls 2024</span> là nguồn ngoài tài liệu của bạn. Ô <span class="src">Notion: tên giáo trình</span> là phần bổ sung từ ghi chú chép lại giáo trình cũ (tên giáo trình lấy từ thuộc tính trên Notion), chỉ dùng khi giáo trình mới không có; khi hai nguồn khác nhau, bài theo nguồn mới hơn và ghi rõ chỗ khác. Chữ "tài liệu không nêu" nghĩa là nguồn đã dùng không trả lời điểm đó.</p>
-  </details>
+    <div class="srcbox"><p>Ô nguồn như <span class="src">Y5 tr.12</span> cho biết ý lấy từ trang nào của tài liệu nào (số trang là số trang trong file PDF nguồn; nhiều trang viết <span class="src">Y5 tr.12–14, 20</span>; nhiều nguồn cách nhau dấu chấm phẩy). Ô cam <span class="src ext">+StatPearls 2024</span> là nguồn ngoài tài liệu của bạn. Ô <span class="src">Notion: tên giáo trình</span> là phần bổ sung từ ghi chú chép lại giáo trình cũ (tên giáo trình lấy từ thuộc tính trên Notion), chỉ dùng khi giáo trình mới không có; khi hai nguồn khác nhau, bài theo nguồn mới hơn và ghi rõ chỗ khác. Chữ "tài liệu không nêu" nghĩa là nguồn đã dùng không trả lời điểm đó.</p></div>
+  </section>
 `;
   $("#heroSearch").onclick = focusSearch;
 }
