@@ -46,7 +46,7 @@ async function decrypt(buf, pw) {
 }
 
 async function start(data) {
-  if (data) { window.BUILD = data.BUILD; window.MODULES = data.MODULES; window.MODULES_EN = data.MODULES_EN; window.MODSPEC = data.MODSPEC; window.NOTES = data.NOTES; window.KHUNG = data.KHUNG; window.YKKB_LOCK.enc = true; }
+  if (data) { window.BUILD = data.BUILD; window.MODULES = data.MODULES; window.MODULES_EN = data.MODULES_EN; window.MODSPEC = data.MODSPEC; window.NOTES = data.NOTES; window.QUIZ = data.QUIZ; window.KHUNG = data.KHUNG; window.YKKB_LOCK.enc = true; }
   await Promise.all([load("khung.js"), load("app.js")]);
   const lock = $("lock"); if (lock) lock.hidden = true;
   if (data) watch();

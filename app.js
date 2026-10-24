@@ -31,7 +31,7 @@ const secC = (mod, k) => ((((secOf(mod, k).c || k) - 1) % 16) + 1);          // 
 // Chuyên khoa đang xem: theo đường dẫn, nếu không có thì chuyên khoa xem lần trước
 function curMod() {
   const h = decodeURIComponent(location.hash.slice(1)), a = h.match(/^\/m\/([^/]+)\//), b = h.match(/^\/n\/([^/]+)/);
-  const m = a && MODULES[a[1]] ? a[1] : (b && byId[b[1]] ? byId[b[1]].module : null);
+  const m = a && MODULES[a[1]] ? a[1] : (b && byId[b[1]] ? byId[b[1]].module : /^\/quiz(\/|$)/.test(h) && MODULES["ung-buou"] ? "ung-buou" : null);
   if (m) { try { localStorage.setItem("ykkb_mod", m); } catch {} return m; }
   let saved = null; try { saved = localStorage.getItem("ykkb_mod"); } catch {}
   return saved && MODULES[saved] && !isHiddenMod(saved) ? saved : mainMods()[0] || Object.keys(MODULES)[0];
@@ -450,10 +450,10 @@ const gId = (mod, k, g) => "grp-" + groupList(mod, k).indexOf(g);
 // [khóa, tên, mô tả, màu (--s…), tab bệnh liên quan]: loại của một bài lấy từ `lib` của nhóm/mục trong _module.json hoặc `lib:` trong bài
 const LIBS = [
   ["khoahoccoban", "Khoa học cơ sở", "Sinh học, hóa sinh và nền tảng cơ bản làm cơ sở cho lâm sàng.", "s1", []],
-  ["thamkham", "Thăm khám lâm sàng", "Từng kỹ năng thăm khám một trang riêng, xếp từ tổng quát đến chi tiết: hỏi bệnh, sinh hiệu, khám cấp cứu, khám từng hệ cơ quan, thang điểm.", "s9", []],
-  ["trieuchung", "Triệu chứng học", "Từ triệu chứng và hội chứng đến chẩn đoán: hỏi bệnh, khám, bệnh án.", "s3", [4]],
+  ["thamkham", "Thăm khám lâm sàng", "Hướng dẫn khám lâm sàng từ tổng quát đến chi tiết: hỏi bệnh, sinh hiệu, khám cấp cứu, khám từng hệ cơ quan. Mỗi bài chung có mục khám theo từng chuyên khoa, dẫn sang bài chuyên khoa tương ứng.", "s9", []],
+  ["trieuchung", "Triệu chứng học", "Từ triệu chứng và hội chứng đến chẩn đoán phân biệt. Mỗi triệu chứng có một bài chung; kiến thức của từng chuyên khoa (ví dụ ung bướu) nằm trong mục riêng của bài chung và dẫn sang bài chuyên khoa.", "s3", [4]],
   ["hoichung", "Các dấu hiệu trong thực hành lâm sàng", "Dấu hiệu khám và nhóm dấu hiệu (hội chứng) điển hình của các chuyên khoa: tim mạch, hô hấp, tiêu hóa, thần kinh, nội tiết, da, nhiễm trùng, huyết học, cơ xương khớp. Biết cách làm, ý nghĩa và bệnh gợi ý.", "s13", []],
-  ["cls", "Cận lâm sàng", "Chọn và đọc xét nghiệm, hình ảnh, giải phẫu bệnh, phân giai đoạn.", "s4", [5, 6]],
+  ["cls", "Cận lâm sàng", "Chọn, đọc và diễn giải xét nghiệm, hình ảnh và giải phẫu bệnh theo từng hệ. Mỗi bài có mục theo chuyên khoa nêu cách dùng phương tiện đó trong từng bệnh, dẫn sang bài chuyên khoa.", "s4", [5, 6]],
   ["thangdiem", "Các thang điểm thường dùng", "Thang điểm và công thức lâm sàng thường dùng: ý nghĩa, khi nào dùng, cách chấm từng mục, kèm công cụ tự tính tổng và diễn giải.", "s12", []],
   ["trogiatri", "Giá trị bình thường (dự kiến)", "Ngưỡng xét nghiệm và chỉ số huyết học, sinh hóa, huyết động, kèm nguồn trang cho từng con số. Đang xây dựng.", "s11", []],
   ["benhhoc", "Bệnh học", "Cơ chế, nguyên nhân và từng bệnh: lâm sàng, chẩn đoán, điều trị, tiên lượng.", "s5", []],
@@ -645,6 +645,8 @@ function libPage(cat) {
   if (cat === "thamkham") return examPage(L);
   if (cat === "thangdiem") return scalePage(L);
   const [, title, desc, col] = L, items = libItems(cat);
+  const ovCls = cat === "cls" ? byId["can-lam-sang-tong-quan"] : null;   // trang tổng quan làm mục giới thiệu của thư viện Cận lâm sàng
+  const introCls = ovCls ? `<section class="libintro"><h2>Giới thiệu</h2><div class="notepage" style="--c:var(--${col})">${md(ovCls.body)}</div></section>` : "";
   const body = items.map(({ mod, notes, di, tabs }) => `<section><h2>${modLabel(mod)}</h2>
     ${secBlocks(mod, notes)}
     ${cat === "benhhoc" ? (di.length ? `<h3>Từng bệnh</h3>${diseaseGrid(di, mod)}` : "") : (tabs.length && di.length ? `<h3>Theo từng bệnh</h3>${diseaseChips(di, tabs, mod)}` : "")}
@@ -652,6 +654,7 @@ function libPage(cat) {
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: title }])}
     ${pageHead({ c: `var(--${col})`, kicker: "Thư viện học tập", title: `${esc(title)}`, desc: `${esc(desc)}` })}
+    ${introCls}
     <div class="modpage" style="--c:var(--${col})">${cat === "benhhoc" ? tongCards() : ""}${body}</div>`;
   window.scrollTo(0, 0);
 }
@@ -1028,7 +1031,8 @@ function modSection(mod, k, openId) {
   } else if (type === "cards") {
     const withCards = ns.map(n => ({ n, c: cardsOf(n) })).filter(x => x.c.length);
     const total = withCards.reduce((s, x) => s + x.c.length, 0);
-    body = `<div class="callout note"><div class="ct">Ghi chú</div><p>Các thẻ tự kiểm tra đã tạo được <b>lưu lại</b>. Hiện <b>tạm thời chưa xây dựng thêm</b>.</p></div>
+    const nq = mod === QZ_MOD ? QZ().items.length : 0;
+    body = (nq ? `<div class="callout key"><div class="ct">Quiz 4 đáp án</div><p><b>${nq}</b> câu từ các đề cũ Y17–Y22, có giải thích từng đáp án, nguồn và lưu ý. Ôn theo chủ đề (câu lặp nhiều đề xếp trước) hoặc ngẫu nhiên.</p><p><a class="btn p" href="#/quiz">Vào làm quiz</a></p></div>` : "") + `<div class="callout note"><div class="ct">Ghi chú</div><p>Các thẻ tự kiểm tra đã tạo được <b>lưu lại</b>. Hiện <b>tạm thời chưa xây dựng thêm</b>.</p></div>
       <p><b>${total}</b> thẻ trong <b>${withCards.length}</b> bài · <a class="btn p" href="#/cards">Bắt đầu ôn thẻ (lặp lại ngắn quãng)</a></p>` +
       withCards.map(({ n, c }) => `<details class="fold"><summary>${esc(n.short || n.title)} <small>${c.length} thẻ</small></summary>${c.map(x => `<details class="card"><summary>${inline(x.q)}</summary><div>${inline(x.a)}</div></details>`).join("")}</details>`).join("");
   }
@@ -2086,6 +2090,121 @@ $("#fbStart").onclick = pomoToggle; $("#fbReset").onclick = pomoReset; $("#fbMod
 pomoRender();
 
 // ---- định tuyến ----
+// ---- Quiz tự đánh giá (module Ung bướu, mục 11): câu hỏi từ đề cũ, 4 đáp án, giải thích từng đáp án ----
+// Dữ liệu window.QUIZ do build.py đọc từ 4-module/ung-buou/_quiz/bank.json. Mỗi câu: n (STT trong chủ đề), srcs (mã nguồn đề, vd UTVY22Đ1), freq (số đề có câu này).
+const QZ = () => window.QUIZ || { items: [], topics: {} };
+const qzProg = () => store.get("ykkb_quiz", {});            // { id: { ok, bad, last: 1|0 } }
+const qzPos = () => store.get("ykkb_quizpos", {});          // vị trí đang làm dở theo bộ câu
+let QS = null;   // phiên đang chạy
+const QZ_MOD = "ung-buou";
+const qzSec = () => secByType(QZ_MOD, "cards") || 11;
+const qzTitle = key => key === "random" ? "Ngẫu nhiên tất cả chủ đề" : key === "wrong" ? "Ôn lại câu làm sai" : key.endsWith("-r") ? (QZ().topics[key.slice(0, -2)] || key) + " (ngẫu nhiên)" : (QZ().topics[key] || key);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function qzPool(key) {
+  const all = QZ().items, p = qzProg();
+  if (key === "random") return shuffle(all.slice());
+  if (key === "wrong") return all.filter(x => p[x.id] && p[x.id].last === 0);
+  if (key.endsWith("-r")) return shuffle(all.filter(x => x.topic === key.slice(0, -2)));
+  return all.filter(x => x.topic === key);   // đã xếp sẵn: câu lặp nhiều đề trước, đề mới trước
+}
+function qzHead(extra) {
+  return crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[QZ_MOD] || QZ_MOD, href: `#/m/${QZ_MOD}/1` }, { t: `${qzSec()} Tự đánh giá`, href: `#/m/${QZ_MOD}/${qzSec()}` }, ...extra]);
+}
+function quizHome() {
+  const Q = QZ(), p = qzProg(), items = Q.items, el = $("#main");
+  el.style.maxWidth = "1040px";
+  const done = items.filter(x => p[x.id]).length, okN = items.filter(x => p[x.id] && p[x.id].last === 1).length, wrong = items.filter(x => p[x.id] && p[x.id].last === 0).length;
+  const topics = Object.keys(Q.topics).filter(t => items.some(x => x.topic === t));
+  const card = t => {
+    const li = items.filter(x => x.topic === t), d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length, rep = li.filter(x => x.freq > 1).length;
+    const pos = qzPos()[t] || 0;
+    return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/${encodeURIComponent(t)}"><b>${esc(Q.topics[t])} <small>${esc(t)}</small></b><span class="dmeta">${li.length} câu${rep ? ` · ${rep} câu lặp nhiều đề` : ""} · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span><span class="dbar"><i style="width:${Math.round(100 * d / li.length)}%"></i></span></a><a class="dall" href="#/quiz/${encodeURIComponent(t)}-r" title="Trộn ngẫu nhiên các câu của chủ đề này">Ngẫu nhiên</a></div>`;
+  };
+  el.innerHTML = `${qzHead([{ t: "Quiz" }])}
+    ${pageHead({ c: `var(--s${qzSec()})`, kicker: `${esc(MODULES[QZ_MOD] || QZ_MOD)} · ${qzSec()} Tự đánh giá`, title: "Quiz 4 đáp án", desc: "Câu hỏi lấy từ các đề thi cũ (Y17–Y22), đã đối chiếu với giáo trình, slide và văn bản Bộ Y tế. Mỗi câu có giải thích từng đáp án, nguồn và lưu ý. Trong mỗi chủ đề, câu lặp lại ở nhiều đề được xếp trước, rồi tới đề mới." })}
+    ${items.length ? "" : `<div class="callout warn"><div class="ct">Chưa có dữ liệu</div><p>Chưa có ngân hàng câu hỏi. Chạy <code>python3 build.py</code> sau khi có <code>4-module/ung-buou/_quiz/bank.json</code>.</p></div>`}
+    <div class="cstats"><div><b>${items.length}</b><span>câu</span></div><div><b>${done}</b><span>đã làm</span></div><div><b>${done ? Math.round(100 * okN / done) + "%" : "–"}</b><span>đúng (lần gần nhất)</span></div><div><b>${wrong}</b><span>câu cần ôn lại</span></div></div>
+    <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai (${wrong})</a></div>
+    <section><h2>Theo chủ đề</h2><div class="decks">${topics.map(card).join("")}</div>
+    <p class="meta">Mã nguồn đề: chủ đề + năm + đợt, ví dụ <b>UTVY22Đ1</b> = ung thư vú, đề Y22 đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
+  window.scrollTo(0, 0);
+}
+function startQuiz(key, count) {
+  let list = qzPool(key);
+  if (key === "random") list = list.slice(0, count || 20);
+  const pos = qzPos(), start = !key.endsWith("-r") && key !== "random" && key !== "wrong" ? Math.min(pos[key] || 0, Math.max(0, list.length - 1)) : 0;
+  QS = { key, list, i: start, ans: {}, ord: {}, ok: 0, bad: 0, wrongIds: [] };
+}
+// Đảo thứ tự đáp án để không đoán theo vị trí (đáp án đúng trong đề gốc dồn nhiều ở A); không đảo nếu đáp án nhắc tới nhau ("cả A và B", "tất cả các ý trên")
+const qzRefLetter = /(đáp án|lựa chọn|phương án|ý)\s+\(?[A-D]\)?(?![\wÀ-ỹ])|(^|[\s(])[A-D]\s*(và|,|\+|hoặc)\s*[A-D](?![\wÀ-ỹ])|\([A-D]\)/;
+const qzCanShuffle = it => ![it.why, it.tips, it.refNote, ...Object.values(it.explain || {})].some(t => qzRefLetter.test(t || "")) && !Object.values(it.options).some(v => /\b(tất cả|cả\s+[a-d]\b|[a-d]\s*(và|,|\+)\s*[a-d]\b|các ý|không\s+(có\s+)?(ý|đáp án|yếu tố)\s+nào|đều (đúng|sai))/i.test(v));
+const qzOrd = it => (QS.ord[it.id] = QS.ord[it.id] || (qzCanShuffle(it) ? shuffle(Object.keys(it.options)) : Object.keys(it.options)));
+function quizCardHtml(it) {
+  const code = `${it.n}. (${it.srcs.join(", ")})`;
+  const opt = qzOrd(it).map((k, i) => `<div class="qz-o" data-k="${k}"><button class="qz-opt" data-k="${k}"><b>${"ABCD"[i]}</b><span>${inline(it.options[k])}</span></button><div class="qz-ex" hidden></div></div>`).join("");
+  return `<div class="qz-meta"><span class="qz-code">${esc(code)}</span>${it.freq > 1 ? `<span class="qz-rep">Lặp ở ${it.freq} đề</span>` : ""}</div>
+    ${it.context ? `<div class="callout note"><div class="ct">Tình huống</div><p>${inline(it.context)}</p></div>` : ""}
+    <div class="qz-stem">${inline(it.stem)}</div><div class="qz-opts">${opt}</div><div id="qzFb"></div>`;
+}
+function renderQuiz() {
+  const el = $("#main"), S = QS, title = qzTitle(S.key);
+  el.style.maxWidth = "760px";
+  const head = qzHead([{ t: "Quiz", href: "#/quiz" }, { t: title }]);
+  if (!S.list.length) { el.innerHTML = `${head}<div class="cend"><h2>Không có câu nào</h2><p>${S.key === "wrong" ? "Bạn chưa có câu nào làm sai." : "Bộ này chưa có câu hỏi."}</p><p><a class="btn p" href="#/quiz">Về danh sách chủ đề</a></p></div>`; return; }
+  if (S.i >= S.list.length) {
+    const tot = S.ok + S.bad;
+    if (!S.key.endsWith("-r") && S.key !== "random" && S.key !== "wrong") { const pp = qzPos(); delete pp[S.key]; store.set("ykkb_quizpos", pp); }
+    const wr = S.wrongIds.map(id => QZ().items.find(x => x.id === id)).filter(Boolean);
+    el.innerHTML = `${head}<div class="cend"><h2>Xong: ${S.ok}/${tot} câu đúng (${tot ? Math.round(100 * S.ok / tot) : 0}%)</h2>
+      ${wr.length ? `<p class="meta">Câu làm sai:</p><ul class="qz-wl">${wr.map(x => `<li>${esc(x.n + ". (" + x.srcs.join(", ") + ")")}: ${esc(x.stem.length > 90 ? x.stem.slice(0, 90) + "…" : x.stem)}</li>`).join("")}</ul>` : `<p>Không sai câu nào.</p>`}
+      <p><a class="btn p" href="#/quiz">Về danh sách chủ đề</a> ${wr.length ? `<a class="btn" href="#/quiz/wrong">Ôn lại câu sai</a>` : ""} <a class="btn" href="#/quiz/${encodeURIComponent(S.key)}${S.key === "random" ? "/20" : ""}" data-restart="1">Làm lại bộ này</a></p></div>`;
+    return;
+  }
+  const it = S.list[S.i], pct = Math.round(100 * S.i / S.list.length);
+  el.innerHTML = `${head}<div class="cs-head"><b>${esc(title)}</b><span>Câu ${S.i + 1}/${S.list.length} · đúng ${S.ok}</span></div><div class="cs-bar"><i style="width:${pct}%"></i></div>
+    <div class="cface qz-face">${quizCardHtml(it)}</div>`;
+  el.querySelectorAll(".qz-opt").forEach(b => { b.onclick = () => answerQuiz(b.dataset.k); });
+  window.scrollTo(0, 0);
+}
+function answerQuiz(k) {
+  const S = QS, it = S.list[S.i], el = $("#main");
+  if (!S || S.ans[it.id]) return;
+  S.ans[it.id] = k;
+  const ok = k === it.answer, p = qzProg(), x = p[it.id] || { ok: 0, bad: 0 };
+  ok ? x.ok++ : x.bad++; x.last = ok ? 1 : 0; p[it.id] = x; store.set("ykkb_quiz", p);
+  ok ? S.ok++ : (S.bad++, S.wrongIds.push(it.id));
+  if (!S.key.endsWith("-r") && S.key !== "random" && S.key !== "wrong") { const pp = qzPos(); pp[S.key] = S.i + 1; store.set("ykkb_quizpos", pp); }
+  el.querySelectorAll(".qz-o").forEach(o => {
+    const kk = o.dataset.k, b = o.querySelector("button"), ex = o.querySelector(".qz-ex");
+    b.disabled = true; o.classList.add(kk === it.answer ? "ok" : kk === k ? "bad" : "dim");
+    const t = ((it.explain || {})[kk] || "").replace(/^\s*(Đúng|Sai|Chính xác)\s*[.:,–-]\s*/i, "");   // nhãn Đúng/Sai do giao diện thêm, tránh lặp
+    ex.innerHTML = `<b>${kk === it.answer ? "Đúng" : "Sai"}.</b> ${t ? inline(t) : ""}${(it.added || []).includes(kk) ? ` <i class="meta">(đáp án nhiễu do soạn thêm)</i>` : ""}`; ex.hidden = false;
+  });
+  const srcs = (it.sources || []).map(s => `<li><b>${esc(s.label || "")}</b>${s.where ? ` · ${esc(s.where)}` : ""}${s.quote ? `<blockquote>${esc(s.quote)}</blockquote>` : ""}</li>`).join("");
+  const refWarn = it.refNote ? `<div class="callout conflict"><div class="ct">Đáp án trong đề tham khảo</div><p>${inline(it.refNote)}</p></div>` : "";
+  const gen = it.level === "kien_thuc_chung" ? `<div class="callout ext"><div class="ct">Chưa đối chiếu tài liệu</div><p>Câu này dựa trên kiến thức chung vì chưa tìm thấy nội dung tương ứng trong giáo trình/slide của bạn. Hãy kiểm tra lại với giảng viên nếu còn nghi ngờ.</p></div>` : "";
+  const last = S.i + 1 >= S.list.length;
+  $("#qzFb").innerHTML = `<div class="qz-res ${ok ? "ok" : "bad"}">${ok ? "Chính xác" : `Chưa đúng. Đáp án đúng là <b>${"ABCD"[qzOrd(it).indexOf(it.answer)]}</b>`}</div>
+    ${it.why ? `<div class="callout key"><div class="ct">Ý chính</div><p>${inline(it.why)}</p></div>` : ""}
+    ${it.tips ? `<div class="callout warn"><div class="ct">Lưu ý</div><p>${inline(it.tips)}</p></div>` : ""}
+    ${refWarn}${gen}
+    ${srcs ? `<details class="fold" open><summary>Nguồn</summary><ul class="qz-src">${srcs}</ul></details>` : ""}
+    <div class="cbtns"><button class="b p" id="qzNext">${last ? "Xem kết quả" : "Câu tiếp"} <kbd>Enter</kbd></button></div>`;
+  $("#qzNext").onclick = () => { S.i++; renderQuiz(); };
+  $("#qzFb").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+function quiz(key, count) {
+  if (!key) { QS = null; return quizHome(); }
+  startQuiz(key, count); renderQuiz();
+}
+document.addEventListener("keydown", e => {   // phím tắt quiz: A–D hoặc 1–4 chọn đáp án, Enter/Space câu tiếp
+  if (!QS || !$(".qz-face") || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) && e.key === " " || e.metaKey || e.ctrlKey) return;
+  const S = QS, it = S.list[S.i]; if (!it) return;
+  const di = /^[1-4]$/.test(e.key) ? +e.key - 1 : /^[a-dA-D]$/.test(e.key) ? "ABCD".indexOf(e.key.toUpperCase()) : -1, k = di >= 0 ? qzOrd(it)[di] : "";
+  if (k && !S.ans[it.id]) { e.preventDefault(); answerQuiz(k); }
+  else if ((e.key === "Enter" || e.key === " ") && S.ans[it.id] && $("#qzNext")) { e.preventDefault(); $("#qzNext").click(); }
+});
+
 function route() {
   cancelAnimationFrame(raf);
   // Nút Lùi/Tiến của trình duyệt: quay về đúng vị trí đã đọc; chuyển trang bình thường thì bắt đầu từ đầu trang
@@ -2098,7 +2217,9 @@ function route() {
   const m = h.match(/^\/n\/([^/]+)(?:\/(\d+))?$/), mm = h.match(/^\/m\/([^/]+)\/(\d+)$/);
   let sec = 0, modActive = 0;
   const kh = h.match(/^\/khung(?:\/(\d+))?$/), lu = h.match(/^\/luudo(?:\/([^/]+))?$/), cc = h.match(/^\/congcu(?:\/([^/]+))?$/), mp = h.match(/^\/mindmap(?:\/([^/]+))?$/), lb = h.match(/^\/lib(?:\/([^/]+))?$/), cd = h.match(/^\/cards(?:\/([^/]+)(?:\/(all))?)?$/);
-  if (kh) { $("#main").style.maxWidth = "1000px"; window.renderKhung($("#main"), kh[1]); }
+  const qz = h.match(/^\/quiz(?:\/([^/]+)(?:\/(\d+))?)?$/);
+  if (qz) { quiz(qz[1] || "", +qz[2] || 0); modActive = qzSec(); }
+  else if (kh) { $("#main").style.maxWidth = "1000px"; window.renderKhung($("#main"), kh[1]); }
   else if (mm) {
     const k = +mm[2], ov = NOTES.find(n => n.module === mm[1] && n.kind === "overview");
     modActive = k;
@@ -2107,10 +2228,10 @@ function route() {
   else if (m) { sec = note(m[1], m[2]) || 0; modActive = byId[m[1]] ? sectionOfNote(byId[m[1]]) : 0; }
   else if (lb) { lb[1] ? libPage(lb[1]) : libIndex(); }
   else if (h === "/volume") volume(); else if (lu) luudo(lu[1] || ""); else if (cc) congCu(cc[1] || ""); else if (mp) mindmap(mp[1] || ""); else if (cd) cards(cd[1] || "", cd[2] === "all"); else home();
-  const navKey = kh ? "khung" : lu ? "luudo" : cc ? "congcu" : mp ? "mindmap" : h === "/volume" ? "volume" : cd ? "cards" : lb ? "lib" : (m && byId[m[1]] && isHiddenMod(byId[m[1]].module)) ? "lib" : (!m && !mm) ? "home" : "";
+  const navKey = qz ? "cards" : kh ? "khung" : lu ? "luudo" : cc ? "congcu" : mp ? "mindmap" : h === "/volume" ? "volume" : cd ? "cards" : lb ? "lib" : (m && byId[m[1]] && isHiddenMod(byId[m[1]].module)) ? "lib" : (!m && !mm) ? "home" : "";
   document.querySelectorAll("[data-nav]").forEach(x => x.classList.toggle("on", x.dataset.nav === navKey));
   $("#bnMenu").classList.toggle("on", !!(mm || m)); $("#bnMore").classList.toggle("on", navKey === "khung" || navKey === "volume" || navKey === "luudo" || navKey === "congcu" || navKey === "mindmap");
-  const inMod = !!(mm || m) && !(m && byId[m[1]] && isHiddenMod(byId[m[1]].module));   // thanh mục của chuyên khoa chỉ hiện khi đang trong một chuyên khoa (module ẩn thì không)
+  const inMod = (!!(mm || m) || !!qz) && !(m && byId[m[1]] && isHiddenMod(byId[m[1]].module));   // thanh mục của chuyên khoa chỉ hiện khi đang trong một chuyên khoa (module ẩn thì không)
   $("#modbar").hidden = !inMod; document.documentElement.classList.toggle("no-modbar", !inMod);
   renderModbar(modActive);
   tree(m && m[1], sec || (m && +m[2]) || 0);
