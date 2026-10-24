@@ -107,6 +107,8 @@ const inline = s => esc(s)
   .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
   .replace(/\[([^\]]+)\]\((#\/[^)]+)\)/g, '<a href="$2">$1</a>');
 
+// Đáp án thẻ có thể kèm giải thích: "Đáp án :: Giải thích" (dấu " :: " thứ hai ngăn hai phần)
+const cardA = a => { const k = a.indexOf(" :: "); return k < 0 ? inline(a) : `${inline(a.slice(0, k))}<div class="exp"><span class="explbl">Giải thích</span>${inline(a.slice(k + 4))}</div>`; };
 function cardsOf(n) {
   return n.body.split("\n").map(l => l.match(/^[-*]\s*(.+?)\s::\s(.+)$/)).filter(Boolean).map(m => ({ id: n.id + "|" + m[1], q: m[1], a: m[2], note: n.id }));
 }
@@ -378,7 +380,7 @@ function blocks(L) {
         if (t2 && t2.indent === ind) h.push("</li>"); else { h.push(`<${tag}>`); stack.push({ tag, indent: ind }); }
       }
       const qa = m[3].match(/^(.+?)\s::\s(.+)$/);
-      h.push(qa ? `<li class="qa"><details class="card"><summary>${inline(qa[1])}</summary><div>${inline(qa[2])}</div></details>` : `<li>${inline(m[3])}`);
+      h.push(qa ? `<li class="qa"><details class="card"><summary>${inline(qa[1])}</summary><div>${cardA(qa[2])}</div></details>` : `<li>${inline(m[3])}`);
       i++; continue;
     }
     closeLists();
@@ -1032,9 +1034,9 @@ function modSection(mod, k, openId) {
     const withCards = ns.map(n => ({ n, c: cardsOf(n) })).filter(x => x.c.length);
     const total = withCards.reduce((s, x) => s + x.c.length, 0);
     const nq = mod === QZ_MOD ? QZ().items.length : 0;
-    body = (nq ? `<div class="callout key"><div class="ct">Quiz 4 đáp án</div><p><b>${nq}</b> câu từ các đề cũ Y17–Y22, có giải thích từng đáp án, nguồn và lưu ý. Ôn theo chủ đề (câu lặp nhiều đề xếp trước) hoặc ngẫu nhiên.</p><p><a class="btn p" href="#/quiz">Vào làm quiz</a></p></div>` : "") + `<div class="callout note"><div class="ct">Ghi chú</div><p>Các thẻ tự kiểm tra đã tạo được <b>lưu lại</b>. Hiện <b>tạm thời chưa xây dựng thêm</b>.</p></div>
+    body = (nq ? `<div class="callout key"><div class="ct">Quiz 4 đáp án</div><p><b>${nq}</b> câu từ các đề cũ Y17–Y22, có giải thích từng đáp án, nguồn và lưu ý. Ôn theo chủ đề (câu lặp nhiều đề xếp trước) hoặc ngẫu nhiên.</p><p><a class="btn p" href="#/quiz">Vào làm quiz</a></p></div>` : "") + `<div class="callout note"><div class="ct">Ghi chú</div><p>Bộ thẻ ôn đã được <b>viết lại từ các đề thi Y17–Y22</b>, theo từng chủ đề, ôn lặp ngắn quãng.</p></div>
       <p><b>${total}</b> thẻ trong <b>${withCards.length}</b> bài · <a class="btn p" href="#/cards">Bắt đầu ôn thẻ (lặp lại ngắn quãng)</a></p>` +
-      withCards.map(({ n, c }) => `<details class="fold"><summary>${esc(n.short || n.title)} <small>${c.length} thẻ</small></summary>${c.map(x => `<details class="card"><summary>${inline(x.q)}</summary><div>${inline(x.a)}</div></details>`).join("")}</details>`).join("");
+      withCards.map(({ n, c }) => `<details class="fold"><summary>${esc(n.short || n.title)} <small>${c.length} thẻ</small></summary>${c.map(x => `<details class="card"><summary>${inline(x.q)}</summary><div>${cardA(x.a)}</div></details>`).join("")}</details>`).join("");
   }
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${k} ${title}` }])}
     ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: `${esc(MODULES[mod] || mod)} · ${k} ${esc(title)}`, title: `${k}. ${esc(title)}` })}
@@ -1152,13 +1154,15 @@ function cardsHome() {
   const sections = mods.map(mod => {
     const ns = NOTES.filter(n => n.module === mod && byNote[n.id]);
     const dis = ns.filter(n => n.kind === "disease").sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-    const fo = ns.filter(n => n.kind !== "disease");
+    const dk = ns.filter(n => n.kind === "deck").sort((a, b) => (a.order ?? 99) - (b.order ?? 99));   // bộ thẻ viết từ đề thi
+    const fo = ns.filter(n => n.kind !== "disease" && n.kind !== "deck");
     const lib = LIBS.map(([k, t]) => [t, fo.filter(n => libOf(n) === k)]).concat([["Bài khác", fo.filter(n => !libOf(n))]]).filter(([, l]) => l.length);
     const dueMod = cardStat(allCards.filter(c => byId[c.note].module === mod)).due;
     return `<section><h2>${modLabel(mod)}${dueMod ? ` <small class="cdue">${dueMod} cần ôn</small>` : ""}</h2>
+      ${dk.length ? `<h3>Thẻ ôn theo đề thi</h3><div class="decks">${dk.map(n => deck(n, "s11")).join("")}</div>` : ""}
       ${dis.length ? `<h3>Theo bệnh học</h3><div class="decks">${dis.map(n => deck(n, "s5")).join("")}</div>` : ""}
       ${lib.map(([t, l]) => `<h3>${esc(t)}</h3><div class="decks">${l.map(n => deck(n, "s3")).join("")}</div>`).join("")}
-      ${dis.length || fo.length ? "" : `<p class="meta">Chưa có thẻ.</p>`}</section>`;
+      ${dis.length || fo.length || dk.length ? "" : `<p class="meta">Chưa có thẻ.</p>`}</section>`;
   }).join("");
   $("#main").style.maxWidth = "1080px";
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn thẻ" }])}
@@ -1196,7 +1200,7 @@ function renderCard() {
   const c = CS.queue[0], n = byId[c.note], pct = Math.round(100 * CS.done / CS.total);
   el.innerHTML = `${head}
     <div class="cs-head"><b>${esc(title)}</b><span>${CS.done}/${CS.total}${CS.queue.length + CS.done > CS.total ? " · gồm thẻ ôn lại" : ""}</span></div><div class="cs-bar"><i style="width:${pct}%"></i></div>
-    <div class="cface" id="cface"><small class="cfrom">${esc(MODULES[n.module] || n.module)} · <a href="#/n/${n.id}${n.kind === "disease" ? "/9" : ""}">${esc(n.short || n.title)}</a></small><div class="cq">${inline(c.q)}</div><div class="ca" id="ca" hidden>${inline(c.a)}</div></div>
+    <div class="cface" id="cface"><small class="cfrom">${esc(MODULES[n.module] || n.module)} · <a href="#/n/${n.id}${n.kind === "disease" ? "/9" : ""}">${esc(n.short || n.title)}</a></small><div class="cq">${inline(c.q)}</div><div class="ca" id="ca" hidden>${cardA(c.a)}</div></div>
     <div class="cbtns" id="cb1"><button class="b p" id="cshow">Xem đáp án <kbd>Space</kbd></button></div>
     <div class="cbtns rate" id="cb2" hidden>${["Quên", "Khó", "Nhớ", "Dễ"].map((t, r) => `<button class="b r${r}" data-r="${r}"><b>${t}</b><small>${nextState(c, r).label}</small><kbd>${r + 1}</kbd></button>`).join("")}</div>`;
   $("#cshow").onclick = () => { $("#ca").hidden = false; $("#cb1").hidden = true; $("#cb2").hidden = false; };
@@ -2126,7 +2130,7 @@ function quizHome() {
     <div class="cstats"><div><b>${items.length}</b><span>câu</span></div><div><b>${done}</b><span>đã làm</span></div><div><b>${done ? Math.round(100 * okN / done) + "%" : "–"}</b><span>đúng (lần gần nhất)</span></div><div><b>${wrong}</b><span>câu cần ôn lại</span></div></div>
     <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai (${wrong})</a></div>
     <section><h2>Theo chủ đề</h2><div class="decks">${topics.map(card).join("")}</div>
-    <p class="meta">Mã nguồn đề: chủ đề + năm + đợt, ví dụ <b>UTVY22Đ1</b> = ung thư vú, đề Y22 đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
+    <p class="meta">Mã nguồn đề: chủ đề + <b>khóa.năm.đợt</b>, ví dụ <b>UTV22.5.1</b> = ung thư vú, khóa Y22, năm Y5, đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
   window.scrollTo(0, 0);
 }
 function startQuiz(key, count) {
