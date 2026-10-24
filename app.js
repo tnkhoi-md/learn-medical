@@ -108,7 +108,11 @@ const inline = s => esc(s)
   .replace(/\[([^\]]+)\]\((#\/[^)]+)\)/g, '<a href="$2">$1</a>');
 
 // Đáp án thẻ có thể kèm giải thích: "Đáp án :: Giải thích" (dấu " :: " thứ hai ngăn hai phần)
-const cardA = a => { const k = a.indexOf(" :: "); return k < 0 ? inline(a) : `${inline(a.slice(0, k))}<div class="exp"><span class="explbl">Giải thích</span>${inline(a.slice(k + 4))}</div>`; };
+const cardA = a => {
+  const k = a.indexOf(" :: "); if (k < 0) return inline(a);
+  const [txt, links] = a.slice(k + 4).split(" {o|Bài giảng:} ");   // phần cuối "Bài giảng:" là các link tới mục bài giảng, hiện thành khối riêng
+  return `${inline(a.slice(0, k))}<div class="exp"><span class="explbl">Giải thích</span>${inline(txt)}${links ? `<div class="exl"><span class="explbl">Đọc thêm trong bài giảng</span>${links.split(" · ").map(x => inline(x)).join("")}</div>` : ""}</div>`;
+};
 function cardsOf(n) {
   return n.body.split("\n").map(l => l.match(/^[-*]\s*(.+?)\s::\s(.+)$/)).filter(Boolean).map(m => ({ id: n.id + "|" + m[1], q: m[1], a: m[2], note: n.id }));
 }
@@ -2193,6 +2197,7 @@ function answerQuiz(k) {
     ${it.tips ? `<div class="callout warn"><div class="ct">Lưu ý</div><p>${inline(it.tips)}</p></div>` : ""}
     ${refWarn}${gen}
     ${srcs ? `<details class="fold" open><summary>Nguồn</summary><ul class="qz-src">${srcs}</ul></details>` : ""}
+    ${(it.lessons || []).length ? `<div class="exl qz-les"><span class="explbl">Đọc thêm trong bài giảng</span>${it.lessons.map(l => `<a href="${esc(l.u)}">${esc(l.t)}</a>`).join("")}</div>` : ""}
     <div class="cbtns"><button class="b p" id="qzNext">${last ? "Xem kết quả" : "Câu tiếp"} <kbd>Enter</kbd></button></div>`;
   $("#qzNext").onclick = () => { S.i++; renderQuiz(); };
   $("#qzFb").scrollIntoView({ block: "nearest", behavior: "smooth" });
