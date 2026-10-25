@@ -2165,23 +2165,30 @@ function renderQuiz() {
     const wr = S.wrongIds.map(id => QZ().items.find(x => x.id === id)).filter(Boolean);
     el.innerHTML = `${head}<div class="cend"><h2>Xong: ${S.ok}/${tot} câu đúng (${tot ? Math.round(100 * S.ok / tot) : 0}%)</h2>
       ${wr.length ? `<p class="meta">Câu làm sai:</p><ul class="qz-wl">${wr.map(x => `<li>${esc(x.n + ". (" + x.srcs.join(", ") + ")")}: ${esc(x.stem.length > 90 ? x.stem.slice(0, 90) + "…" : x.stem)}</li>`).join("")}</ul>` : `<p>Không sai câu nào.</p>`}
-      <p><a class="btn p" href="#/quiz">Về danh sách chủ đề</a> ${wr.length ? `<a class="btn" href="#/quiz/wrong">Ôn lại câu sai</a>` : ""} <a class="btn" href="#/quiz/${encodeURIComponent(S.key)}${S.key === "random" ? "/20" : ""}" data-restart="1">Làm lại bộ này</a></p></div>`;
+      <p><button class="btn" id="qzBackEnd">‹ Xem lại các câu trước</button> <a class="btn p" href="#/quiz">Về danh sách chủ đề</a> ${wr.length ? `<a class="btn" href="#/quiz/wrong">Ôn lại câu sai</a>` : ""} <a class="btn" href="#/quiz/${encodeURIComponent(S.key)}${S.key === "random" ? "/20" : ""}" data-restart="1">Làm lại bộ này</a></p></div>`;
+    $("#qzBackEnd").onclick = () => { S.i = S.list.length - 1; renderQuiz(); };
     return;
   }
   const it = S.list[S.i], pct = Math.round(100 * S.i / S.list.length);
-  el.innerHTML = `${head}<div class="cs-head"><b>${esc(title)}</b><span>Câu ${S.i + 1}/${S.list.length} · đúng ${S.ok}</span></div><div class="cs-bar"><i style="width:${pct}%"></i></div>
+  el.innerHTML = `${head}<div class="cs-head"><b>${esc(title)}</b><span>${S.i > 0 ? `<button class="qz-back" id="qzPrev">‹ Câu trước</button> ` : ""}Câu ${S.i + 1}/${S.list.length} · đúng ${S.ok}</span></div><div class="cs-bar"><i style="width:${pct}%"></i></div>
     <div class="cface qz-face">${quizCardHtml(it)}</div>`;
   el.querySelectorAll(".qz-opt").forEach(b => { b.onclick = () => answerQuiz(b.dataset.k); });
+  if ($("#qzPrev")) $("#qzPrev").onclick = qzPrev;
+  if (S.ans[it.id]) answerQuiz(S.ans[it.id], true);   // quay lại câu đã làm: hiện lại đáp án đã chọn và giải thích
   window.scrollTo(0, 0);
 }
-function answerQuiz(k) {
+function qzPrev() { if (QS && QS.i > 0) { QS.i--; renderQuiz(); } }
+function answerQuiz(k, replay = false) {   // replay = true: xem lại câu đã làm (hiện lại kết quả, không ghi điểm lần nữa)
   const S = QS, it = S.list[S.i], el = $("#main");
-  if (!S || S.ans[it.id]) return;
-  S.ans[it.id] = k;
-  const ok = k === it.answer, p = qzProg(), x = p[it.id] || { ok: 0, bad: 0 };
-  ok ? x.ok++ : x.bad++; x.last = ok ? 1 : 0; p[it.id] = x; store.set("ykkb_quiz", p);
-  ok ? S.ok++ : (S.bad++, S.wrongIds.push(it.id));
-  if (!S.key.endsWith("-r") && S.key !== "random" && S.key !== "wrong") { const pp = qzPos(); pp[S.key] = S.i + 1; store.set("ykkb_quizpos", pp); }
+  if (!S || (!replay && S.ans[it.id])) return;
+  const ok = k === it.answer;
+  if (!replay) {
+    S.ans[it.id] = k;
+    const p = qzProg(), x = p[it.id] || { ok: 0, bad: 0 };
+    ok ? x.ok++ : x.bad++; x.last = ok ? 1 : 0; p[it.id] = x; store.set("ykkb_quiz", p);
+    ok ? S.ok++ : (S.bad++, S.wrongIds.push(it.id));
+    if (!S.key.endsWith("-r") && S.key !== "random" && S.key !== "wrong") { const pp = qzPos(); pp[S.key] = S.i + 1; store.set("ykkb_quizpos", pp); }
+  }
   el.querySelectorAll(".qz-o").forEach(o => {
     const kk = o.dataset.k, b = o.querySelector("button"), ex = o.querySelector(".qz-ex");
     b.disabled = true; o.classList.add(kk === it.answer ? "ok" : kk === k ? "bad" : "dim");
@@ -2198,9 +2205,10 @@ function answerQuiz(k) {
     ${refWarn}${gen}
     ${srcs ? `<details class="fold" open><summary>Nguồn</summary><ul class="qz-src">${srcs}</ul></details>` : ""}
     ${(it.lessons || []).length ? `<div class="exl qz-les"><span class="explbl">Đọc thêm trong bài giảng</span>${it.lessons.map(l => `<a href="${esc(l.u)}">${esc(l.t)}</a>`).join("")}</div>` : ""}
-    <div class="cbtns"><button class="b p" id="qzNext">${last ? "Xem kết quả" : "Câu tiếp"} <kbd>Enter</kbd></button></div>`;
+    <div class="cbtns">${S.i > 0 ? `<button class="b" id="qzPrev2">Câu trước <kbd>←</kbd></button>` : ""}<button class="b p" id="qzNext">${last ? "Xem kết quả" : "Câu tiếp"} <kbd>Enter</kbd></button></div>`;
   $("#qzNext").onclick = () => { S.i++; renderQuiz(); };
-  $("#qzFb").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  if ($("#qzPrev2")) $("#qzPrev2").onclick = qzPrev;
+  if (!replay) $("#qzFb").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 function quiz(key, count) {
   if (!key) { QS = null; return quizHome(); }
@@ -2209,6 +2217,8 @@ function quiz(key, count) {
 document.addEventListener("keydown", e => {   // phím tắt quiz: A–D hoặc 1–4 chọn đáp án, Enter/Space câu tiếp
   if (!QS || !$(".qz-face") || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) && e.key === " " || e.metaKey || e.ctrlKey) return;
   const S = QS, it = S.list[S.i]; if (!it) return;
+  if (e.key === "ArrowLeft") { e.preventDefault(); qzPrev(); return; }
+  if (e.key === "ArrowRight" && S.ans[it.id] && $("#qzNext")) { e.preventDefault(); $("#qzNext").click(); return; }
   const di = /^[1-4]$/.test(e.key) ? +e.key - 1 : /^[a-dA-D]$/.test(e.key) ? "ABCD".indexOf(e.key.toUpperCase()) : -1, k = di >= 0 ? qzOrd(it)[di] : "";
   if (k && !S.ans[it.id]) { e.preventDefault(); answerQuiz(k); }
   else if ((e.key === "Enter" || e.key === " ") && S.ans[it.id] && $("#qzNext")) { e.preventDefault(); $("#qzNext").click(); }
