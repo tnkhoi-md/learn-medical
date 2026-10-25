@@ -237,7 +237,7 @@ document.addEventListener("click", e => {
 });
 
 // Sơ đồ tiếp cận trong bài: @@flow / dòng nút "id | start|dec|proc|ok|warn|red | chữ | [bài hoặc bài/mục]" / dòng cạnh "a -> b : nhãn" / @@end
-function flowBlock(lines) {
+function parseFlow(lines) {
   const nodes = [], edges = [];
   const KIND = { start: { k: "start" }, dec: { k: "dec" }, proc: { k: "proc" }, ok: { k: "leaf", tone: "ok" }, warn: { k: "leaf", tone: "warn" }, red: { k: "leaf", tone: "red" } };
   lines.forEach(x => {
@@ -245,8 +245,48 @@ function flowBlock(lines) {
     if ((m = t.match(/^(\w+)\s*->\s*(\w+)(?:\s*:\s*(.+))?$/))) edges.push(m[3] ? [m[1], m[2], m[3].trim()] : [m[1], m[2]]);
     else if ((m = t.match(/^(\w+)\s*\|\s*(start|dec|proc|ok|warn|red)\s*\|\s*(.+?)(?:\s*\|\s*(\S+))?$/))) nodes.push({ id: m[1], ...KIND[m[2]], t: m[3], href: m[4] ? "#/n/" + m[4] : "" });
   });
-  return nodes.length ? luudoGraph({ start: nodes[0].id, nodes, edges }) : "";
+  return { nodes, edges, start: nodes.length ? nodes[0].id : "" };
 }
+function flowBlock(lines) {
+  const { nodes, edges, start } = parseFlow(lines);
+  return nodes.length ? luudoGraph({ start, nodes, edges }) : "";
+}
+// Lưu đồ từng bước: @@steps. Người đọc bấm từng quyết định, bước kế tiếp mới hiện ra; mỗi bước có "Vì" riêng.
+const STEPS = [];
+function stepsBlock(lines) {
+  const g = parseFlow(lines);
+  if (!g.nodes.length) return "";
+  const id = STEPS.push(g) - 1;
+  return `<div class="steps" data-steps="${id}" data-path="${esc(JSON.stringify([g.start]))}">${stepsView(id, [g.start])}</div>`;
+}
+function stepsView(id, path) {
+  const G = STEPS[id], by = Object.fromEntries(G.nodes.map(n => [n.id, n]));
+  const cur = by[path[path.length - 1]];
+  const cards = path.map((nid, k) => {
+    const n = by[nid], cls = n.k === "leaf" ? "tone-" + n.tone : n.k;
+    const lab = k ? (G.edges.find(e => e[0] === path[k - 1] && e[1] === nid) || [])[2] : "";
+    const [main, why] = n.t.split(/\s*Vì:\s*/);
+    return `<div class="st-card st-${cls}${k === path.length - 1 ? " st-cur" : " st-old"}">${lab ? `<span class="st-lab">${esc(lab)}</span>` : ""}<b>${inline(main)}</b>${why ? `<small><em>Vì:</em> ${inline(why)}</small>` : ""}</div>`;
+  }).join("");
+  const outs = G.edges.filter(e => e[0] === cur.id);
+  let btns = "";
+  if (cur.k === "leaf" || !outs.length) btns = `<button class="st-btn st-reset" data-steps-reset>Làm lại từ đầu</button>`;
+  else btns = outs.map(e => `<button class="st-btn" data-steps-go="${esc(e[1])}">${esc(e[2] || "Tiếp tục")}</button>`).join("");
+  const back = path.length > 1 ? `<button class="st-btn st-back" data-steps-back>‹ Bước trước</button>` : "";
+  return `${cards}<div class="st-acts">${btns}${back}</div>`;
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-steps-go],[data-steps-back],[data-steps-reset]");
+  const host = b && b.closest("[data-steps]");
+  if (!host) return;
+  const id = +host.dataset.steps, G = STEPS[id];
+  let path = JSON.parse(host.dataset.path || "[]");
+  if (b.hasAttribute("data-steps-reset")) path = [G.start];
+  else if (b.hasAttribute("data-steps-back")) path = path.slice(0, -1);
+  else path = [...path, b.dataset.stepsGo];
+  host.dataset.path = JSON.stringify(path);
+  host.innerHTML = stepsView(id, path);
+});
 // Diễn tiến bệnh theo giai đoạn: @@stages / dòng "Tên | mô tả | mốc thời gian hoặc nhãn (tùy chọn)" / @@end
 function stagesBlock(lines) {
   const items = lines.map(x => x.trim()).filter(Boolean).map(x => x.split(/\s+\|\s+/));
@@ -290,6 +330,12 @@ function blocks(L) {
       closeLists();
       const end = findEnd(i + 1);
       h.push(flowBlock(L.slice(i + 1, end)));
+      i = end + 1; continue;
+    }
+    if (/^@@steps/.test(t)) {
+      closeLists();
+      const end = findEnd(i + 1);
+      h.push(stepsBlock(L.slice(i + 1, end)));
       i = end + 1; continue;
     }
     if (/^@@stages/.test(t)) {
@@ -2106,10 +2152,26 @@ const qzPos = () => store.get("ykkb_quizpos", {});          // vị trí đang l
 let QS = null;   // phiên đang chạy
 const QZ_MOD = "ung-buou";
 const qzSec = () => secByType(QZ_MOD, "cards") || 11;
-const qzTitle = key => key === "random" ? "Ngẫu nhiên tất cả chủ đề" : key === "wrong" ? "Ôn lại câu làm sai" : key.endsWith("-r") ? (QZ().topics[key.slice(0, -2)] || key) + " (ngẫu nhiên)" : (QZ().topics[key] || key);
+const QTYPES = {
+  XT: ["Xử trí, bước tiếp theo", "Đi theo trình tự: ổn định, khám, chẩn đoán, xếp giai đoạn, điều trị."],
+  CLS: ["Chọn cận lâm sàng", "Xem chống chỉ định trước, rồi chọn phương tiện ít xâm lấn nhất."],
+  TC: ["Triệu chứng, khám lâm sàng", "Hỏi và khám gì trước khi chỉ định cận lâm sàng."],
+  CD: ["Chẩn đoán từ ca", "Gom dấu hiệu trong ca rồi chọn chẩn đoán."],
+  GD: ["Phân độ, giai đoạn, phân nhóm", "Học bảng TNM, FIGO, BI-RADS, Gleason, phân nhóm sinh học."],
+  NC: ["Nguy cơ, dịch tễ, sàng lọc", "Học thuộc số liệu, mốc tuổi và lịch sàng lọc."],
+  TL: ["Tiên lượng, theo dõi, di căn", "Học lịch theo dõi và mốc thời gian."],
+  CC: ["Cơ chế, giải phẫu bệnh", "Hiểu lý do rồi mới nhớ."],
+  TH: ["Thuốc, phác đồ", "Học thuộc theo từng bệnh."],
+  KT: ["Kiến thức đơn lẻ", "Định nghĩa, số liệu, dấu ấn: ôn bằng thẻ."],
+  PN: ["Chọn phát biểu đúng, sai", "Đọc kỹ từ phủ định, loại từng đáp án."],
+};
+const qzTk = key => { const m = key.match(/^t-([A-Z]+)(-r)?$/); return m && QTYPES[m[1]] ? { t: m[1], r: !!m[2] } : null; };
+const qzTitle = key => qzTk(key) ? QTYPES[qzTk(key).t][0] + (qzTk(key).r ? " (ngẫu nhiên)" : "") : key === "random" ? "Ngẫu nhiên tất cả chủ đề" : key === "wrong" ? "Ôn lại câu làm sai" : key.endsWith("-r") ? (QZ().topics[key.slice(0, -2)] || key) + " (ngẫu nhiên)" : (QZ().topics[key] || key);
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 function qzPool(key) {
   const all = QZ().items, p = qzProg();
+  const tk = qzTk(key);
+  if (tk) { const l = all.filter(x => x.qtype === tk.t); return tk.r ? shuffle(l) : l; }
   if (key === "random") return shuffle(all.slice());
   if (key === "wrong") return all.filter(x => p[x.id] && p[x.id].last === 0);
   if (key.endsWith("-r")) return shuffle(all.filter(x => x.topic === key.slice(0, -2)));
@@ -2128,11 +2190,18 @@ function quizHome() {
     const pos = qzPos()[t] || 0;
     return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/${encodeURIComponent(t)}"><b>${esc(Q.topics[t])} <small>${esc(t)}</small></b><span class="dmeta">${li.length} câu${rep ? ` · ${rep} câu lặp nhiều đề` : ""} · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span><span class="dbar"><i style="width:${Math.round(100 * d / li.length)}%"></i></span></a><a class="dall" href="#/quiz/${encodeURIComponent(t)}-r" title="Trộn ngẫu nhiên các câu của chủ đề này">Ngẫu nhiên</a></div>`;
   };
+  const typeCard = k => {
+    const li = items.filter(x => x.qtype === k); if (!li.length) return "";
+    const d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length, pos = qzPos()["t-" + k] || 0;
+    return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/t-${k}"><b>${esc(QTYPES[k][0])}</b><span class="dmeta">${li.length} câu · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span><span class="dtip">${esc(QTYPES[k][1])}</span><span class="dbar"><i style="width:${Math.round(100 * d / li.length)}%"></i></span></a><a class="dall" href="#/quiz/t-${k}-r" title="Trộn ngẫu nhiên các câu dạng này">Ngẫu nhiên</a></div>`;
+  };
+  const typeCards = Object.keys(QTYPES).map(typeCard).join("");
   el.innerHTML = `${qzHead([{ t: "Quiz" }])}
     ${pageHead({ c: `var(--s${qzSec()})`, kicker: `${esc(MODULES[QZ_MOD] || QZ_MOD)} · ${qzSec()} Tự đánh giá`, title: "Quiz 4 đáp án", desc: "Câu hỏi lấy từ các đề thi cũ (Y17–Y22), đã đối chiếu với giáo trình, slide và văn bản Bộ Y tế. Mỗi câu có giải thích từng đáp án, nguồn và lưu ý. Trong mỗi chủ đề, câu lặp lại ở nhiều đề được xếp trước, rồi tới đề mới." })}
     ${items.length ? "" : `<div class="callout warn"><div class="ct">Chưa có dữ liệu</div><p>Chưa có ngân hàng câu hỏi. Chạy <code>python3 build.py</code> sau khi có <code>4-module/ung-buou/_quiz/bank.json</code>.</p></div>`}
     <div class="cstats"><div><b>${items.length}</b><span>câu</span></div><div><b>${done}</b><span>đã làm</span></div><div><b>${done ? Math.round(100 * okN / done) + "%" : "–"}</b><span>đúng (lần gần nhất)</span></div><div><b>${wrong}</b><span>câu cần ôn lại</span></div></div>
     <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai (${wrong})</a></div>
+    <section><h2>Theo kiểu câu hỏi</h2><p class="meta">Luyện riêng từng dạng, ví dụ chỉ luyện "Xử trí, bước tiếp theo".</p><div class="decks">${typeCards}</div></section>
     <section><h2>Theo chủ đề</h2><div class="decks">${topics.map(card).join("")}</div>
     <p class="meta qz-foot">Mã nguồn đề: chủ đề + <b>khóa.năm.đợt</b>, ví dụ <b>UTV22.5.1</b> = ung thư vú, khóa Y22, năm Y5, đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
   window.scrollTo(0, 0);
@@ -2150,7 +2219,7 @@ const qzOrd = it => (QS.ord[it.id] = QS.ord[it.id] || (qzCanShuffle(it) ? shuffl
 function quizCardHtml(it) {
   const code = `${it.n}. (${it.srcs.join(", ")})`;
   const opt = qzOrd(it).map((k, i) => `<div class="qz-o" data-k="${k}"><button class="qz-opt" data-k="${k}"><b>${"ABCD"[i]}</b><span>${inline(it.options[k])}</span></button><div class="qz-ex" hidden></div></div>`).join("");
-  return `<div class="qz-meta"><span class="qz-code">${esc(code)}</span>${it.freq > 1 ? `<span class="qz-rep">Lặp ở ${it.freq} đề</span>` : ""}</div>
+  return `<div class="qz-meta"><span class="qz-code">${esc(code)}</span>${it.freq > 1 ? `<span class="qz-rep">Lặp ở ${it.freq} đề</span>` : ""}${QTYPES[it.qtype] ? `<span class="qz-type">${esc(QTYPES[it.qtype][0])}</span>` : ""}</div>
     ${it.context ? `<div class="callout note"><div class="ct">Tình huống</div><p>${inline(it.context)}</p></div>` : ""}
     <div class="qz-stem">${inline(it.stem)}</div><div class="qz-opts">${opt}</div><div id="qzFb"></div>`;
 }
