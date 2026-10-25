@@ -2134,7 +2134,7 @@ function quizHome() {
     <div class="cstats"><div><b>${items.length}</b><span>câu</span></div><div><b>${done}</b><span>đã làm</span></div><div><b>${done ? Math.round(100 * okN / done) + "%" : "–"}</b><span>đúng (lần gần nhất)</span></div><div><b>${wrong}</b><span>câu cần ôn lại</span></div></div>
     <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai (${wrong})</a></div>
     <section><h2>Theo chủ đề</h2><div class="decks">${topics.map(card).join("")}</div>
-    <p class="meta">Mã nguồn đề: chủ đề + <b>khóa.năm.đợt</b>, ví dụ <b>UTV22.5.1</b> = ung thư vú, khóa Y22, năm Y5, đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
+    <p class="meta qz-foot">Mã nguồn đề: chủ đề + <b>khóa.năm.đợt</b>, ví dụ <b>UTV22.5.1</b> = ung thư vú, khóa Y22, năm Y5, đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
   window.scrollTo(0, 0);
 }
 function startQuiz(key, count) {
