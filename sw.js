@@ -36,6 +36,15 @@ self.addEventListener("fetch", e => {
     })());
     return;
   }
+  // mã giao diện: ưu tiên bản mới từ mạng, để máy không chạy app.js cũ khi đã có bản đăng mới; mất mạng thì dùng bản đã lưu
+  if (/(\/|\/index\.html|\/app\.js|\/styles\.css|\/lock\.js|\/khung\.js)$/.test(url.pathname)) {
+    e.respondWith((async () => {
+      const c = await caches.open(CORE);
+      try { const r = await fetch(req, { cache: "no-cache" }); if (r.ok) c.put(req, r.clone()); return r; }
+      catch { const hit = await c.match(req, { ignoreSearch: true }); return hit || Response.error(); }
+    })());
+    return;
+  }
   // phần còn lại: lưu sẵn, có thì dùng ngay, đồng thời làm mới nền
   e.respondWith((async () => {
     const c = await caches.open(CORE);
