@@ -1,5 +1,5 @@
 /* Y khoa KB: chế độ ngoại tuyến. publish.py tự đổi VERSION mỗi lần phát hành. */
-const VERSION = "edc3b913";
+const VERSION = "5eb0ca62";
 const CORE = "ykkb-core-" + VERSION;
 const SHELL = ["./", "index.html", "lock.js", "app.js", "khung.js", "styles.css", "manifest.webmanifest", "ecg/index.html", "cxr/index.html", "cxr/normal-pa.webp", "cxr/effusion.webp", "cxr/pneu.webp", "cxr/atel.webp", "cxr/edema.webp", "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/mark-192.png"];
 

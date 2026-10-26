@@ -1223,6 +1223,47 @@ const cardsHome = () => reviewHub("cards");
 
 // ---- Trang Ôn tập: gộp Quiz và Thẻ ôn ----
 let RVTAB = store.get("ykkb_rvtab", "quiz");
+// ---- Ngân hàng đề: xem, lọc và tra cứu toàn bộ câu hỏi (chỉ đọc) ----
+const BK = { q: "", t: "", k: "" };
+const bkMatch = x => {
+  if (BK.t && x.topic !== BK.t) return false;
+  if (BK.k && x.qtype !== BK.k) return false;
+  if (BK.q) { const q = BK.q.toLowerCase(), hay = [x.stem, x.context || "", ...Object.values(x.options), x.why || "", ...(x.srcs || [])].join(" ").toLowerCase(); if (!hay.includes(q)) return false; }
+  return true;
+};
+function bankRow(x) {   // một câu trong ngân hàng: thu gọn, bấm để xem đáp án và giải thích
+  const ans = x.answer, opts = Object.keys(x.options).map(k => `<li class="bk-o${k === ans ? " bk-ok" : ""}"><b>${k}.</b> ${inline(x.options[k])}${k === ans ? ` <em class="bk-tag">đáp án</em>` : ""}${(x.explain || {})[k] ? `<div class="bk-ex">${inline(x.explain[k].replace(/^\s*(Đúng|Sai|Chính xác)\s*[.:,–-]?\s*/i, ""))}</div>` : ""}</li>`).join("");
+  const t = QTYPES[x.qtype];
+  return `<details class="bk-row"><summary><span class="qz-code">${esc(x.n + ". (" + (x.srcs || []).slice(0, 3).join(", ") + ((x.srcs || []).length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="bk-stem">${esc(x.core || (x.stem.length > 140 ? x.stem.slice(0, 140) + "…" : x.stem))}</span></summary>
+    <div class="bk-body">${x.context ? `<div class="bk-ctx"><b>Tình huống:</b> ${inline(x.context)}</div>` : ""}<div class="bk-stem2">${inline(x.stem)}</div><ol class="bk-opts" type="A">${opts}</ol>
+    ${x.why ? `<p class="bk-why"><b>Ý chính:</b> ${inline(x.why)}</p>` : ""}${x.tips ? `<p class="bk-tip"><b>Lưu ý:</b> ${inline(x.tips)}</p>` : ""}${x.refNote ? `<p class="bk-ref"><b>Đề tham khảo ghi khác:</b> ${inline(x.refNote)}</p>` : ""}
+    </div></details>`;
+}
+function bankList() {
+  const Q = QZ(), all = Q.items.filter(bkMatch);
+  if (!all.length) return `<p class="meta">Không có câu nào khớp bộ lọc.</p>`;
+  const searching = !!(BK.q || BK.k);
+  const groups = Object.keys(Q.topics).map(t => [t, all.filter(x => x.topic === t)]).filter(([, l]) => l.length);
+  return `<p class="meta">${all.length} / ${Q.items.length} câu · bấm từng bệnh để mở</p>
+    ${groups.map(([t, l]) => `<details class="bk-grp"${searching || BK.t === t ? " open" : ""}><summary><b>${esc(Q.topics[t])}</b><span class="bk-cnt">${l.length} câu</span></summary><div class="bk-grp-body">${l.map(bankRow).join("")}</div></details>`).join("")}`;
+}
+function bankBody() {
+  const Q = QZ();
+  const topics = Object.keys(Q.topics).filter(t => Q.items.some(x => x.topic === t));
+  return `<div class="bk-filters">
+      <input id="bkQ" type="search" placeholder="Tìm trong đề bài, đáp án, giải thích…" value="${esc(BK.q)}" aria-label="Tìm câu hỏi">
+      <select id="bkT" aria-label="Chủ đề"><option value="">Tất cả chủ đề</option>${topics.map(t => `<option value="${esc(t)}"${BK.t === t ? " selected" : ""}>${esc(Q.topics[t])}</option>`).join("")}</select>
+      <select id="bkK" aria-label="Kiểu câu hỏi"><option value="">Tất cả kiểu</option>${Object.keys(QTYPES).map(k => `<option value="${k}"${BK.k === k ? " selected" : ""}>${esc(QTYPES[k][0])}</option>`).join("")}</select>
+    </div>
+    <div id="bkList">${bankList()}</div>`;
+}
+function bankBind(el) {
+  const list = () => { const box = el.querySelector("#bkList"); if (box) box.innerHTML = bankList(); };
+  const q = el.querySelector("#bkQ"); if (!q) return;
+  q.oninput = () => { BK.q = q.value.trim(); list(); };
+  el.querySelector("#bkT").onchange = e => { BK.t = e.target.value; list(); };
+  el.querySelector("#bkK").onchange = e => { BK.k = e.target.value; list(); };
+}
 function reviewHub(tab) {
   if (tab) { RVTAB = tab; store.set("ykkb_rvtab", tab); }
   const el = $("#main"); el.style.maxWidth = "1080px";
@@ -1237,9 +1278,10 @@ function reviewHub(tab) {
       <a class="rv-act${ever ? "" : " off"}" href="#/quiz/sai"><b>${ever}</b><span>Câu từng làm sai</span><em>Mở sổ câu sai ›</em></a>
     </div>
     <div class="rv-stats"><div><b>${done}<small>/${items.length}</small></b><span>câu quiz đã làm</span></div><div><b>${done ? Math.round(100 * okN / done) + "%" : "–"}</b><span>đúng lần gần nhất</span></div><div><b>${st.mastered}<small>/${st.total}</small></b><span>thẻ đã thuộc</span></div><div><b>${st.nw}</b><span>thẻ chưa học</span></div></div>
-    <div class="rv-tabs" role="tablist"><button role="tab" data-rvt="quiz" class="${RVTAB === "quiz" ? "on" : ""}" aria-selected="${RVTAB === "quiz"}">Quiz <small>${items.length} câu</small></button><button role="tab" data-rvt="cards" class="${RVTAB === "cards" ? "on" : ""}" aria-selected="${RVTAB === "cards"}">Thẻ ôn <small>${st.total} thẻ</small></button></div>
-    <div class="rv-panel">${RVTAB === "cards" ? cardsBody() : quizBody()}</div>`;
+    <div class="rv-tabs" role="tablist"><button role="tab" data-rvt="quiz" class="${RVTAB === "quiz" ? "on" : ""}" aria-selected="${RVTAB === "quiz"}">Quiz <small>${items.length} câu</small></button><button role="tab" data-rvt="cards" class="${RVTAB === "cards" ? "on" : ""}" aria-selected="${RVTAB === "cards"}">Thẻ ôn <small>${st.total} thẻ</small></button><button role="tab" data-rvt="bank" class="${RVTAB === "bank" ? "on" : ""}" aria-selected="${RVTAB === "bank"}">Ngân hàng <small>${items.length} câu</small></button></div>
+    <div class="rv-panel">${RVTAB === "cards" ? cardsBody() : RVTAB === "bank" ? bankBody() : quizBody()}</div>`;
   el.querySelectorAll("[data-rvt]").forEach(b => { b.onclick = () => reviewHub(b.dataset.rvt); });
+  bankBind(el);
   el.querySelectorAll("[data-cmod]").forEach(b => { b.onclick = () => { cardsMod = b.dataset.cmod; reviewHub("cards"); }; });
   window.scrollTo(0, 0);
 }
@@ -2266,6 +2308,7 @@ function renderQuiz() {
     const wr = S.wrongIds.map(id => QZ().items.find(x => x.id === id)).filter(Boolean);
     el.innerHTML = `${head}<div class="cend"><h2>Xong: ${S.ok}/${tot} câu đúng (${tot ? Math.round(100 * S.ok / tot) : 0}%)</h2>
       ${wr.length ? `<p class="meta">Câu làm sai:</p><ul class="qz-wl">${wr.map(x => `<li>${esc(x.n + ". (" + x.srcs.join(", ") + ")")}: ${esc(x.stem.length > 90 ? x.stem.slice(0, 90) + "…" : x.stem)}</li>`).join("")}</ul>` : `<p>Không sai câu nào.</p>`}
+      ${(() => { const RANK = { NC: 1, CC: 2, KT: 2, TC: 3, CD: 4, CLS: 5, GD: 6, XT: 7, TH: 7, TL: 8, PN: 9 }; const pts = [...new Set([...S.list].sort((a, b) => (RANK[a.qtype] || 9) - (RANK[b.qtype] || 9)).map(x => (x.why || "").trim()).filter(Boolean))].slice(0, 12); return pts.length ? `<h3 class="qz-sum-h">Điểm chính của bài ôn tập</h3><ul class="qz-pts">${pts.map(t => `<li>${inline(t)}</li>`).join("")}</ul>` : ""; })()}
       <p><button class="btn" id="qzBackEnd">‹ Xem lại các câu trước</button> <a class="btn p" href="#/quiz">Về danh sách chủ đề</a> ${wr.length ? `<a class="btn" href="#/quiz/wrong">Ôn lại câu sai</a>` : ""} <a class="btn" href="#/quiz/${encodeURIComponent(S.key)}${S.key === "random" ? "/20" : ""}" data-restart="1">Làm lại bộ này</a></p></div>`;
     $("#qzBackEnd").onclick = () => { S.i = S.list.length - 1; renderQuiz(); };
     return;
@@ -2296,7 +2339,7 @@ function answerQuiz(k, replay = false) {   // replay = true: xem lại câu đã
     const t = ((it.explain || {})[kk] || "").replace(/^\s*(Đúng|Sai|Chính xác)(?=[\s.:,–(-]|$)\s*[.:,–-]?\s*/i, "").replace(/^\(([^)]+)\)\s*[.:,]?\s*/, (m, g) => g.charAt(0).toUpperCase() + g.slice(1) + ". ").replace(/^[a-zà-ỹ]/, c => c.toUpperCase());   // nhãn Đúng/Sai do giao diện thêm, tránh lặp
     ex.innerHTML = `<b>${kk === it.answer ? "Đúng" : "Sai"}.</b> ${t ? inline(t) : ""}${(it.added || []).includes(kk) ? ` <i class="meta">(đáp án nhiễu do soạn thêm)</i>` : ""}`; ex.hidden = false;
   });
-  const srcs = (it.sources || []).map(s => `<li><b>${esc(s.label || "")}</b>${s.where ? ` · ${esc(s.where)}` : ""}${s.quote ? `<blockquote>${esc(s.quote)}</blockquote>` : ""}</li>`).join("");
+  const srcs = (it.sources || []).map(s => `<li><b>${esc(s.label || "")}</b>${s.where ? ` · ${esc(s.where)}` : ""}${s.quote ? `<blockquote>${inline(s.quote)}</blockquote>` : ""}</li>`).join("");
   const refWarn = it.refNote ? `<div class="callout conflict"><div class="ct">Đáp án trong đề tham khảo</div><p>${inline(it.refNote)}</p></div>` : "";
   const gen = it.level === "kien_thuc_chung" ? `<div class="callout ext"><div class="ct">Chưa đối chiếu tài liệu</div><p>Câu này dựa trên kiến thức chung vì chưa tìm thấy nội dung tương ứng trong giáo trình/slide của bạn. Hãy kiểm tra lại với giảng viên nếu còn nghi ngờ.</p></div>` : "";
   const last = S.i + 1 >= S.list.length;
