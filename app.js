@@ -77,7 +77,7 @@ const resolve = k => { k = k.trim(); return byId[k] || byTitle[k.toLowerCase()];
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} if (window.syncDirty) window.syncDirty(k); },
 };
 
 // ---- liên kết đi (dùng cho sơ đồ liên kết) ----
@@ -979,7 +979,7 @@ function home() {
     ["#/lib", "var(--s5)", ico('<path d="M5 5h5v14H5zM12 5h3l4 14h-3z"/>'), "Thư viện học tập", "Tra theo loại: triệu chứng, bệnh học, cận lâm sàng"],
     [`#/m/${cm}/1`, "var(--s2)", ico('<path d="M4 7l8-4 8 4-8 4zM4 12l8 4 8-4M4 17l8 4 8-4"/>'), "Module", `Tiếp tục ${esc(MODULES[cm] || cm)}`],
     ["#/khung", "var(--s3)", ico('<path d="M6 4h12v16H6zM9 9h6M9 13h6M9 17h3"/>'), "Đề cương ôn thi", `${nKhung} vấn đề khung thi CCHN`],
-    ["#/cards", "var(--s10)", ico('<rect x="4" y="6" width="13" height="12" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v11"/>'), "Ôn thẻ", due ? `${due} thẻ đến hạn hôm nay` : "Chưa có thẻ đến hạn"],
+    ["#/cards", "var(--s10)", ico('<rect x="4" y="6" width="13" height="12" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v11"/>'), "Ôn tập", due ? `${due} thẻ đến hạn hôm nay` : "Chưa có thẻ đến hạn"],
   ];
   $("#main").style.maxWidth = "1120px";
   $("#main").innerHTML = `
@@ -1197,8 +1197,8 @@ const needReview = (c, p = prog(), now = Date.now()) => !p[c.id] || p[c.id].due 
 const cardStat = list => { const p = prog(), now = Date.now(); let due = 0, nw = 0, mastered = 0; list.forEach(c => { const x = p[c.id]; if (!x) { nw++; due++; } else { if (x.due <= now) due++; if (x.box >= 3) mastered++; } }); return { total: list.length, due, nw, mastered }; };
 const cardPool = key => key === "_due" ? allCards : key.startsWith("mod:") ? allCards.filter(c => byId[c.note].module === key.slice(4)) : allCards.filter(c => c.note === key);
 let cardsMod = "", CS = null;   // cardsMod: chuyên khoa đang lọc ở danh sách; CS: phiên ôn đang chạy
-function cardsHome() {
-  const mods = Object.keys(MODULES).filter(m => !cardsMod || m === cardsMod), st = cardStat(allCards);
+function cardsBody() {
+  const mods = Object.keys(MODULES).filter(m => !cardsMod || m === cardsMod);
   const byNote = {}; allCards.forEach(c => (byNote[c.note] = byNote[c.note] || []).push(c));
   const deck = (n, col) => { const s = cardStat(byNote[n.id]); return `<div class="deck" style="--c:var(--${col})"><a class="dmain" href="#/cards/${n.id}"><b>${esc(n.short || n.title)}</b><span class="dmeta">${s.total} thẻ · ${s.due ? `<em>${s.due} cần ôn</em>` : "đã ôn xong"}</span><span class="dbar"><i style="width:${Math.round(100 * s.mastered / s.total)}%"></i></span></a><a class="dall" href="#/cards/${n.id}/all" title="Ôn lại cả bộ, kể cả thẻ chưa đến hạn">Ôn lại cả bộ</a></div>`; };
   const sections = mods.map(mod => {
@@ -1214,14 +1214,33 @@ function cardsHome() {
       ${lib.map(([t, l]) => `<h3>${esc(t)}</h3><div class="decks">${l.map(n => deck(n, "s3")).join("")}</div>`).join("")}
       ${dis.length || fo.length || dk.length ? "" : `<p class="meta">Chưa có thẻ.</p>`}</section>`;
   }).join("");
-  $("#main").style.maxWidth = "1080px";
-  $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn thẻ" }])}
-    ${pageHead({ c: `var(--s10)`, kicker: "Tự kiểm tra", title: `Ôn thẻ theo bệnh học`, desc: `Mỗi bệnh là một bộ thẻ tự kiểm tra. Chọn bệnh để ôn các thẻ của bệnh đó, hoặc ôn gộp mọi thẻ cần ôn. Thẻ được nhắc lại theo quãng 10 phút, 1, 3, 7 và 21 ngày tùy mức bạn nhớ.` })}
-    <div class="cstats"><div><b>${st.total}</b><span>thẻ</span></div><div><b>${st.due}</b><span>cần ôn</span></div><div><b>${st.nw}</b><span>chưa học</span></div><div><b>${st.mastered}</b><span>đã thuộc</span></div></div>
+  return `<p class="meta rv-note">Mỗi bệnh là một bộ thẻ tự kiểm tra. Chọn bệnh để ôn các thẻ của bệnh đó, hoặc ôn gộp mọi thẻ cần ôn. Thẻ được nhắc lại theo quãng 10 phút, 1, 3, 7 và 21 ngày tùy mức bạn nhớ.</p>
     <div class="cact"><a class="btn p" href="#/cards/${cardsMod ? "mod:" + cardsMod : "_due"}">Ôn tất cả thẻ cần ôn${cardsMod ? " của " + esc(MODULES[cardsMod] || cardsMod) : ""} (${cardStat(cardPool(cardsMod ? "mod:" + cardsMod : "_due")).due})</a>
       ${Object.keys(MODULES).length > 1 ? `<span class="seg"><button data-cmod="" class="${cardsMod ? "" : "on"}">Tất cả</button>${Object.keys(MODULES).map(m => `<button data-cmod="${m}" class="${cardsMod === m ? "on" : ""}">${esc(MODULES[m] || m)}</button>`).join("")}</span>` : ""}</div>
     ${sections}`;
-  document.querySelectorAll("[data-cmod]").forEach(b => { b.onclick = () => { cardsMod = b.dataset.cmod; cardsHome(); }; });
+}
+const cardsHome = () => reviewHub("cards");
+
+// ---- Trang Ôn tập: gộp Quiz và Thẻ ôn ----
+let RVTAB = store.get("ykkb_rvtab", "quiz");
+function reviewHub(tab) {
+  if (tab) { RVTAB = tab; store.set("ykkb_rvtab", tab); }
+  const el = $("#main"); el.style.maxWidth = "1080px";
+  const items = QZ().items, p = qzProg(), st = cardStat(allCards), ever = qzEver().length;
+  const done = items.filter(x => p[x.id]).length, okN = items.filter(x => p[x.id] && p[x.id].last === 1).length;
+  const hasQ = items.length > 0;
+  el.innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn tập" }])}
+    <header class="rv-hero"><span class="rv-kick">Tự kiểm tra</span><h1>Ôn tập</h1><p>Làm quiz từ đề thi cũ và ôn thẻ nhắc lại theo quãng. Bắt đầu từ việc cần làm hôm nay.</p></header>
+    <div class="rv-acts">
+      <a class="rv-act${st.due ? "" : " off"}" href="#/cards/_due"><b>${st.due}</b><span>Thẻ cần ôn hôm nay</span><em>Bắt đầu ôn thẻ ›</em></a>
+      <a class="rv-act${hasQ ? "" : " off"}" href="#/quiz/random"><b>20</b><span>Quiz ngẫu nhiên</span><em>Làm ngay ›</em></a>
+      <a class="rv-act${ever ? "" : " off"}" href="#/quiz/sai"><b>${ever}</b><span>Câu từng làm sai</span><em>Mở sổ câu sai ›</em></a>
+    </div>
+    <div class="rv-stats"><div><b>${done}<small>/${items.length}</small></b><span>câu quiz đã làm</span></div><div><b>${done ? Math.round(100 * okN / done) + "%" : "–"}</b><span>đúng lần gần nhất</span></div><div><b>${st.mastered}<small>/${st.total}</small></b><span>thẻ đã thuộc</span></div><div><b>${st.nw}</b><span>thẻ chưa học</span></div></div>
+    <div class="rv-tabs" role="tablist"><button role="tab" data-rvt="quiz" class="${RVTAB === "quiz" ? "on" : ""}" aria-selected="${RVTAB === "quiz"}">Quiz <small>${items.length} câu</small></button><button role="tab" data-rvt="cards" class="${RVTAB === "cards" ? "on" : ""}" aria-selected="${RVTAB === "cards"}">Thẻ ôn <small>${st.total} thẻ</small></button></div>
+    <div class="rv-panel">${RVTAB === "cards" ? cardsBody() : quizBody()}</div>`;
+  el.querySelectorAll("[data-rvt]").forEach(b => { b.onclick = () => reviewHub(b.dataset.rvt); });
+  el.querySelectorAll("[data-cmod]").forEach(b => { b.onclick = () => { cardsMod = b.dataset.cmod; reviewHub("cards"); }; });
   window.scrollTo(0, 0);
 }
 function startSession(key, all) {
@@ -1240,7 +1259,7 @@ function nextState(c, r) {
 function renderCard() {
   const el = $("#main"), title = deckTitle(CS.key);
   el.style.maxWidth = "760px";
-  const head = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn thẻ", href: "#/cards" }, { t: title }])}`;
+  const head = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn tập", href: "#/cards" }, { t: title }])}`;
   if (!CS.total) { el.innerHTML = `${head}<div class="cend"><h2>Không có thẻ cần ôn</h2><p>Bộ "${esc(title)}" không còn thẻ đến hạn.</p><p><a class="btn p" href="#/cards/${CS.key}/all">Ôn lại cả bộ</a> <a class="btn" href="#/cards">Về danh sách bộ thẻ</a></p></div>`; return; }
   if (!CS.queue.length) {
     const left = cardStat(cardPool(CS.key)).due, [q, k, nh, de] = CS.counts;
@@ -1256,14 +1275,14 @@ function renderCard() {
   $("#cshow").onclick = () => { $("#ca").hidden = false; $("#cb1").hidden = true; $("#cb2").hidden = false; };
   el.querySelectorAll("#cb2 [data-r]").forEach(b => { b.onclick = () => {
     const r = +b.dataset.r, card = CS.queue.shift(), p = prog(), s = nextState(card, r);
-    p[card.id] = { box: s.box, due: s.due }; store.set("ykkb_cards", p); badge();
+    p[card.id] = { box: s.box, due: s.due, t: Date.now() }; store.set("ykkb_cards", p); badge();
     CS.counts[r]++; if (r === 0) CS.queue.push(card); else CS.done++;
     renderCard();
   }; });
   window.scrollTo(0, 0);
 }
 function cards(key, all) {
-  if (!key) { CS = null; return cardsHome(); }
+  if (!key) { CS = null; return reviewHub(); }
   startSession(key, all); renderCard();
 }
 document.addEventListener("keydown", e => {   // phím tắt khi đang ôn: Space/Enter hiện đáp án; 1–4 chấm
@@ -2166,24 +2185,27 @@ const QTYPES = {
   PN: ["Chọn phát biểu đúng, sai", "Đọc kỹ từ phủ định, loại từng đáp án."],
 };
 const qzTk = key => { const m = key.match(/^t-([A-Z]+)(-r)?$/); return m && QTYPES[m[1]] ? { t: m[1], r: !!m[2] } : null; };
-const qzTitle = key => qzTk(key) ? QTYPES[qzTk(key).t][0] + (qzTk(key).r ? " (ngẫu nhiên)" : "") : key === "random" ? "Ngẫu nhiên tất cả chủ đề" : key === "wrong" ? "Ôn lại câu làm sai" : key.endsWith("-r") ? (QZ().topics[key.slice(0, -2)] || key) + " (ngẫu nhiên)" : (QZ().topics[key] || key);
+const qzTitle = key => qzTk(key) ? QTYPES[qzTk(key).t][0] + (qzTk(key).r ? " (ngẫu nhiên)" : "") : key === "random" ? "Ngẫu nhiên tất cả chủ đề" : key === "wrong" ? "Ôn lại câu làm sai" : key === "ever" ? "Sổ câu từng làm sai" : key.endsWith("-r") ? (QZ().topics[key.slice(0, -2)] || key) + " (ngẫu nhiên)" : (QZ().topics[key] || key);
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// Sổ câu từng làm sai: mọi câu đã sai ít nhất một lần, giữ lại dù sau đó làm đúng; chỉ ẩn khi bạn bấm "Đã nắm"
+const qzEver = () => { const p = qzProg(); return QZ().items.filter(x => p[x.id] && p[x.id].bad > 0 && !p[x.id].hid).map(it => ({ it, st: p[it.id] })).sort((a, b) => (a.st.last === 0) !== (b.st.last === 0) ? (a.st.last === 0 ? -1 : 1) : b.st.bad - a.st.bad); };
+const qzTransient = key => key === "random" || key === "wrong" || key === "ever";
 function qzPool(key) {
   const all = QZ().items, p = qzProg();
   const tk = qzTk(key);
   if (tk) { const l = all.filter(x => x.qtype === tk.t); return tk.r ? shuffle(l) : l; }
   if (key === "random") return shuffle(all.slice());
   if (key === "wrong") return all.filter(x => p[x.id] && p[x.id].last === 0);
+  if (key === "ever") return qzEver().map(r => r.it);
   if (key.endsWith("-r")) return shuffle(all.filter(x => x.topic === key.slice(0, -2)));
   return all.filter(x => x.topic === key);   // đã xếp sẵn: câu lặp nhiều đề trước, đề mới trước
 }
 function qzHead(extra) {
-  return crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[QZ_MOD] || QZ_MOD, href: `#/m/${QZ_MOD}/1` }, { t: `${qzSec()} Tự đánh giá`, href: `#/m/${QZ_MOD}/${qzSec()}` }, ...extra]);
+  return crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn tập", href: "#/cards" }, ...extra]);
 }
-function quizHome() {
-  const Q = QZ(), p = qzProg(), items = Q.items, el = $("#main");
-  el.style.maxWidth = "1040px";
-  const done = items.filter(x => p[x.id]).length, okN = items.filter(x => p[x.id] && p[x.id].last === 1).length, wrong = items.filter(x => p[x.id] && p[x.id].last === 0).length;
+function quizBody() {
+  const Q = QZ(), p = qzProg(), items = Q.items;
+  const wrong = items.filter(x => p[x.id] && p[x.id].last === 0).length, ever = qzEver().length;
   const topics = Object.keys(Q.topics).filter(t => items.some(x => x.topic === t));
   const card = t => {
     const li = items.filter(x => x.topic === t), d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length, rep = li.filter(x => x.freq > 1).length;
@@ -2195,21 +2217,31 @@ function quizHome() {
     const d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length, pos = qzPos()["t-" + k] || 0;
     return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/t-${k}"><b>${esc(QTYPES[k][0])}</b><span class="dmeta">${li.length} câu · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span><span class="dtip">${esc(QTYPES[k][1])}</span><span class="dbar"><i style="width:${Math.round(100 * d / li.length)}%"></i></span></a><a class="dall" href="#/quiz/t-${k}-r" title="Trộn ngẫu nhiên các câu dạng này">Ngẫu nhiên</a></div>`;
   };
-  const typeCards = Object.keys(QTYPES).map(typeCard).join("");
-  el.innerHTML = `${qzHead([{ t: "Quiz" }])}
-    ${pageHead({ c: `var(--s${qzSec()})`, kicker: `${esc(MODULES[QZ_MOD] || QZ_MOD)} · ${qzSec()} Tự đánh giá`, title: "Quiz 4 đáp án", desc: "Câu hỏi lấy từ các đề thi cũ (Y17–Y22), đã đối chiếu với giáo trình, slide và văn bản Bộ Y tế. Mỗi câu có giải thích từng đáp án, nguồn và lưu ý. Trong mỗi chủ đề, câu lặp lại ở nhiều đề được xếp trước, rồi tới đề mới." })}
-    ${items.length ? "" : `<div class="callout warn"><div class="ct">Chưa có dữ liệu</div><p>Chưa có ngân hàng câu hỏi. Chạy <code>python3 build.py</code> sau khi có <code>4-module/ung-buou/_quiz/bank.json</code>.</p></div>`}
-    <div class="cstats"><div><b>${items.length}</b><span>câu</span></div><div><b>${done}</b><span>đã làm</span></div><div><b>${done ? Math.round(100 * okN / done) + "%" : "–"}</b><span>đúng (lần gần nhất)</span></div><div><b>${wrong}</b><span>câu cần ôn lại</span></div></div>
-    <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai (${wrong})</a></div>
-    <section><h2>Theo kiểu câu hỏi</h2><p class="meta">Luyện riêng từng dạng, ví dụ chỉ luyện "Xử trí, bước tiếp theo".</p><div class="decks">${typeCards}</div></section>
+  return `${items.length ? "" : `<div class="callout warn"><div class="ct">Chưa có dữ liệu</div><p>Chưa có ngân hàng câu hỏi. Chạy <code>python3 build.py</code> sau khi có <code>4-module/ung-buou/_quiz/bank.json</code>.</p></div>`}
+    <p class="meta rv-note">Câu hỏi lấy từ các đề thi cũ (Y17–Y22), đã đối chiếu giáo trình, slide và văn bản Bộ Y tế; mỗi câu có giải thích từng đáp án, nguồn và lưu ý. Trong mỗi chủ đề, câu lặp lại ở nhiều đề được xếp trước, rồi tới đề mới.</p>
+    <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai gần nhất (${wrong})</a> <a class="btn${ever ? "" : " off"}" href="#/quiz/sai">Sổ câu từng sai (${ever})</a></div>
+    <section><h2>Theo kiểu câu hỏi</h2><p class="meta">Luyện riêng từng dạng, ví dụ chỉ luyện "Xử trí, bước tiếp theo".</p><div class="decks">${Object.keys(QTYPES).map(typeCard).join("")}</div></section>
     <section><h2>Theo chủ đề</h2><div class="decks">${topics.map(card).join("")}</div>
     <p class="meta qz-foot">Mã nguồn đề: chủ đề + <b>khóa.năm.đợt</b>, ví dụ <b>UTV22.5.1</b> = ung thư vú, khóa Y22, năm Y5, đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
+}
+const quizHome = () => reviewHub("quiz");
+function quizBook() {
+  const el = $("#main"), rows = qzEver(), p = qzProg(), items = QZ().items, hidden = items.filter(x => p[x.id] && p[x.id].bad > 0 && p[x.id].hid);
+  el.style.maxWidth = "820px";
+  const row = r => { const x = r.it, st = r.st, t = QTYPES[x.qtype];
+    return `<li class="qb-row" data-id="${esc(x.id)}"><div class="qb-top"><span class="qz-code">${esc(x.n + ". (" + x.srcs.slice(0, 3).join(", ") + (x.srcs.length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="qb-st ${st.last === 0 ? "bad" : "ok"}">${st.last === 0 ? "Lần gần nhất: sai" : "Lần gần nhất: đúng"}</span></div><div class="qb-stem">${esc(x.stem.length > 160 ? x.stem.slice(0, 160) + "…" : x.stem)}</div><div class="qb-foot"><span class="meta">Sai ${st.bad} lần · đúng ${st.ok} lần</span><button class="qz-back qb-done" data-id="${esc(x.id)}">Đã nắm, bỏ khỏi sổ</button></div></li>`; };
+  el.innerHTML = `${qzHead([{ t: "Quiz", href: "#/quiz" }, { t: "Sổ câu từng sai" }])}
+    ${pageHead({ c: `var(--s${qzSec()})`, kicker: `${esc(MODULES[QZ_MOD] || QZ_MOD)} · ${qzSec()} Tự đánh giá`, title: "Sổ câu từng làm sai", desc: "Mọi câu bạn đã làm sai được lưu lại ở đây, kể cả khi sau đó làm đúng. Câu sai gần nhất xếp trước. Bấm \"Đã nắm\" khi bạn chắc chắn đã thuộc; câu sẽ quay lại sổ nếu bạn làm sai lần nữa. Sổ lưu trên trình duyệt này." })}
+    <div class="cact"><a class="btn p${rows.length ? "" : " off"}" href="#/quiz/ever">Ôn tất cả (${rows.length} câu)</a> <a class="btn" href="#/quiz">Về danh sách chủ đề</a>${hidden.length ? ` <button class="btn" id="qbShow">Khôi phục ${hidden.length} câu đã nắm</button>` : ""}</div>
+    ${rows.length ? `<ul class="qb-list">${rows.map(row).join("")}</ul>` : `<div class="cend"><h2>Sổ đang trống</h2><p>Bạn chưa làm sai câu nào, hoặc đã đánh dấu nắm hết.</p></div>`}`;
+  el.querySelectorAll(".qb-done").forEach(b => b.onclick = () => { const pp = qzProg(); if (pp[b.dataset.id]) { pp[b.dataset.id].hid = 1; pp[b.dataset.id].t = Date.now(); store.set("ykkb_quiz", pp); } quizBook(); });
+  if ($("#qbShow")) $("#qbShow").onclick = () => { const pp = qzProg(); hidden.forEach(x => { pp[x.id].hid = 0; pp[x.id].t = Date.now(); }); store.set("ykkb_quiz", pp); quizBook(); };
   window.scrollTo(0, 0);
 }
 function startQuiz(key, count) {
   let list = qzPool(key);
   if (key === "random") list = list.slice(0, count || 20);
-  const pos = qzPos(), start = !key.endsWith("-r") && key !== "random" && key !== "wrong" ? Math.min(pos[key] || 0, Math.max(0, list.length - 1)) : 0;
+  const pos = qzPos(), start = !key.endsWith("-r") && !qzTransient(key) ? Math.min(pos[key] || 0, Math.max(0, list.length - 1)) : 0;
   QS = { key, list, i: start, ans: {}, ord: {}, ok: 0, bad: 0, wrongIds: [] };
 }
 // Đảo thứ tự đáp án để không đoán theo vị trí (đáp án đúng trong đề gốc dồn nhiều ở A); không đảo nếu đáp án nhắc tới nhau ("cả A và B", "tất cả các ý trên")
@@ -2227,10 +2259,10 @@ function renderQuiz() {
   const el = $("#main"), S = QS, title = qzTitle(S.key);
   el.style.maxWidth = "760px";
   const head = qzHead([{ t: "Quiz", href: "#/quiz" }, { t: title }]);
-  if (!S.list.length) { el.innerHTML = `${head}<div class="cend"><h2>Không có câu nào</h2><p>${S.key === "wrong" ? "Bạn chưa có câu nào làm sai." : "Bộ này chưa có câu hỏi."}</p><p><a class="btn p" href="#/quiz">Về danh sách chủ đề</a></p></div>`; return; }
+  if (!S.list.length) { el.innerHTML = `${head}<div class="cend"><h2>Không có câu nào</h2><p>${S.key === "wrong" || S.key === "ever" ? "Bạn chưa có câu nào làm sai." : "Bộ này chưa có câu hỏi."}</p><p><a class="btn p" href="#/quiz">Về danh sách chủ đề</a></p></div>`; return; }
   if (S.i >= S.list.length) {
     const tot = S.ok + S.bad;
-    if (!S.key.endsWith("-r") && S.key !== "random" && S.key !== "wrong") { const pp = qzPos(); delete pp[S.key]; store.set("ykkb_quizpos", pp); }
+    if (!S.key.endsWith("-r") && !qzTransient(S.key)) { const pp = qzPos(); delete pp[S.key]; store.set("ykkb_quizpos", pp); }
     const wr = S.wrongIds.map(id => QZ().items.find(x => x.id === id)).filter(Boolean);
     el.innerHTML = `${head}<div class="cend"><h2>Xong: ${S.ok}/${tot} câu đúng (${tot ? Math.round(100 * S.ok / tot) : 0}%)</h2>
       ${wr.length ? `<p class="meta">Câu làm sai:</p><ul class="qz-wl">${wr.map(x => `<li>${esc(x.n + ". (" + x.srcs.join(", ") + ")")}: ${esc(x.stem.length > 90 ? x.stem.slice(0, 90) + "…" : x.stem)}</li>`).join("")}</ul>` : `<p>Không sai câu nào.</p>`}
@@ -2254,14 +2286,14 @@ function answerQuiz(k, replay = false) {   // replay = true: xem lại câu đã
   if (!replay) {
     S.ans[it.id] = k;
     const p = qzProg(), x = p[it.id] || { ok: 0, bad: 0 };
-    ok ? x.ok++ : x.bad++; x.last = ok ? 1 : 0; p[it.id] = x; store.set("ykkb_quiz", p);
+    ok ? x.ok++ : (x.bad++, x.hid = 0); x.last = ok ? 1 : 0; x.t = Date.now(); p[it.id] = x; store.set("ykkb_quiz", p);
     ok ? S.ok++ : (S.bad++, S.wrongIds.push(it.id));
-    if (!S.key.endsWith("-r") && S.key !== "random" && S.key !== "wrong") { const pp = qzPos(); pp[S.key] = S.i + 1; store.set("ykkb_quizpos", pp); }
+    if (!S.key.endsWith("-r") && !qzTransient(S.key)) { const pp = qzPos(); pp[S.key] = S.i + 1; store.set("ykkb_quizpos", pp); }
   }
   el.querySelectorAll(".qz-o").forEach(o => {
     const kk = o.dataset.k, b = o.querySelector("button"), ex = o.querySelector(".qz-ex");
     b.disabled = true; o.classList.add(kk === it.answer ? "ok" : kk === k ? "bad" : "dim");
-    const t = ((it.explain || {})[kk] || "").replace(/^\s*(Đúng|Sai|Chính xác)\s*[.:,–-]\s*/i, "");   // nhãn Đúng/Sai do giao diện thêm, tránh lặp
+    const t = ((it.explain || {})[kk] || "").replace(/^\s*(Đúng|Sai|Chính xác)(?=[\s.:,–(-]|$)\s*[.:,–-]?\s*/i, "").replace(/^\(([^)]+)\)\s*[.:,]?\s*/, (m, g) => g.charAt(0).toUpperCase() + g.slice(1) + ". ").replace(/^[a-zà-ỹ]/, c => c.toUpperCase());   // nhãn Đúng/Sai do giao diện thêm, tránh lặp
     ex.innerHTML = `<b>${kk === it.answer ? "Đúng" : "Sai"}.</b> ${t ? inline(t) : ""}${(it.added || []).includes(kk) ? ` <i class="meta">(đáp án nhiễu do soạn thêm)</i>` : ""}`; ex.hidden = false;
   });
   const srcs = (it.sources || []).map(s => `<li><b>${esc(s.label || "")}</b>${s.where ? ` · ${esc(s.where)}` : ""}${s.quote ? `<blockquote>${esc(s.quote)}</blockquote>` : ""}</li>`).join("");
@@ -2281,6 +2313,7 @@ function answerQuiz(k, replay = false) {   // replay = true: xem lại câu đã
 }
 function quiz(key, count) {
   if (!key) { QS = null; return quizHome(); }
+  if (key === "sai") { QS = null; return quizBook(); }
   startQuiz(key, count); renderQuiz();
 }
 document.addEventListener("keydown", e => {   // phím tắt quiz: A–D hoặc 1–4 chọn đáp án, Enter/Space câu tiếp
@@ -2292,6 +2325,81 @@ document.addEventListener("keydown", e => {   // phím tắt quiz: A–D hoặc 
   if (k && !S.ans[it.id]) { e.preventDefault(); answerQuiz(k); }
   else if ((e.key === "Enter" || e.key === " ") && S.ans[it.id] && $("#qzNext")) { e.preventDefault(); $("#qzNext").click(); }
 });
+
+// ---- Đồng bộ tiến độ giữa các thiết bị qua GitHub Gist riêng tư ----
+// Chỉ đồng bộ tiến độ học (quiz, vị trí làm dở, thẻ ôn). Không đồng bộ mật khẩu hay cài đặt giao diện của từng máy.
+const SY = { keys: ["ykkb_quiz", "ykkb_quizpos", "ykkb_cards"], file: "ykkb-progress.json", desc: "YKKB progress sync", api: "https://api.github.com" };
+const syCfg = () => store.get("ykkb_sync", null);
+const sySet = c => { try { localStorage.setItem("ykkb_sync", JSON.stringify(c)); } catch {} };   // không qua store.set để không tự kích hoạt đồng bộ
+let syTimer = 0, syBusy = false, syMsg = "";
+const syNewer = (a, b) => ((a.t || 0) !== (b.t || 0)) ? (a.t || 0) > (b.t || 0) : ((a.ok || 0) + (a.bad || 0) + (a.box || 0)) >= ((b.ok || 0) + (b.bad || 0) + (b.box || 0));
+const syMergeMap = (a = {}, b = {}) => { const o = { ...a }; Object.keys(b).forEach(k => { o[k] = o[k] ? (syNewer(o[k], b[k]) ? o[k] : b[k]) : b[k]; }); return o; };
+const syMergePos = (a = {}, b = {}) => { const o = { ...a }; Object.keys(b).forEach(k => { o[k] = Math.max(o[k] || 0, b[k] || 0); }); return o; };
+const syLocal = () => ({ v: 1, at: Date.now(), quiz: store.get("ykkb_quiz", {}), pos: store.get("ykkb_quizpos", {}), cards: store.get("ykkb_cards", {}) });
+function syMerge(a, b) { return { v: 1, at: Date.now(), quiz: syMergeMap(a.quiz, b.quiz), pos: syMergePos(a.pos, b.pos), cards: syMergeMap(a.cards, b.cards) }; }
+function syApply(m) { try { localStorage.setItem("ykkb_quiz", JSON.stringify(m.quiz)); localStorage.setItem("ykkb_quizpos", JSON.stringify(m.pos)); localStorage.setItem("ykkb_cards", JSON.stringify(m.cards)); } catch {} if (typeof badge === "function") badge(); }
+async function syFetch(path, opt = {}) {
+  const c = syCfg(); if (!c || !c.token) throw new Error("Chưa kết nối");
+  const r = await fetch(SY.api + path, { ...opt, headers: { Authorization: "Bearer " + c.token, Accept: "application/vnd.github+json", "Content-Type": "application/json", ...(opt.headers || {}) } });
+  if (r.status === 401) throw new Error("Token không hợp lệ hoặc đã hết hạn");
+  if (r.status === 403 || r.status === 429) throw new Error("GitHub tạm từ chối (quá giới hạn hoặc thiếu quyền gist)");
+  if (!r.ok) throw new Error("GitHub trả lỗi " + r.status);
+  return r.json();
+}
+async function syPull(gid) {
+  const g = await syFetch("/gists/" + gid), f = g.files && g.files[SY.file];
+  if (!f) return null;
+  const txt = f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
+  try { return JSON.parse(txt); } catch { return null; }
+}
+async function syFindOrCreate(local) {
+  const list = await syFetch("/gists?per_page=100"), hit = list.find(g => g.description === SY.desc && g.files && g.files[SY.file]);
+  if (hit) return hit.id;
+  const g = await syFetch("/gists", { method: "POST", body: JSON.stringify({ description: SY.desc, public: false, files: { [SY.file]: { content: JSON.stringify(local) } } }) });
+  return g.id;
+}
+async function syncNow(reason) {
+  const c = syCfg(); if (!c || !c.token || syBusy) return;
+  syBusy = true; syMsg = "Đang đồng bộ…"; syPaint();
+  try {
+    let gid = c.gid; const local = syLocal();
+    if (!gid) { gid = await syFindOrCreate(local); c.gid = gid; }
+    const remote = await syPull(gid), merged = remote ? syMerge(local, remote) : local;
+    syApply(merged);
+    await syFetch("/gists/" + gid, { method: "PATCH", body: JSON.stringify({ files: { [SY.file]: { content: JSON.stringify(merged) } } }) });
+    c.last = Date.now(); c.err = ""; sySet(c); syMsg = "Đã đồng bộ";
+  } catch (e) { c.err = e.message || String(e); sySet(c); syMsg = "Lỗi: " + c.err; }
+  syBusy = false; syPaint();
+}
+window.syncDirty = k => { if (!SY.keys.includes(k) || !(syCfg() || {}).token) return; clearTimeout(syTimer); syTimer = setTimeout(() => syncNow("auto"), 4000); };
+window.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (syCfg() || {}).token) syncNow("show"); });
+const syAgo = t => { if (!t) return "chưa lần nào"; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "vừa xong" : m < 60 ? m + " phút trước" : m < 1440 ? Math.round(m / 60) + " giờ trước" : Math.round(m / 1440) + " ngày trước"; };
+function syPaint() { const el = $("#syStatus"); if (el) el.innerHTML = syStatusHtml(); }
+function syStatusHtml() { const c = syCfg() || {}; return `<p class="meta">${esc(syMsg || "")}${c.last ? ` · Lần đồng bộ gần nhất: ${syAgo(c.last)}` : ""}${c.err && !/^Lỗi/.test(syMsg) ? ` · Lỗi trước đó: ${esc(c.err)}` : ""}</p>`; }
+function syncPage() {
+  const el = $("#main"), c = syCfg(), on = !!(c && c.token);
+  el.style.maxWidth = "760px";
+  const q = store.get("ykkb_quiz", {}), n = Object.keys(q).length, cd = Object.keys(store.get("ykkb_cards", {})).length;
+  el.innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Đồng bộ thiết bị" }])}
+    ${pageHead({ c: "var(--s10)", kicker: "Cài đặt", title: "Đồng bộ giữa các thiết bị", desc: "Tiến độ quiz, sổ câu sai, vị trí làm dở và thẻ ôn được lưu vào một Gist riêng tư trong tài khoản GitHub của bạn, rồi gộp lại trên mọi thiết bị đã kết nối." })}
+    <div class="cstats"><div><b>${n}</b><span>câu quiz đã làm</span></div><div><b>${cd}</b><span>thẻ đã học</span></div><div><b>${on ? "Bật" : "Tắt"}</b><span>đồng bộ</span></div></div>
+    ${on ? `<div class="cact"><button class="btn p" id="syNow">Đồng bộ ngay</button> <button class="btn" id="syOff">Ngắt kết nối thiết bị này</button></div><div id="syStatus">${syStatusHtml()}</div>
+      <div class="callout note"><div class="ct">Cách hoạt động</div><p>Mỗi khi bạn làm quiz hay chấm thẻ, tiến độ tự đẩy lên sau vài giây. Khi mở lại trang, tiến độ mới nhất từ thiết bị khác được kéo về và gộp, không ghi đè. Nếu cùng một câu được làm trên hai máy, bản làm sau cùng được giữ.</p></div>`
+    : `<div class="callout key"><div class="ct">Kết nối (làm một lần trên mỗi thiết bị)</div>
+      <p>1. Vào GitHub, mở <b>Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token</b>.<br>2. Đặt tên (ví dụ "ykkb sync"), chỉ tích quyền <b>gist</b>, rồi tạo và sao chép token.<br>3. Dán token vào ô dưới đây và bấm Kết nối. Trên thiết bị khác, dùng cùng token.</p></div>
+      <div class="cact"><input id="syTok" type="password" autocomplete="off" placeholder="Dán token GitHub (chỉ quyền gist)" style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit"> <button class="btn p" id="syOn">Kết nối</button></div><div id="syStatus">${syStatusHtml()}</div>`}
+    <div class="callout warn"><div class="ct">Lưu ý về bảo mật</div><p>Token được lưu trong trình duyệt của thiết bị này và chỉ có quyền gist (không đọc được kho mã). Ai dùng được trình duyệt này có thể dùng token đó, nên hãy ngắt kết nối trên máy dùng chung. Gist chỉ chứa tiến độ học, không chứa mật khẩu hay nội dung bài. Có thể thu hồi token bất cứ lúc nào trong cài đặt GitHub.</p></div>`;
+  if ($("#syNow")) $("#syNow").onclick = () => syncNow("manual");
+  if ($("#syOff")) $("#syOff").onclick = () => { try { localStorage.removeItem("ykkb_sync"); } catch {} syMsg = ""; syncPage(); };
+  if ($("#syOn")) $("#syOn").onclick = async () => {
+    const tok = ($("#syTok").value || "").trim(); if (!tok) { syMsg = "Hãy dán token trước"; syPaint(); return; }
+    sySet({ token: tok }); syMsg = "Đang kiểm tra token…"; syPaint();
+    try { const u = await syFetch("/user"); sySet({ token: tok, user: u.login }); await syncNow("connect"); syncPage(); }
+    catch (e) { try { localStorage.removeItem("ykkb_sync"); } catch {} syMsg = "Lỗi: " + (e.message || e); syPaint(); }
+  };
+  window.scrollTo(0, 0);
+}
+setTimeout(() => { if ((syCfg() || {}).token) syncNow("start"); }, 1500);
 
 function route() {
   cancelAnimationFrame(raf);
@@ -2315,7 +2423,7 @@ function route() {
   }
   else if (m) { sec = note(m[1], m[2]) || 0; modActive = byId[m[1]] ? sectionOfNote(byId[m[1]]) : 0; }
   else if (lb) { lb[1] ? libPage(lb[1]) : libIndex(); }
-  else if (h === "/volume") volume(); else if (lu) luudo(lu[1] || ""); else if (cc) congCu(cc[1] || ""); else if (mp) mindmap(mp[1] || ""); else if (cd) cards(cd[1] || "", cd[2] === "all"); else home();
+  else if (h === "/sync") syncPage(); else if (h === "/volume") volume(); else if (lu) luudo(lu[1] || ""); else if (cc) congCu(cc[1] || ""); else if (mp) mindmap(mp[1] || ""); else if (cd) cards(cd[1] || "", cd[2] === "all"); else home();
   const navKey = qz ? "cards" : kh ? "khung" : lu ? "luudo" : cc ? "congcu" : mp ? "mindmap" : h === "/volume" ? "volume" : cd ? "cards" : lb ? "lib" : (m && byId[m[1]] && isHiddenMod(byId[m[1]].module)) ? "lib" : (!m && !mm) ? "home" : "";
   document.querySelectorAll("[data-nav]").forEach(x => x.classList.toggle("on", x.dataset.nav === navKey));
   $("#bnMenu").classList.toggle("on", !!(mm || m)); $("#bnMore").classList.toggle("on", navKey === "khung" || navKey === "volume" || navKey === "luudo" || navKey === "congcu" || navKey === "mindmap");
