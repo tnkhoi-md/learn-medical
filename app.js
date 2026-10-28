@@ -2374,7 +2374,7 @@ document.addEventListener("keydown", e => {   // phím tắt quiz: A–D hoặc 
 const SY = { keys: ["ykkb_quiz", "ykkb_quizpos", "ykkb_cards"], file: "ykkb-progress.json", desc: "YKKB progress sync", api: "https://api.github.com" };
 const syCfg = () => store.get("ykkb_sync", null);
 const sySet = c => { try { localStorage.setItem("ykkb_sync", JSON.stringify(c)); } catch {} };   // không qua store.set để không tự kích hoạt đồng bộ
-let syTimer = 0, syBusy = false, syMsg = "";
+let syTimer = 0, syBusy = false, syMsg = "", syPending = false, syRerun = false;
 const syNewer = (a, b) => ((a.t || 0) !== (b.t || 0)) ? (a.t || 0) > (b.t || 0) : ((a.ok || 0) + (a.bad || 0) + (a.box || 0)) >= ((b.ok || 0) + (b.bad || 0) + (b.box || 0));
 const syMergeMap = (a = {}, b = {}) => { const o = { ...a }; Object.keys(b).forEach(k => { o[k] = o[k] ? (syNewer(o[k], b[k]) ? o[k] : b[k]) : b[k]; }); return o; };
 const syMergePos = (a = {}, b = {}) => { const o = { ...a }; Object.keys(b).forEach(k => { o[k] = Math.max(o[k] || 0, b[k] || 0); }); return o; };
@@ -2401,24 +2401,33 @@ async function syFindOrCreate(local) {
   const g = await syFetch("/gists", { method: "POST", body: JSON.stringify({ description: SY.desc, public: false, files: { [SY.file]: { content: JSON.stringify(local) } } }) });
   return g.id;
 }
-async function syncNow(reason) {
-  const c = syCfg(); if (!c || !c.token || syBusy) return;
+async function syncNow(reason, opts = {}) {
+  const c = syCfg(); if (!c || !c.token) return;
+  if (syBusy) { syRerun = true; return; }   // đang đẩy: xếp lại một lượt sau khi xong, không bỏ thay đổi
   syBusy = true; syMsg = "Đang đồng bộ…"; syPaint();
   try {
     let gid = c.gid; const local = syLocal();
     if (!gid) { gid = await syFindOrCreate(local); c.gid = gid; }
     const remote = await syPull(gid), merged = remote ? syMerge(local, remote) : local;
     syApply(merged);
-    await syFetch("/gists/" + gid, { method: "PATCH", body: JSON.stringify({ files: { [SY.file]: { content: JSON.stringify(merged) } } }) });
-    c.last = Date.now(); c.err = ""; sySet(c); syMsg = "Đã đồng bộ";
-  } catch (e) { c.err = e.message || String(e); sySet(c); syMsg = "Lỗi: " + c.err; }
+    const body = JSON.stringify({ files: { [SY.file]: { content: JSON.stringify(merged) } } });
+    // keepalive cho phép gửi nốt khi trang đang đóng (giới hạn 64 KB)
+    await syFetch("/gists/" + gid, { method: "PATCH", body, keepalive: !!opts.keepalive && body.length < 60000 });
+    c.last = Date.now(); c.err = ""; sySet(c); syPending = false; syMsg = "Đã đồng bộ";
+  } catch (e) { c.err = e.message || String(e); sySet(c); syPending = true; syMsg = "Lỗi: " + c.err; }
   syBusy = false; syPaint();
+  if (syRerun) { syRerun = false; syncNow("again"); }
 }
-window.syncDirty = k => { if (!SY.keys.includes(k) || !(syCfg() || {}).token) return; clearTimeout(syTimer); syTimer = setTimeout(() => syncNow("auto"), 4000); };
-window.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (syCfg() || {}).token) syncNow("show"); });
+window.syncDirty = k => { if (!SY.keys.includes(k) || !(syCfg() || {}).token) return; syPending = true; clearTimeout(syTimer); syTimer = setTimeout(() => syncNow("auto"), 4000); };
+// Khi ẩn trang hoặc đóng tab: đẩy ngay các thay đổi đang chờ, không chờ hẹn giờ
+const syFlush = () => { if (syPending && (syCfg() || {}).token) { clearTimeout(syTimer); syncNow("hide", { keepalive: true }); } };
+window.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") syFlush(); else if ((syCfg() || {}).token) syncNow("show"); });
+window.addEventListener("pagehide", syFlush);
+// Mất mạng rồi có lại: thử đẩy các thay đổi còn chờ
+window.addEventListener("online", () => { if (syPending) syncNow("online"); });
 const syAgo = t => { if (!t) return "chưa lần nào"; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "vừa xong" : m < 60 ? m + " phút trước" : m < 1440 ? Math.round(m / 60) + " giờ trước" : Math.round(m / 1440) + " ngày trước"; };
 function syPaint() { const el = $("#syStatus"); if (el) el.innerHTML = syStatusHtml(); }
-function syStatusHtml() { const c = syCfg() || {}; return `<p class="meta">${esc(syMsg || "")}${c.last ? ` · Lần đồng bộ gần nhất: ${syAgo(c.last)}` : ""}${c.err && !/^Lỗi/.test(syMsg) ? ` · Lỗi trước đó: ${esc(c.err)}` : ""}</p>`; }
+function syStatusHtml() { const c = syCfg() || {}; return `<p class="meta">${syPending ? "Có thay đổi chưa đẩy lên · " : ""}${esc(syMsg || "")}${c.last ? ` · Lần đồng bộ gần nhất: ${syAgo(c.last)}` : ""}${c.err && !/^Lỗi/.test(syMsg) ? ` · Lỗi trước đó: ${esc(c.err)}` : ""}</p>`; }
 function syncPage() {
   const el = $("#main"), c = syCfg(), on = !!(c && c.token);
   el.style.maxWidth = "760px";
