@@ -1215,8 +1215,8 @@ function cardsBody() {
       ${dis.length || fo.length || dk.length ? "" : `<p class="meta">Chưa có thẻ.</p>`}</section>`;
   }).join("");
   return `<p class="meta rv-note">Mỗi bệnh là một bộ thẻ tự kiểm tra. Chọn bệnh để ôn các thẻ của bệnh đó, hoặc ôn gộp mọi thẻ cần ôn. Thẻ được nhắc lại theo quãng 10 phút, 1, 3, 7 và 21 ngày tùy mức bạn nhớ.</p>
-    <div class="cact"><a class="btn p" href="#/cards/${cardsMod ? "mod:" + cardsMod : "_due"}">Ôn tất cả thẻ cần ôn${cardsMod ? " của " + esc(MODULES[cardsMod] || cardsMod) : ""} (${cardStat(cardPool(cardsMod ? "mod:" + cardsMod : "_due")).due})</a>
-      ${Object.keys(MODULES).length > 1 ? `<span class="seg"><button data-cmod="" class="${cardsMod ? "" : "on"}">Tất cả</button>${Object.keys(MODULES).map(m => `<button data-cmod="${m}" class="${cardsMod === m ? "on" : ""}">${esc(MODULES[m] || m)}</button>`).join("")}</span>` : ""}</div>
+    <div class="cact"><a class="btn p" href="#/cards/${cardsMod ? "mod:" + cardsMod : "_due"}">Ôn tất cả thẻ ${cardsMod ? esc(MODULES[cardsMod] || cardsMod) : "cần ôn"} (${cardStat(cardPool(cardsMod ? "mod:" + cardsMod : "_due")).due})</a>
+      ${Object.keys(MODULES).length > 1 ? `<select id="cmodSel" class="cmod-sel" aria-label="Lọc theo chuyên khoa"><option value="">Tất cả chuyên khoa</option>${Object.keys(MODULES).map(m => `<option value="${m}"${cardsMod === m ? " selected" : ""}>${esc(MODULES[m] || m)}</option>`).join("")}</select>` : ""}</div>
     ${sections}`;
 }
 const cardsHome = () => reviewHub("cards");
@@ -1234,13 +1234,13 @@ const bkMatch = x => {
 function bankRow(x) {   // một câu trong ngân hàng: thu gọn, bấm để xem đáp án và giải thích
   const ans = x.answer, opts = Object.keys(x.options).map(k => `<li class="bk-o${k === ans ? " bk-ok" : ""}"><b>${k}.</b> ${inline(x.options[k])}${k === ans ? ` <em class="bk-tag">đáp án</em>` : ""}${(x.explain || {})[k] ? `<div class="bk-ex">${inline(x.explain[k].replace(/^\s*(Đúng|Sai|Chính xác)\s*[.:,–-]?\s*/i, ""))}</div>` : ""}</li>`).join("");
   const t = QTYPES[x.qtype];
-  return `<details class="bk-row"><summary><span class="qz-code">${esc(x.n + ". (" + (x.srcs || []).slice(0, 3).join(", ") + ((x.srcs || []).length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="bk-stem">${esc(x.core || (x.stem.length > 140 ? x.stem.slice(0, 140) + "…" : x.stem))}</span></summary>
+  return `<details class="bk-row"><summary><span class="qz-code">${esc("(" + (x.srcs || []).slice(0, 3).join(", ") + ((x.srcs || []).length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="bk-stem">${esc(x.core || (x.stem.length > 140 ? x.stem.slice(0, 140) + "…" : x.stem))}</span></summary>
     <div class="bk-body">${x.context ? `<div class="bk-ctx"><b>Tình huống:</b> ${inline(x.context)}</div>` : ""}<div class="bk-stem2">${inline(x.stem)}</div><ol class="bk-opts" type="A">${opts}</ol>
     ${x.why ? `<p class="bk-why"><b>Ý chính:</b> ${inline(x.why)}</p>` : ""}${x.tips ? `<p class="bk-tip"><b>Lưu ý:</b> ${inline(x.tips)}</p>` : ""}${x.refNote ? `<p class="bk-ref"><b>Đề tham khảo ghi khác:</b> ${inline(x.refNote)}</p>` : ""}
     </div></details>`;
 }
 function bankList() {
-  const Q = QZ(), all = Q.items.filter(bkMatch);
+  const Q = QZ(), all = qzAll().filter(bkMatch);
   if (!all.length) return `<p class="meta">Không có câu nào khớp bộ lọc.</p>`;
   const searching = !!(BK.q || BK.k);
   const groups = Object.keys(Q.topics).map(t => [t, all.filter(x => x.topic === t)]).filter(([, l]) => l.length);
@@ -1249,8 +1249,8 @@ function bankList() {
 }
 function bankBody() {
   const Q = QZ();
-  const topics = Object.keys(Q.topics).filter(t => Q.items.some(x => x.topic === t));
-  return `<div class="bk-filters">
+  const topics = Object.keys(Q.topics).filter(t => qzAll().some(x => x.topic === t));
+  return `${qzModHtml()}<div class="bk-filters">
       <input id="bkQ" type="search" placeholder="Tìm trong đề bài, đáp án, giải thích…" value="${esc(BK.q)}" aria-label="Tìm câu hỏi">
       <select id="bkT" aria-label="Chủ đề"><option value="">Tất cả chủ đề</option>${topics.map(t => `<option value="${esc(t)}"${BK.t === t ? " selected" : ""}>${esc(Q.topics[t])}</option>`).join("")}</select>
       <select id="bkK" aria-label="Kiểu câu hỏi"><option value="">Tất cả kiểu</option>${Object.keys(QTYPES).map(k => `<option value="${k}"${BK.k === k ? " selected" : ""}>${esc(QTYPES[k][0])}</option>`).join("")}</select>
@@ -1282,7 +1282,8 @@ function reviewHub(tab) {
     <div class="rv-panel">${RVTAB === "cards" ? cardsBody() : RVTAB === "bank" ? bankBody() : quizBody()}</div>`;
   el.querySelectorAll("[data-rvt]").forEach(b => { b.onclick = () => reviewHub(b.dataset.rvt); });
   bankBind(el);
-  el.querySelectorAll("[data-cmod]").forEach(b => { b.onclick = () => { cardsMod = b.dataset.cmod; reviewHub("cards"); }; });
+  const qmodSel = el.querySelector("#qzModSel"); if (qmodSel) qmodSel.onchange = e => { QMOD = e.target.value; store.set("ykkb_qmod", QMOD); reviewHub(); };
+  const cmodSel = el.querySelector("#cmodSel"); if (cmodSel) cmodSel.onchange = e => { cardsMod = e.target.value; reviewHub("cards"); };
   window.scrollTo(0, 0);
 }
 function startSession(key, all) {
@@ -2208,6 +2209,15 @@ pomoRender();
 // ---- Quiz tự đánh giá (module Ung bướu, mục 11): câu hỏi từ đề cũ, 4 đáp án, giải thích từng đáp án ----
 // Dữ liệu window.QUIZ do build.py đọc từ 4-module/ung-buou/_quiz/bank.json. Mỗi câu: n (STT trong chủ đề), srcs (mã nguồn đề, vd UTVY22Đ1), freq (số đề có câu này).
 const QZ = () => window.QUIZ || { items: [], topics: {} };
+// Lọc theo chuyên khoa (module) để dùng cho nhiều ngân hàng; câu nào không ghi module thì là ung-buou
+let QMOD = store.get("ykkb_qmod", "");
+const qzModOf = x => x.module || "ung-buou";
+const qzAll = () => QZ().items.filter(x => !QMOD || qzModOf(x) === QMOD);
+function qzModHtml() {
+  const mods = [...new Set(QZ().items.map(qzModOf))];
+  if (!mods.length) return "";
+  return `<div class="cact"><select id="qzModSel" class="cmod-sel" aria-label="Lọc theo chuyên khoa"><option value="">Tất cả chuyên khoa</option>${mods.map(m => `<option value="${esc(m)}"${QMOD === m ? " selected" : ""}>${esc(MODULES[m] || m)}</option>`).join("")}</select></div>`;
+}
 const qzProg = () => store.get("ykkb_quiz", {});            // { id: { ok, bad, last: 1|0 } }
 const qzPos = () => store.get("ykkb_quizpos", {});          // vị trí đang làm dở theo bộ câu
 let QS = null;   // phiên đang chạy
@@ -2231,9 +2241,9 @@ const qzTitle = key => qzTk(key) ? QTYPES[qzTk(key).t][0] + (qzTk(key).r ? " (ng
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 // Sổ câu từng làm sai: mọi câu đã sai ít nhất một lần, giữ lại dù sau đó làm đúng; chỉ ẩn khi bạn bấm "Đã nắm"
 const qzEver = () => { const p = qzProg(); return QZ().items.filter(x => p[x.id] && p[x.id].bad > 0 && !p[x.id].hid).map(it => ({ it, st: p[it.id] })).sort((a, b) => (a.st.last === 0) !== (b.st.last === 0) ? (a.st.last === 0 ? -1 : 1) : b.st.bad - a.st.bad); };
-const qzTransient = key => key === "random" || key === "wrong" || key === "ever";
+const qzTransient = key => key === "random" || key === "wrong" || key === "ever" || key === "retry";
 function qzPool(key) {
-  const all = QZ().items, p = qzProg();
+  const all = qzAll(), p = qzProg();
   const tk = qzTk(key);
   if (tk) { const l = all.filter(x => x.qtype === tk.t); return tk.r ? shuffle(l) : l; }
   if (key === "random") return shuffle(all.slice());
@@ -2245,21 +2255,30 @@ function qzPool(key) {
 function qzHead(extra) {
   return crumb([{ t: "Trang chủ", href: "#/" }, { t: "Ôn tập", href: "#/cards" }, ...extra]);
 }
+// Thanh tỉ lệ kết quả: xanh = đúng, đỏ = sai, vàng = chưa làm
+function qzRatioBar(li, p) {
+  const n = li.length || 1;
+  const ok = li.filter(x => p[x.id] && p[x.id].last === 1).length;
+  const bad = li.filter(x => p[x.id] && p[x.id].last === 0).length;
+  const none = n - ok - bad;
+  const seg = (w, c) => w ? `<i style="width:${100 * w / n}%;background:${c}"></i>` : "";
+  return `<span class="dbar">${seg(ok, "#2e7d32")}${seg(bad, "#c62828")}${seg(none, "#f9a825")}</span>`;
+}
 function quizBody() {
-  const Q = QZ(), p = qzProg(), items = Q.items;
+  const Q = QZ(), p = qzProg(), items = qzAll();
   const wrong = items.filter(x => p[x.id] && p[x.id].last === 0).length, ever = qzEver().length;
   const topics = Object.keys(Q.topics).filter(t => items.some(x => x.topic === t));
   const card = t => {
     const li = items.filter(x => x.topic === t), d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length, rep = li.filter(x => x.freq > 1).length;
     const pos = qzPos()[t] || 0;
-    return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/${encodeURIComponent(t)}"><b>${esc(Q.topics[t])} <small>${esc(t)}</small></b><span class="dmeta">${li.length} câu${rep ? ` · ${rep} câu lặp nhiều đề` : ""} · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span><span class="dbar"><i style="width:${Math.round(100 * d / li.length)}%"></i></span></a><a class="dall" href="#/quiz/${encodeURIComponent(t)}-r" title="Trộn ngẫu nhiên các câu của chủ đề này">Ngẫu nhiên</a></div>`;
+    return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/${encodeURIComponent(t)}"><b>${esc(Q.topics[t])} <small>${esc(t)}</small></b><span class="dmeta">${li.length} câu${rep ? ` · ${rep} câu lặp nhiều đề` : ""} · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span>${qzRatioBar(li, p)}</a><a class="dall" href="#/quiz/${encodeURIComponent(t)}-r" title="Trộn ngẫu nhiên các câu của chủ đề này">Ngẫu nhiên</a></div>`;
   };
   const typeCard = k => {
     const li = items.filter(x => x.qtype === k); if (!li.length) return "";
     const d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length, pos = qzPos()["t-" + k] || 0;
-    return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/t-${k}"><b>${esc(QTYPES[k][0])}</b><span class="dmeta">${li.length} câu · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span><span class="dtip">${esc(QTYPES[k][1])}</span><span class="dbar"><i style="width:${Math.round(100 * d / li.length)}%"></i></span></a><a class="dall" href="#/quiz/t-${k}-r" title="Trộn ngẫu nhiên các câu dạng này">Ngẫu nhiên</a></div>`;
+    return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/t-${k}"><b>${esc(QTYPES[k][0])}</b><span class="dmeta">${li.length} câu · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span>${qzRatioBar(li, p)}</a><a class="dall" href="#/quiz/t-${k}-r" title="Trộn ngẫu nhiên các câu dạng này">Ngẫu nhiên</a></div>`;
   };
-  return `${items.length ? "" : `<div class="callout warn"><div class="ct">Chưa có dữ liệu</div><p>Chưa có ngân hàng câu hỏi. Chạy <code>python3 build.py</code> sau khi có <code>4-module/ung-buou/_quiz/bank.json</code>.</p></div>`}
+  return `${qzModHtml()}${items.length ? "" : `<div class="callout warn"><div class="ct">Chưa có dữ liệu</div><p>Chưa có ngân hàng câu hỏi. Chạy <code>python3 build.py</code> sau khi có <code>4-module/ung-buou/_quiz/bank.json</code>.</p></div>`}
     <p class="meta rv-note">Câu hỏi lấy từ các đề thi cũ (Y17–Y22), đã đối chiếu giáo trình, slide và văn bản Bộ Y tế; mỗi câu có giải thích từng đáp án, nguồn và lưu ý. Trong mỗi chủ đề, câu lặp lại ở nhiều đề được xếp trước, rồi tới đề mới.</p>
     <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai gần nhất (${wrong})</a> <a class="btn${ever ? "" : " off"}" href="#/quiz/sai">Sổ câu từng sai (${ever})</a></div>
     <section><h2>Theo kiểu câu hỏi</h2><p class="meta">Luyện riêng từng dạng, ví dụ chỉ luyện "Xử trí, bước tiếp theo".</p><div class="decks">${Object.keys(QTYPES).map(typeCard).join("")}</div></section>
@@ -2271,7 +2290,7 @@ function quizBook() {
   const el = $("#main"), rows = qzEver(), p = qzProg(), items = QZ().items, hidden = items.filter(x => p[x.id] && p[x.id].bad > 0 && p[x.id].hid);
   el.style.maxWidth = "820px";
   const row = r => { const x = r.it, st = r.st, t = QTYPES[x.qtype];
-    return `<li class="qb-row" data-id="${esc(x.id)}"><div class="qb-top"><span class="qz-code">${esc(x.n + ". (" + x.srcs.slice(0, 3).join(", ") + (x.srcs.length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="qb-st ${st.last === 0 ? "bad" : "ok"}">${st.last === 0 ? "Lần gần nhất: sai" : "Lần gần nhất: đúng"}</span></div><div class="qb-stem">${esc(x.stem.length > 160 ? x.stem.slice(0, 160) + "…" : x.stem)}</div><div class="qb-foot"><span class="meta">Sai ${st.bad} lần · đúng ${st.ok} lần</span><button class="qz-back qb-done" data-id="${esc(x.id)}">Đã nắm, bỏ khỏi sổ</button></div></li>`; };
+    return `<li class="qb-row" data-id="${esc(x.id)}"><div class="qb-top"><span class="qz-code">${esc("(" + x.srcs.slice(0, 3).join(", ") + (x.srcs.length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="qb-st ${st.last === 0 ? "bad" : "ok"}">${st.last === 0 ? "Lần gần nhất: sai" : "Lần gần nhất: đúng"}</span></div><div class="qb-stem">${esc(x.stem.length > 160 ? x.stem.slice(0, 160) + "…" : x.stem)}</div><div class="qb-foot"><span class="meta">Sai ${st.bad} lần · đúng ${st.ok} lần</span><button class="qz-back qb-done" data-id="${esc(x.id)}">Đã nắm, bỏ khỏi sổ</button></div></li>`; };
   el.innerHTML = `${qzHead([{ t: "Quiz", href: "#/quiz" }, { t: "Sổ câu từng sai" }])}
     ${pageHead({ c: `var(--s${qzSec()})`, kicker: `${esc(MODULES[QZ_MOD] || QZ_MOD)} · ${qzSec()} Tự đánh giá`, title: "Sổ câu từng làm sai", desc: "Mọi câu bạn đã làm sai được lưu lại ở đây, kể cả khi sau đó làm đúng. Câu sai gần nhất xếp trước. Bấm \"Đã nắm\" khi bạn chắc chắn đã thuộc; câu sẽ quay lại sổ nếu bạn làm sai lần nữa. Sổ lưu trên trình duyệt này." })}
     <div class="cact"><a class="btn p${rows.length ? "" : " off"}" href="#/quiz/ever">Ôn tất cả (${rows.length} câu)</a> <a class="btn" href="#/quiz">Về danh sách chủ đề</a>${hidden.length ? ` <button class="btn" id="qbShow">Khôi phục ${hidden.length} câu đã nắm</button>` : ""}</div>
@@ -2291,14 +2310,14 @@ const qzRefLetter = /(đáp án|lựa chọn|phương án|ý)\s+\(?[A-D]\)?(?![\
 const qzCanShuffle = it => ![it.why, it.tips, it.refNote, ...Object.values(it.explain || {})].some(t => qzRefLetter.test(t || "")) && !Object.values(it.options).some(v => /\b(tất cả|cả\s+[a-d]\b|[a-d]\s*(và|,|\+)\s*[a-d]\b|các ý|không\s+(có\s+)?(ý|đáp án|yếu tố)\s+nào|đều (đúng|sai))/i.test(v));
 const qzOrd = it => (QS.ord[it.id] = QS.ord[it.id] || (qzCanShuffle(it) ? shuffle(Object.keys(it.options)) : Object.keys(it.options)));
 function quizCardHtml(it) {
-  const code = `${it.n}. (${it.srcs.join(", ")})`;
+  const code = `(${it.srcs.join(", ")})`;
   const opt = qzOrd(it).map((k, i) => `<div class="qz-o" data-k="${k}"><button class="qz-opt" data-k="${k}"><b>${"ABCD"[i]}</b><span>${inline(it.options[k])}</span></button><div class="qz-ex" hidden></div></div>`).join("");
   return `<div class="qz-meta"><span class="qz-code">${esc(code)}</span>${it.freq > 1 ? `<span class="qz-rep">Lặp ở ${it.freq} đề</span>` : ""}${QTYPES[it.qtype] ? `<span class="qz-type">${esc(QTYPES[it.qtype][0])}</span>` : ""}</div>
     ${it.context ? `<div class="callout note"><div class="ct">Tình huống</div><p>${inline(it.context)}</p></div>` : ""}
     <div class="qz-stem">${inline(it.stem)}</div><div class="qz-opts">${opt}</div><div id="qzFb"></div>`;
 }
 function renderQuiz() {
-  const el = $("#main"), S = QS, title = qzTitle(S.key);
+  const el = $("#main"), S = QS, title = S.title || qzTitle(S.key);
   el.style.maxWidth = "760px";
   const head = qzHead([{ t: "Quiz", href: "#/quiz" }, { t: title }]);
   if (!S.list.length) { el.innerHTML = `${head}<div class="cend"><h2>Không có câu nào</h2><p>${S.key === "wrong" || S.key === "ever" ? "Bạn chưa có câu nào làm sai." : "Bộ này chưa có câu hỏi."}</p><p><a class="btn p" href="#/quiz">Về danh sách chủ đề</a></p></div>`; return; }
@@ -2307,10 +2326,14 @@ function renderQuiz() {
     if (!S.key.endsWith("-r") && !qzTransient(S.key)) { const pp = qzPos(); delete pp[S.key]; store.set("ykkb_quizpos", pp); }
     const wr = S.wrongIds.map(id => QZ().items.find(x => x.id === id)).filter(Boolean);
     el.innerHTML = `${head}<div class="cend"><h2>Xong: ${S.ok}/${tot} câu đúng (${tot ? Math.round(100 * S.ok / tot) : 0}%)</h2>
-      ${wr.length ? `<p class="meta">Câu làm sai:</p><ul class="qz-wl">${wr.map(x => `<li>${esc(x.n + ". (" + x.srcs.join(", ") + ")")}: ${esc(x.stem.length > 90 ? x.stem.slice(0, 90) + "…" : x.stem)}</li>`).join("")}</ul>` : `<p>Không sai câu nào.</p>`}
+      ${wr.length ? `<p class="meta">Câu làm sai:</p><ul class="qz-wl">${wr.map(x => `<li>${esc("(" + x.srcs.join(", ") + ")")}: ${esc(x.stem.length > 90 ? x.stem.slice(0, 90) + "…" : x.stem)}</li>`).join("")}</ul>` : `<p>Không sai câu nào.</p>`}
       ${(() => { const RANK = { NC: 1, CC: 2, KT: 2, TC: 3, CD: 4, CLS: 5, GD: 6, XT: 7, TH: 7, TL: 8, PN: 9 }; const pts = [...new Set([...S.list].sort((a, b) => (RANK[a.qtype] || 9) - (RANK[b.qtype] || 9)).map(x => (x.why || "").trim()).filter(Boolean))].slice(0, 12); return pts.length ? `<h3 class="qz-sum-h">Điểm chính của bài ôn tập</h3><ul class="qz-pts">${pts.map(t => `<li>${inline(t)}</li>`).join("")}</ul>` : ""; })()}
-      <p><button class="btn" id="qzBackEnd">‹ Xem lại các câu trước</button> <a class="btn p" href="#/quiz">Về danh sách chủ đề</a> ${wr.length ? `<a class="btn" href="#/quiz/wrong">Ôn lại câu sai</a>` : ""} <a class="btn" href="#/quiz/${encodeURIComponent(S.key)}${S.key === "random" ? "/20" : ""}" data-restart="1">Làm lại bộ này</a></p></div>`;
+      <p><button class="btn" id="qzBackEnd">‹ Xem lại các câu trước</button> <a class="btn p" href="#/quiz">Về danh sách chủ đề</a> ${wr.length ? `<button class="btn" id="qzRetry">Ôn lại câu sai (${wr.length})</button>` : ""} <a class="btn" id="qzRestart" href="#/quiz/${encodeURIComponent(S.key)}${S.key === "random" ? "/20" : ""}">Làm lại bộ này</a></p></div>`;
     $("#qzBackEnd").onclick = () => { S.i = S.list.length - 1; renderQuiz(); };
+    // Cùng địa chỉ thì trình duyệt không đổi trang, nên làm lại phải chạy trực tiếp
+    $("#qzRestart").onclick = e => { e.preventDefault(); startQuiz(S.key, S.key === "random" ? 20 : 0); renderQuiz(); };
+    // Chỉ ôn các câu vừa làm sai trong bộ này, không lấy câu sai của chủ đề khác
+    if ($("#qzRetry")) $("#qzRetry").onclick = () => { QS = { key: "retry", title: `Ôn lại câu sai · ${title}`, list: wr.slice(), i: 0, ans: {}, ord: {}, ok: 0, bad: 0, wrongIds: [] }; renderQuiz(); };
     return;
   }
   const it = S.list[S.i], pct = Math.round(100 * S.i / S.list.length);
@@ -2339,7 +2362,7 @@ function answerQuiz(k, replay = false) {   // replay = true: xem lại câu đã
     const t = ((it.explain || {})[kk] || "").replace(/^\s*(Đúng|Sai|Chính xác)(?=[\s.:,–(-]|$)\s*[.:,–-]?\s*/i, "").replace(/^\(([^)]+)\)\s*[.:,]?\s*/, (m, g) => g.charAt(0).toUpperCase() + g.slice(1) + ". ").replace(/^[a-zà-ỹ]/, c => c.toUpperCase());   // nhãn Đúng/Sai do giao diện thêm, tránh lặp
     ex.innerHTML = `<b>${kk === it.answer ? "Đúng" : "Sai"}.</b> ${t ? inline(t) : ""}${(it.added || []).includes(kk) ? ` <i class="meta">(đáp án nhiễu do soạn thêm)</i>` : ""}`; ex.hidden = false;
   });
-  const srcs = (it.sources || []).map(s => `<li><b>${esc(s.label || "")}</b>${s.where ? ` · ${esc(s.where)}` : ""}${s.quote ? `<blockquote>${inline(s.quote)}</blockquote>` : ""}</li>`).join("");
+  const srcs = (it.sources || []).map(s => `<li><b>${esc(s.label || "")}</b>${s.where ? ` · ${esc(s.where)}` : ""}${s.quote ? `<blockquote>${inline(s.quote.replace(/\s*•\s*/g, "\n• ").replace(/\n– /g, "\n\u00a0\u00a0\u00a0\u00a0– "))}</blockquote>` : ""}</li>`).join("");
   const refWarn = it.refNote ? `<div class="callout conflict"><div class="ct">Đáp án trong đề tham khảo</div><p>${inline(it.refNote)}</p></div>` : "";
   const gen = it.level === "kien_thuc_chung" ? `<div class="callout ext"><div class="ct">Chưa đối chiếu tài liệu</div><p>Câu này dựa trên kiến thức chung vì chưa tìm thấy nội dung tương ứng trong giáo trình/slide của bạn. Hãy kiểm tra lại với giảng viên nếu còn nghi ngờ.</p></div>` : "";
   const last = S.i + 1 >= S.list.length;
