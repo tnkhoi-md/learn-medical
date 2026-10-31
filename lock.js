@@ -8,23 +8,23 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
+try { store.del("ykkb_pw"); } catch {}   // xóa mật khẩu đã ghi nhớ từ các bản cũ
 
-// Tự khóa lại: mật khẩu được nhớ trên thiết bị, nhưng sẽ hỏi lại khi đã quá một khoảng thời gian kể từ lần cuối dùng trang.
+// Tự khóa lại: sau một khoảng thời gian không dùng trang (mặc định 12 giờ), trang sẽ yêu cầu nhập lại mật khẩu.
 // "Lần cuối dùng" = lần gần nhất trang còn hiện trên màn hình (cập nhật mỗi 30 giây khi đang xem và khi ẩn/ đóng tab).
-const TO_OPTS = [[5, "5 phút"], [30, "30 phút"], [60, "1 giờ"], [480, "8 giờ"], [1440, "1 ngày"], [10080, "7 ngày"], [43200, "30 ngày"], [0, "Không bao giờ"]];
-const TO_DEFAULT = 1440;
+const TO_OPTS = [[5, "5 phút"], [30, "30 phút"], [60, "1 giờ"], [480, "8 giờ"], [720, "12 giờ"], [1440, "1 ngày"], [10080, "7 ngày"], [43200, "30 ngày"], [0, "Không bao giờ"]];
+const TO_DEFAULT = 720;
 const timeoutMin = () => { const n = parseInt(store.get("ykkb_to"), 10); return TO_OPTS.some(o => o[0] === n) ? n : TO_DEFAULT; };
 const lastSeen = () => parseInt(store.get("ykkb_last"), 10) || 0;
 const expired = () => { const m = timeoutMin(), t = lastSeen(); return m > 0 && t > 0 && Date.now() - t > m * 60000; };
 const touch = () => store.set("ykkb_last", String(Date.now()));
 window.YKKB_LOCK = { options: TO_OPTS, get: timeoutMin, set: m => store.set("ykkb_to", String(m)), enc: false };
-function fillTimeout(sel) { sel.innerHTML = TO_OPTS.map(([m, t]) => `<option value="${m}">${t}</option>`).join(""); sel.value = String(timeoutMin()); }
 function watch() {
   touch();
   setInterval(() => { if (document.visibilityState === "visible") touch(); }, 30000);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") touch();
-    else if (expired()) { store.del("ykkb_pw"); location.reload(); }   // để tab quá hạn rồi quay lại: yêu cầu mật khẩu
+    else if (expired()) location.reload();   // để tab quá hạn rồi quay lại: yêu cầu nhập lại mật khẩu
   });
   addEventListener("pagehide", touch);
 }
@@ -56,21 +56,18 @@ async function start(data) {
 function view(form, text) {
   $("lock").hidden = false;
   const meta = document.querySelector("#lock .meta"); if (meta) meta.hidden = !form;
-  for (const e of [$("lock-pw"), $("lock-go"), $("lock-rem").parentElement, $("lock-to").parentElement]) e.hidden = !form;
+  for (const e of [$("lock-pw"), $("lock-go")]) e.hidden = !form;
   $("lock-msg").textContent = text || "";
 }
 
 function ask(buf, why) {
   view(true, why);
-  const pw = $("lock-pw"), msg = $("lock-msg"), btn = $("lock-go"), rem = $("lock-rem"), to = $("lock-to");
-  fillTimeout(to);
+  const pw = $("lock-pw"), msg = $("lock-msg"), btn = $("lock-go");
   btn.textContent = "Mở"; btn.disabled = false;
   const go = async () => {
     msg.textContent = ""; btn.disabled = true; btn.textContent = "Đang mở…";
     try {
       const data = await decrypt(buf, pw.value);
-      if (rem.checked) store.set("ykkb_pw", pw.value); else store.del("ykkb_pw");
-      window.YKKB_LOCK.set(to.value);
       await start(data); afterOpen();
     } catch (e) {
       msg.textContent = e.message === "format" ? "Tệp dữ liệu không đúng định dạng." : e.message === "gzip" ? "Trình duyệt quá cũ để giải nén nội dung. Hãy cập nhật trình duyệt." : (crypto.subtle ? "Mật khẩu chưa đúng." : "Trình duyệt cần kết nối https để giải mã.");
@@ -147,13 +144,6 @@ async function refresh(cache, old) {
     return;
   }
   if (cached && cache) afterOpen = () => refresh(cache, buf);
-  const saved = store.get("ykkb_pw");
-  if (saved && expired()) { store.del("ykkb_pw"); ask(buf, "Đã quá thời gian ghi nhớ, nhập lại mật khẩu."); return; }
-  if (saved) {
-    view(false, "Đang mở…");
-    try { await start(await decrypt(buf, saved)); afterOpen(); return; }
-    catch (e) { if (e.message !== "gzip") store.del("ykkb_pw"); }
-  }
   ask(buf);
 })();
 })();

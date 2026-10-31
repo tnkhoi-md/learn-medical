@@ -407,8 +407,7 @@ details.kitem[open]>summary{border-bottom:1px solid var(--line)}
 .lockbox{width:min(360px,100%);padding:28px 24px;border:1px solid var(--line);border-radius:18px;background:var(--panel);text-align:center}
 .lockbox h1{margin:0 0 4px;font-size:26px}
 .lockbox input[type=password]{width:100%;margin:12px 0 8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:17px}
-.lockrem{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 14px;font-size:14px;color:var(--mute)}
-.lockrem select,.srow select{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px}
+.srow select{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;font-size:13px}
 .lockbox .b{width:100%;padding:12px;font-size:17px}
 .lockmsg{min-height:1.2em;margin:10px 0 0;font-size:14px;color:var(--c-red)}
 
@@ -951,6 +950,9 @@ h2 .en,h3 .en,summary .en{font-size:.72em;font-weight:500;opacity:.7;margin-left
 :is(#tree,#sheet,#khacmods) details.mod[data-mod="kham-lam-sang"]{--mi:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M6%203v6a4%204%200%200%200%208%200V3M6%203H4.5M14%203h1.5M10%2013v3a5%205%200%200%200%2010%200v-2'/%3E%3Ccircle%20cx='20'%20cy='12'%20r='2'/%3E%3C/svg%3E")}
 :is(#tree,#sheet,#khacmods) details.mod[data-mod="trieu-chung-hoc"]{--mi:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M14%2014.6V5a2%202%200%200%200-4%200v9.6a4%204%200%201%200%204%200zM12%209v8'/%3E%3Cpath%20d='M17.5%206h3M17.5%209.5h2'/%3E%3C/svg%3E")}
 :is(#tree,#sheet,#khacmods) details.mod[data-mod="y-duc-ky-nang-an-toan"]{--mi:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M12%2011.5s-4-2.3-4-5.2A2.2%202.2%200%200%201%2012%205a2.2%202.2%200%200%201%204%201.3c0%202.9-4%205.2-4%205.2z'/%3E%3Cpath%20d='M3%2015h3.5l3.5%201.5h4a1.5%201.5%200%200%200%200-3h-3M14%2016.5l5-2.5a1.5%201.5%200%200%201%201.800%202.2L16%2020.5H9.5L6.5%2019H3'/%3E%3C/svg%3E")}
+:is(#tree,#sheet,#khacmods) details.mod[data-mod="chan-doan-hinh-anh"]{--mi:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%208V5.5A1.5%201.5%200%200%201%205.5%204H8M16%204h2.5A1.5%201.5%200%200%201%2020%205.5V8M20%2016v2.5a1.5%201.5%200%200%201-1.5%201.5H16M8%2020H5.5A1.5%201.5%200%200%201%204%2018.5V16'/%3E%3Ccircle%20cx='12'%20cy='12'%20r='3.5'/%3E%3C/svg%3E")}
+:is(#tree,#sheet,#khacmods) details.mod[data-mod="sinh-ly-dap-ung"]{--mi:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M19.5%209A8%208%200%200%200%205%205.8L4%208M4.5%2015a8%208%200%200%200%2014.5%203.2L20%2016'/%3E%3Cpath%20d='M4%204v4h4M20%2020v-4h-4'/%3E%3C/svg%3E")}
+:is(#tree,#sheet,#khacmods) details.mod[data-mod="lao-khoa"]{--mi:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.9'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx='11'%20cy='5'%20r='2'/%3E%3Cpath%20d='M11%208.5l-1.5%205.5%202.5%201.5V21M9.5%2011.5h3.5M15.5%2021V12a2%202%200%200%201%204%200'/%3E%3C/svg%3E")}
 :is(#tree,#sheet,#khacmods) details.mod[data-mod]>summary::before{flex:0 0 22px;width:22px;height:22px;background:var(--brand);-webkit-mask:var(--mi) center/contain no-repeat;mask:var(--mi) center/contain no-repeat;transform:none}
 :is(#tree,#sheet,#khacmods) details.mod[data-mod]>summary::after{content:"";margin-left:auto;flex:0 0 12px;width:12px;height:12px;background:var(--mute);-webkit-mask:var(--chev) center/contain no-repeat;mask:var(--chev) center/contain no-repeat;transition:transform .15s ease}
 :is(#tree,#sheet,#khacmods) details.mod[data-mod][open]>summary::after{transform:rotate(90deg)}
@@ -1069,6 +1071,9 @@ h2 .en,h3 .en,summary .en{font-size:.72em;font-weight:500;opacity:.7;margin-left
 .bk-row summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .bk-row summary::-webkit-details-marker{display:none}
 .bk-stem{flex-basis:100%;line-height:1.45;margin-top:2px}
+.bk-stat{margin-left:auto;font-size:calc(12px * var(--fs));color:var(--mute);white-space:nowrap}
+.bk-stat-ok{color:#2e7d32;font-weight:600}
+.bk-stat-bad{color:#c62828;font-weight:600}
 .bk-body{padding:0 14px 12px;border-top:1px solid var(--line)}
 .bk-ctx{margin:10px 0;padding:8px 10px;border-radius:8px;background:var(--line);font-size:calc(14px * var(--fs));line-height:1.5}
 .bk-stem2{font-weight:600;margin:8px 0;line-height:1.5}

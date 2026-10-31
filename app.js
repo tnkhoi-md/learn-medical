@@ -1231,21 +1231,22 @@ const bkMatch = x => {
   if (BK.q) { const q = BK.q.toLowerCase(), hay = [x.stem, x.context || "", ...Object.values(x.options), x.why || "", ...(x.srcs || [])].join(" ").toLowerCase(); if (!hay.includes(q)) return false; }
   return true;
 };
-function bankRow(x) {   // một câu trong ngân hàng: thu gọn, bấm để xem đáp án và giải thích
+function bankRow(x, P) {   // một câu trong ngân hàng: thu gọn, bấm để xem đáp án và giải thích
   const ans = x.answer, opts = Object.keys(x.options).map(k => `<li class="bk-o${k === ans ? " bk-ok" : ""}"><b>${k}.</b> ${inline(x.options[k])}${k === ans ? ` <em class="bk-tag">đáp án</em>` : ""}${(x.explain || {})[k] ? `<div class="bk-ex">${inline(x.explain[k].replace(/^\s*(Đúng|Sai|Chính xác)\s*[.:,–-]?\s*/i, ""))}</div>` : ""}</li>`).join("");
-  const t = QTYPES[x.qtype];
-  return `<details class="bk-row"><summary><span class="qz-code">${esc("(" + (x.srcs || []).slice(0, 3).join(", ") + ((x.srcs || []).length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="bk-stem">${esc(x.core || (x.stem.length > 140 ? x.stem.slice(0, 140) + "…" : x.stem))}</span></summary>
+  const t = QTYPES[x.qtype], pr = (P || {})[x.id] || {}, nOk = pr.ok || 0, nBad = pr.bad || 0;
+  const stat = nOk + nBad ? `Làm ${nOk + nBad} · <span class="bk-stat-ok">Đúng ${nOk}</span> · <span class="bk-stat-bad">Sai ${nBad}</span>` : "Chưa làm";
+  return `<details class="bk-row"><summary><span class="qz-code">${esc("(" + (x.srcs || []).slice(0, 3).join(", ") + ((x.srcs || []).length > 3 ? "…" : "") + ")")}</span>${t ? `<span class="qz-type">${esc(t[0])}</span>` : ""}<span class="bk-stat">${stat}</span><span class="bk-stem">${esc(x.core || (x.stem.length > 140 ? x.stem.slice(0, 140) + "…" : x.stem))}</span></summary>
     <div class="bk-body">${x.context ? `<div class="bk-ctx"><b>Tình huống:</b> ${inline(x.context)}</div>` : ""}<div class="bk-stem2">${inline(x.stem)}</div><ol class="bk-opts" type="A">${opts}</ol>
     ${x.why ? `<p class="bk-why"><b>Ý chính:</b> ${inline(x.why)}</p>` : ""}${x.tips ? `<p class="bk-tip"><b>Lưu ý:</b> ${inline(x.tips)}</p>` : ""}${x.refNote ? `<p class="bk-ref"><b>Đề tham khảo ghi khác:</b> ${inline(x.refNote)}</p>` : ""}
     </div></details>`;
 }
 function bankList() {
-  const Q = QZ(), all = qzAll().filter(bkMatch);
+  const Q = QZ(), all = qzAll().filter(bkMatch), P = qzProg();
   if (!all.length) return `<p class="meta">Không có câu nào khớp bộ lọc.</p>`;
   const searching = !!(BK.q || BK.k);
   const groups = Object.keys(Q.topics).map(t => [t, all.filter(x => x.topic === t)]).filter(([, l]) => l.length);
   return `<p class="meta">${all.length} / ${Q.items.length} câu · bấm từng bệnh để mở</p>
-    ${groups.map(([t, l]) => `<details class="bk-grp"${searching || BK.t === t ? " open" : ""}><summary><b>${esc(Q.topics[t])}</b><span class="bk-cnt">${l.length} câu</span></summary><div class="bk-grp-body">${l.map(bankRow).join("")}</div></details>`).join("")}`;
+    ${groups.map(([t, l]) => `<details class="bk-grp"${searching || BK.t === t ? " open" : ""}><summary><b>${esc(Q.topics[t])}</b><span class="bk-cnt">${l.length} câu</span></summary><div class="bk-grp-body">${l.map(x => bankRow(x, P)).join("")}</div></details>`).join("")}`;
 }
 function bankBody() {
   const Q = QZ();
