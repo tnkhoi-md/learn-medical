@@ -200,16 +200,17 @@ main p,main li,main .callout,.hero p{text-wrap:pretty}
 .callout .ct{margin-bottom:4px;font-size:calc(11.5px * var(--fs));font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cc,var(--c-note))}
 .callout p,.callout ul,.callout ol{margin:4px 0}
 .callout.key .ct::before{content:"📌 "}
+.callout.guide .ct::before{content:"📖 "}
 .callout.red .ct::before{content:"🆘 "}
 .callout.warn .ct::before{content:"⚠️ "}
 .callout.ind .ct::before{content:"✅ "}
 .callout.ae .ct::before{content:"⁉️ "}
-.callout.goal .ct::before{content:"🎯 "}
+.callout.goal .ct::before,.callout.learn .ct::before{content:"🎯 "}
 .callout.def .ct::before{content:"🫆 "}
-.callout.key{--cc:var(--c-key);--cb:var(--b-key)}
+.callout.key,.callout.guide{--cc:var(--c-key);--cb:var(--b-key)}
 .callout.study{--cc:var(--c-key);--cb:var(--b-key)}
-.callout.tip{--cc:var(--c-tip);--cb:var(--b-tip);position:relative;margin:22px 0 14px;padding:14px 16px 10px;border:1px solid var(--cc);border-radius:12px}
-.callout.tip .ct{position:absolute;top:-22px;left:-1px;margin:0;padding:3px 10px;border-radius:8px 8px 0 0;background:var(--cc);color:var(--onc,#fff);line-height:1.3}
+.callout.tip,.callout.case{--cc:var(--c-tip);--cb:var(--b-tip);position:relative;margin:22px 0 14px;padding:14px 16px 10px;border:1px solid var(--cc);border-radius:12px}
+.callout.tip .ct,.callout.case .ct{position:absolute;top:-22px;left:-1px;margin:0;padding:3px 10px;border-radius:8px 8px 0 0;background:var(--cc);color:var(--onc,#fff);line-height:1.3}
 .callout.warn{--cc:var(--c-warn);--cb:var(--b-warn);border:1.5px dotted var(--cc);border-radius:12px}
 .callout.red{--cc:var(--c-red);--cb:var(--b-red);border:1px solid var(--cc);border-radius:12px}
 .callout.doc{--cc:var(--c-doc);--cb:var(--b-doc)}
@@ -222,7 +223,7 @@ main p,main li,main .callout,.hero p{text-wrap:pretty}
 .callout.def::before{content:"\201C";position:absolute;left:9px;top:-4px;font-size:36px;line-height:1;color:var(--cc);font-family:var(--font-voice,Georgia,serif)}
 .callout.criteria,.callout.score{position:relative;margin:22px 0 14px;padding:14px 16px 10px;border:1px solid var(--cc);border-radius:12px}
 .callout.criteria .ct,.callout.score .ct{position:absolute;top:-9px;left:12px;margin:0;padding:0 6px;background:var(--bg);line-height:1.3}
-.callout.goal{--cc:var(--c-goal);--cb:var(--b-goal);border:3px double var(--cc);border-radius:6px}
+.callout.goal,.callout.learn{--cc:var(--c-goal);--cb:var(--b-goal);border:3px double var(--cc);border-radius:6px}
 .callout.ind{--cc:var(--c-ind);--cb:var(--b-ind)}
 .callout.contra{--cc:var(--c-contra);--cb:var(--b-contra);border:1.5px solid var(--cc);border-radius:12px}
 .callout.contra .ct::before{content:"❌ "}

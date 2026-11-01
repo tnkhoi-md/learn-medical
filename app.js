@@ -88,7 +88,7 @@ NOTES.forEach(n => {
 });
 
 // ---- markdown mở rộng: hộp màu, đánh dấu, tab, thẻ gập, danh sách lồng ----
-const CALL = { study: "Ôn tập", key: "Ý chính", warn: "Lưu ý – bẫy thi", tip: "Mẹo nhớ", ext: "Tham khảo ngoài tài liệu", doc: "Theo văn bản Bộ Y tế", note: "Ghi chú", red: "Cấp cứu – nguy hiểm", criteria: "Tiêu chuẩn chẩn đoán", goal: "Mục tiêu điều trị", ind: "Chỉ định", contra: "Chống chỉ định", ae: "Tác dụng phụ", score: "Thang điểm – công thức", conflict: "Mâu thuẫn giữa các tài liệu", def: "Định nghĩa" };
+const CALL = { study: "Ôn tập", key: "Ý chính", warn: "Lưu ý – bẫy thi", tip: "Mẹo nhớ", case: "Tình huống", ext: "Tham khảo ngoài tài liệu", doc: "Theo văn bản Bộ Y tế", note: "Ghi chú", red: "Cấp cứu – nguy hiểm", criteria: "Tiêu chuẩn chẩn đoán", goal: "Mục tiêu điều trị", learn: "Mục tiêu học tập", guide: "Hướng dẫn sử dụng bài học", ind: "Chỉ định", contra: "Chống chỉ định", ae: "Tác dụng phụ", score: "Thang điểm – công thức", conflict: "Mâu thuẫn giữa các tài liệu", def: "Định nghĩa" };
 const inline = s => esc(s)
   .replace(/`([^`]+)`/g, "<code>$1</code>")
   .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
