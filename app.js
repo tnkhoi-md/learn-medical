@@ -1083,7 +1083,7 @@ function modSection(mod, k, openId) {
   } else if (type === "cards") {
     const withCards = ns.map(n => ({ n, c: cardsOf(n) })).filter(x => x.c.length);
     const total = withCards.reduce((s, x) => s + x.c.length, 0);
-    const nq = mod === QZ_MOD ? QZ().items.length : 0;
+    const nq = QZ().items.filter(x => qzModOf(x) === mod).length;
     body = (nq ? `<div class="callout key"><div class="ct">Quiz 4 đáp án</div><p><b>${nq}</b> câu từ các đề cũ Y17–Y22, có giải thích từng đáp án, nguồn và lưu ý. Ôn theo chủ đề (câu lặp nhiều đề xếp trước) hoặc ngẫu nhiên.</p><p><a class="btn p" href="#/quiz">Vào làm quiz</a></p></div>` : "") + `<div class="callout note"><div class="ct">Ghi chú</div><p>Bộ thẻ ôn đã được <b>viết lại từ các đề thi Y17–Y22</b>, theo từng chủ đề, ôn lặp ngắn quãng.</p></div>
       <p><b>${total}</b> thẻ trong <b>${withCards.length}</b> bài · <a class="btn p" href="#/cards">Bắt đầu ôn thẻ (lặp lại ngắn quãng)</a></p>` +
       withCards.map(({ n, c }) => `<details class="fold"><summary>${esc(n.short || n.title)} <small>${c.length} thẻ</small></summary>${c.map(x => `<details class="card"><summary>${inline(x.q)}</summary><div>${cardA(x.a)}</div></details>`).join("")}</details>`).join("");
