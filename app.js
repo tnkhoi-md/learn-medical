@@ -1072,7 +1072,7 @@ function modSection(mod, k, openId) {
   } else if (type === "notes") {   // mục gồm các bài; "openAll": true trong _module.json thì mở sẵn để đọc liền
     // mục chỉ có một bài: hiện nội dung luôn, không cần thanh mở/đóng
     const syn = gen.filter(isSyn), sym = gen.filter(n => !isSyn(n));
-    body = gen.length === 1 ? `<section id="t-${gen[0].id}"><h2>${esc(gen[0].short || gen[0].title)}</h2>${md(gen[0].body)}</section>`
+    body = gen.length === 1 ? `<section id="t-${gen[0].id}">${sp.hideTitle ? "" : `<h2>${esc(gen[0].short || gen[0].title)}</h2>`}${md(gen[0].body)}</section>`
       : sp.pages && gen.length ? `<div class="rgrid">${gen.map(n => `<a class="rcard" href="#/n/${n.id}"><b>${esc(n.short || n.title)}</b><p class="meta">${esc(n.tags.slice(0, 4).join(", "))}</p></a>`).join("")}</div>`
       : gen.length ? allBtn + (sym.length ? noteToggles(sym, openSet) : "") + (syn.length ? `<section id="syn-${k}"><h2>Các hội chứng</h2>${noteToggles(syn, openSet)}</section>` : "")
       : "<p class='meta'>Chưa có.</p>";
@@ -1136,6 +1136,11 @@ function pagerOf(n, have, secs, sec) {
   const link = (k, cls, lab) => k >= 0 && k < order.length ? `<a class="pg ${cls}" href="#/n/${n.id}/${order[k]}"><small>${lab}</small><b>${nm(order[k])}</b></a>` : "<span></span>";
   return `<nav class="pager" aria-label="Chuyển tab">${link(i - 1, "prev", "← Trước")}<button type="button" class="pg up" aria-label="Lên đầu trang"><span aria-hidden="true">↑</span><b>Lên đầu trang</b></button>${link(i + 1, "next", "Tiếp →")}</nav>`;
 }
+// Nhãn module trên bìa bài: module chính và các module khác mà bài cũng thuộc về (front matter "also")
+const modBadges = n => {
+  const ms = [n.module, ...(n.also || [])].filter((m, i, a) => m && MODULES[m] && a.indexOf(m) === i);
+  return ms.length ? `<span class="stt"><small>Module</small>${ms.map((m, i) => `<a class="chip wide${i ? "" : " main"}" href="#/m/${m}/1">${esc(MODULES[m])}</a>`).join("")}</span>` : "";
+};
 function diseasePage(n, sec) {
   const { pre, secs } = diseaseParts(n); curScheme = n.scheme || "";
   const have = tabsOf(n).filter(([num]) => secs[num]).map(([num]) => num);
@@ -1147,7 +1152,7 @@ function diseasePage(n, sec) {
   const mod = n.module, dk = secByType(mod, "diseases") || 5, body = isSummary ? summaryOnly(secs[9].body) : secs[sec].body;
   const col = `var(--${colOf(n, sec)})`, cont = withToc(md(relabel(body)));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${dk} ${secOf(mod, dk).title}`, href: `#/m/${mod}/${dk}` }, { t: n.title }])}
-    ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: `${esc(n.title)}${n.en ? ` <small class="en">${esc(n.en)}</small>` : ""}`, badges: khung })}
+    ${pageHead({ c: `var(--s${secC(mod, dk)})`, kicker: `${esc(MODULES[mod] || mod)} · ${dk} ${esc(secOf(mod, dk).title)}`, title: `${esc(n.title)}${n.en ? ` <small class="en">${esc(n.en)}</small>` : ""}`, badges: modBadges(n) + khung })}
     <div class="dtabs">${tabsOf(n).filter(([num]) => secs[num]).map(([num, t, c]) => `<a class="dt${num === sec ? " on" : ""}" style="--c:var(--${c})" href="#/n/${n.id}/${num}"><b>${dnum(num)}</b> ${t}</a>`).join("")}${secs[9] ? `<a class="dt sum${isSummary ? " on" : ""}" href="#/n/${n.id}/9">★ Tóm tắt</a>` : ""}</div>
     ${!isSummary && sec === have[0] && pre.trim() ? `<div class="pre">${md(relabel(pre))}</div>` : ""}
     <div class="notepage" style="--c:${col}">${tocBox(cont.items)}${cont.html}</div>
@@ -1162,7 +1167,7 @@ function tongPage(n) {
   pushRecent(n.id, 0);
   const cont = withToc(md(relabel(n.body)));
   $("#main").innerHTML = `${crumb([{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: "Bệnh học", href: "#/lib/benhhoc" }, { t: n.short || n.title }])}
-    ${pageHead({ c: "var(--benh)", kicker: "Thư viện học tập · Bệnh học", title: esc(n.title) })}
+    ${pageHead({ c: "var(--benh)", kicker: "Thư viện học tập · Bệnh học", title: esc(n.title), badges: modBadges(n) })}
     <div class="notepage" style="--c:var(--benh)">${tocBox(cont.items)}${cont.html}</div>
     ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}`;
   window.scrollTo(0, 0);
@@ -1180,7 +1185,7 @@ function note(id, sec) {
   const hid = isHiddenMod(mod), libKey = n.kind === "foundation" ? libOf(n) : "trieuchung", libT = (LIBS.find(l => l[0] === libKey) || [libKey, MODULES[mod] || mod])[1];
   const trail = hid ? [{ t: "Trang chủ", href: "#/" }, { t: "Thư viện học tập", href: "#/lib" }, { t: libT, href: `#/lib/${libKey}` }] : [{ t: "Trang chủ", href: "#/" }, { t: MODULES[mod] || mod, href: `#/m/${mod}/1` }, { t: `${k} ${sp.title}`, href: `#/m/${mod}/${k}` }];
   $("#main").innerHTML = `${crumb(trail)}
-    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: hid ? `Thư viện học tập · ${esc(libT)}${(["thamkham", "thangdiem"].includes(libKey) ? sp.title : n.group) ? " · " + esc(["thamkham", "thangdiem"].includes(libKey) ? sp.title : n.group) : ""}` : `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title) })}
+    ${pageHead({ c: `var(--s${secC(mod, k)})`, kicker: hid ? `Thư viện học tập · ${esc(libT)}${(["thamkham", "thangdiem"].includes(libKey) ? sp.title : n.group) ? " · " + esc(["thamkham", "thangdiem"].includes(libKey) ? sp.title : n.group) : ""}` : `${esc(MODULES[mod] || mod)} · ${k} ${esc(sp.title)}`, title: esc(n.title), badges: modBadges(n) })}
     <div class="notepage" style="--c:var(--s${secC(mod, k)})">${tocBox(cont.items)}${cont.html}</div>
     ${n.source ? `<p class="meta srcline">Nguồn: ${esc(n.source)}</p>` : ""}${["thamkham", "thangdiem"].includes(libKey) ? examNav(id, libKey) : ""}`;
   window.scrollTo(0, 0);
