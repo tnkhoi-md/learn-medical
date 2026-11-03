@@ -2243,14 +2243,16 @@ const QTYPES = {
   PN: ["Chọn phát biểu đúng, sai", "Đọc kỹ từ phủ định, loại từng đáp án."],
 };
 const qzTk = key => { const m = key.match(/^t-([A-Z]+)(-r)?$/); return m && QTYPES[m[1]] ? { t: m[1], r: !!m[2] } : null; };
-const qzTitle = key => qzTk(key) ? QTYPES[qzTk(key).t][0] + (qzTk(key).r ? " (ngẫu nhiên)" : "") : key === "random" ? "Ngẫu nhiên tất cả chủ đề" : key === "wrong" ? "Ôn lại câu làm sai" : key === "ever" ? "Sổ câu từng làm sai" : key.endsWith("-r") ? (QZ().topics[key.slice(0, -2)] || key) + " (ngẫu nhiên)" : (QZ().topics[key] || key);
+const qzMk = key => { const m = key.match(/^m-(.+)$/); return m ? decodeURIComponent(m[1]) : null; };   // bộ câu theo chuyên khoa (module)
+const qzTitle = key => qzMk(key) ? (MODULES[qzMk(key)] || qzMk(key)) : qzTk(key) ? QTYPES[qzTk(key).t][0] + (qzTk(key).r ? " (ngẫu nhiên)" : "") : key === "random" ? "Ngẫu nhiên tất cả chủ đề" : key === "wrong" ? "Ôn lại câu làm sai" : key === "ever" ? "Sổ câu từng làm sai" : key.endsWith("-r") ? (QZ().topics[key.slice(0, -2)] || key) + " (ngẫu nhiên)" : (QZ().topics[key] || key);
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 // Sổ câu từng làm sai: mọi câu đã sai ít nhất một lần, giữ lại dù sau đó làm đúng; chỉ ẩn khi bạn bấm "Đã nắm"
 const qzEver = () => { const p = qzProg(); return QZ().items.filter(x => p[x.id] && p[x.id].bad > 0 && !p[x.id].hid).map(it => ({ it, st: p[it.id] })).sort((a, b) => (a.st.last === 0) !== (b.st.last === 0) ? (a.st.last === 0 ? -1 : 1) : b.st.bad - a.st.bad); };
 const qzTransient = key => key === "random" || key === "wrong" || key === "ever" || key === "retry";
 function qzPool(key) {
   const all = qzAll(), p = qzProg();
-  const tk = qzTk(key);
+  const tk = qzTk(key), mk = qzMk(key);
+  if (mk) return QZ().items.filter(x => qzModOf(x) === mk);
   if (tk) { const l = all.filter(x => x.qtype === tk.t); return tk.r ? shuffle(l) : l; }
   if (key === "random") return shuffle(all.slice());
   if (key === "wrong") return all.filter(x => p[x.id] && p[x.id].last === 0);
@@ -2284,10 +2286,13 @@ function quizBody() {
     const d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length, pos = qzPos()["t-" + k] || 0;
     return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/t-${k}"><b>${esc(QTYPES[k][0])}</b><span class="dmeta">${li.length} câu · ${d ? `${ok}/${d} đúng` : "chưa làm"}${pos > 0 && pos < li.length ? ` · làm dở ở câu ${pos + 1}` : ""}</span>${qzRatioBar(li, p)}</a><a class="dall" href="#/quiz/t-${k}-r" title="Trộn ngẫu nhiên các câu dạng này">Ngẫu nhiên</a></div>`;
   };
+  const modKeys = [...new Set(Q.items.map(qzModOf))];
+  const modCard = m => { const li = Q.items.filter(x => qzModOf(x) === m); if (!li.length) return ""; const d = li.filter(x => p[x.id]).length, ok = li.filter(x => p[x.id] && p[x.id].last === 1).length; return `<div class="deck" style="--c:var(--s${qzSec()})"><a class="dmain" href="#/quiz/m-${encodeURIComponent(m)}"><b>${esc(MODULES[m] || m)} <small>${li.length} câu</small></b><span class="dmeta">${d ? `${ok}/${d} đúng` : "chưa làm"}</span>${qzRatioBar(li, p)}</a></div>`; };
   return `${qzModHtml()}${items.length ? "" : `<div class="callout warn"><div class="ct">Chưa có dữ liệu</div><p>Chưa có ngân hàng câu hỏi. Chạy <code>python3 build.py</code> sau khi có <code>4-module/ung-buou/_quiz/bank.json</code>.</p></div>`}
     <p class="meta rv-note">Câu hỏi lấy từ các đề thi cũ (Y17–Y22), đã đối chiếu giáo trình, slide và văn bản Bộ Y tế; mỗi câu có giải thích từng đáp án, nguồn và lưu ý. Trong mỗi chủ đề, câu lặp lại ở nhiều đề được xếp trước, rồi tới đề mới.</p>
     <div class="cact"><a class="btn p" href="#/quiz/random">Ngẫu nhiên tất cả chủ đề</a> <a class="btn${wrong ? "" : " off"}" href="#/quiz/wrong">Ôn lại câu sai gần nhất (${wrong})</a> <a class="btn${ever ? "" : " off"}" href="#/quiz/sai">Sổ câu từng sai (${ever})</a></div>
     <section><h2>Theo kiểu câu hỏi</h2><p class="meta">Luyện riêng từng dạng, ví dụ chỉ luyện "Xử trí, bước tiếp theo".</p><div class="decks">${Object.keys(QTYPES).map(typeCard).join("")}</div></section>
+    <section><h2>Theo chuyên khoa (module)</h2><p class="meta">Gom toàn bộ câu của một chuyên khoa, không phân theo chủ đề.</p><div class="decks">${modKeys.map(modCard).join("")}</div></section>
     <section><h2>Theo chủ đề</h2><div class="decks">${topics.map(card).join("")}</div>
     <p class="meta qz-foot">Mã nguồn đề: chủ đề + <b>khóa.năm.đợt</b>, ví dụ <b>UTV22.5.1</b> = ung thư vú, khóa Y22, năm Y5, đợt 1; <b>pre</b> = câu trong phần PRETEST của tài liệu tổng hợp. Câu có nhiều mã là câu lặp lại ở nhiều đề.</p></section>`;
 }
