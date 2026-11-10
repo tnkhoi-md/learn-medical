@@ -74,6 +74,8 @@ main h3::before{content:"";display:inline-block;width:9px;height:9px;margin:0 9p
 main h4{margin:1.5em 0 .5em;padding-bottom:6px;border-bottom:1.5px dashed var(--line);font-size:calc(17px * var(--fs));font-weight:800;color:var(--h4)}
 main h4::before{content:"";display:inline-block;width:9px;height:9px;margin:0 9px 1px 0;border-radius:3px;background:var(--c,var(--brand))}
 main h5{margin:1.1em 0 .3em;font-size:calc(15.5px * var(--fs));font-weight:800;color:var(--teal)}
+main h5::before{content:"";display:inline-block;width:7px;height:7px;margin:0 8px 1px 0;border-radius:2px;background:var(--c,var(--teal))}
+main h2::before{content:"";display:inline-block;width:9px;height:9px;margin:0 9px 1px 0;border-radius:3px;background:var(--c,var(--brand-d))}
 ul,ol{padding-left:22px;margin:4px 0}
 li{margin:3px 0}
 li>ul,li>ol{margin:2px 0}
@@ -245,6 +247,7 @@ tbody tr:last-child td{border-bottom:0}
 /* nét đứt mờ, mỏng giữa các cột (cột cuối không có) */
 th:not(:last-child),td:not(:last-child){border-right:1px dashed color-mix(in srgb,var(--line) 75%,transparent)}
 th:not(:last-child){border-right-color:rgba(255,255,255,.35)}
+.tcap{margin:14px 0 4px;font-size:calc(14.5px * var(--fs));font-weight:700;color:var(--h4)}
 .tw{margin:12px 0;overflow-x:auto}
 .tw table{display:table;margin:0;min-width:100%}
 /* bảng dài: khung cuộn riêng, dòng tiêu đề dính trên cùng khi cuộn */
