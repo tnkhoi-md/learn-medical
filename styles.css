@@ -20,6 +20,7 @@
   --c-warn:#a15c07;--b-warn:#fdf4df;    /* lưu ý, bẫy thi */
   --c-red:#b42318;--b-red:#fdeceb;      /* cấp cứu, nguy hiểm */
   --c-doc:#1d4ed8;--b-doc:#eaf1fd;      /* theo văn bản Bộ Y tế */
+  --c-fig:#7a4fb0;--b-fig:#f3eefb;      /* hình minh họa (sách gốc) */
   --c-ext:#b84509;--b-ext:#fff1e6;      /* ngoài tài liệu của bạn */
   --c-note:#4f5f58;--b-note:#eef2ef;    /* ghi chú */
   --c-crit:#0e6ba8;--b-crit:#e8f3fb;    /* tiêu chuẩn chẩn đoán */
@@ -41,7 +42,7 @@
   --nen:#86a9d8;--trieuchung:#62bccb;--benh:#e09a68;--cls:#a898d8;--dieutri:#6cc9b8;--phacdo:#e08585;
   --s1:#9aa8ba;--s2:#86a9d8;--s3:#62bccb;--s4:#a898d8;--s5:#e09a68;--s6:#e08585;--s7:#e28fba;--s8:#d9b863;--s9:#a9a9b3;--s10:#79c98f;--s11:#d9b062;--s12:#e69cc3;--s13:#5fd0bf;--s14:#a9d65a;--s15:#c3a7ec;--s16:#77bde6;
   --c-key:#86cfa8;--b-key:#203830;--c-tip:#82c8cf;--b-tip:#1f3a3b;--c-warn:#dcb86c;--b-warn:#38301c;
-  --c-red:#eb9d95;--b-red:#3d2623;--c-doc:#9dbcf2;--b-doc:#212f48;--c-ext:#f0b48c;--b-ext:#3b2d1f;
+  --c-red:#eb9d95;--b-red:#3d2623;--c-doc:#9dbcf2;--b-doc:#212f48;--c-fig:#c7a6ef;--b-fig:#2c2440;--c-ext:#f0b48c;--b-ext:#3b2d1f;
   --c-note:#b9c6bf;--b-note:#2a3330;--c-crit:#8fcdf0;--b-crit:#1d2e3c;--c-goal:#b9a4ef;--b-goal:#2b2640;--c-ind:#7ed8cc;--b-ind:#1b3330;--c-contra:#f2a7c0;--b-contra:#3d2230;--c-ae:#b8c4d4;--b-ae:#262e3a;--c-score:#c9d67e;--b-score:#2c3220;--c-conflict:#d9b898;--b-conflict:#332a22;--c-def:#a5b4fc;--b-def:#1f2340;--hl:#4d4416;--h4:#93b8d6;--onc:#14221d;--onb:#dfe6e2;--hsb:rgba(226,233,229,.92);
 }}
 :root[data-theme="dark"]{
@@ -50,7 +51,7 @@
   --nen:#86a9d8;--trieuchung:#62bccb;--benh:#e09a68;--cls:#a898d8;--dieutri:#6cc9b8;--phacdo:#e08585;
   --s1:#9aa8ba;--s2:#86a9d8;--s3:#62bccb;--s4:#a898d8;--s5:#e09a68;--s6:#e08585;--s7:#e28fba;--s8:#d9b863;--s9:#a9a9b3;--s10:#79c98f;--s11:#d9b062;--s12:#e69cc3;--s13:#5fd0bf;--s14:#a9d65a;--s15:#c3a7ec;--s16:#77bde6;
   --c-key:#86cfa8;--b-key:#203830;--c-tip:#82c8cf;--b-tip:#1f3a3b;--c-warn:#dcb86c;--b-warn:#38301c;
-  --c-red:#eb9d95;--b-red:#3d2623;--c-doc:#9dbcf2;--b-doc:#212f48;--c-ext:#f0b48c;--b-ext:#3b2d1f;
+  --c-red:#eb9d95;--b-red:#3d2623;--c-doc:#9dbcf2;--b-doc:#212f48;--c-fig:#c7a6ef;--b-fig:#2c2440;--c-ext:#f0b48c;--b-ext:#3b2d1f;
   --c-note:#b9c6bf;--b-note:#2a3330;--c-crit:#8fcdf0;--b-crit:#1d2e3c;--c-goal:#b9a4ef;--b-goal:#2b2640;--c-ind:#7ed8cc;--b-ind:#1b3330;--c-contra:#f2a7c0;--b-contra:#3d2230;--c-ae:#b8c4d4;--b-ae:#262e3a;--c-score:#c9d67e;--b-score:#2c3220;--c-conflict:#d9b898;--b-conflict:#332a22;--c-def:#a5b4fc;--b-def:#1f2340;--hl:#4d4416;--h4:#93b8d6;--onc:#14221d;--onb:#dfe6e2;--hsb:rgba(226,233,229,.92);
 }
 
@@ -214,6 +215,8 @@ main p,main li,main .callout,.hero p{text-wrap:pretty}
 .callout.warn{--cc:var(--c-warn);--cb:var(--b-warn);border:1.5px dotted var(--cc);border-radius:12px}
 .callout.red{--cc:var(--c-red);--cb:var(--b-red);border:1px solid var(--cc);border-radius:12px}
 .callout.doc{--cc:var(--c-doc);--cb:var(--b-doc)}
+.callout.fig{--cc:var(--c-fig);--cb:var(--b-fig);border-left-style:double;border-left-width:6px}
+.callout.fig .ct::before{content:"🖼 "}
 .callout.ext{--cc:var(--c-ext);--cb:var(--b-ext);border-left-style:dashed}
 .callout.note{--cc:var(--c-note);--cb:var(--b-note)}
 .callout.criteria{--cc:var(--c-crit);--cb:var(--b-crit)}
