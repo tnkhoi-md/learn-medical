@@ -28,7 +28,7 @@ function curMod() {
 }
 // Khung 12 mục của mọi bài bệnh: số trong bài → khóa nội bộ, số hiển thị, nhãn tab
 const KEY12 = { 1: 3, 2: 11, 3: 12, 4: 4, 5: 13, 6: 5, 7: 6, 8: 7, 9: 10, 10: 8, 11: 14, 12: 9 };
-const DISP12 = { 3: 1, 11: 2, 12: 3, 4: 4, 13: 5, 5: 6, 6: 7, 7: 8, 10: 9, 8: 10, 14: 11 };
+const DISP12 = { 3: 1, 4: 2, 13: 3, 5: 4, 6: 5, 11: 6, 12: 7, 7: 8, 10: 9, 8: 10, 14: 11 };
 const TAB12 = [[3, "Tổng quan", "t1"], [4, "Triệu chứng học", "t2"], [13, "Thăm khám lâm sàng", "t3"], [5, "Cận lâm sàng", "t4"], [6, "Chẩn đoán", "t5"], [11, "Cơ chế & yếu tố nguy cơ", "t6"], [12, "Phân loại và diễn tiến", "t7"], [7, "Điều trị", "t1"], [10, "Theo dõi & Phòng ngừa", "t2"], [8, "Tiên lượng", "t3"], [14, "Dự phòng", "t4"]];
 const tabsOf = () => TAB12;
 const colOf = (n, num) => (TAB12.find(x => x[0] === num) || [])[2] || "tsum";
@@ -2300,54 +2300,7 @@ document.addEventListener("change", e => {
   const sp = e.target.closest("select.secpick"); if (sp && sp.value) location.hash = `#/m/${curMod()}/${sp.value}`;
 });
 
-// ---- chế độ tập trung: đọc một bài và hẹn giờ Pomodoro ----
-const focus = { on: false, mode: 25, left: 25 * 60, timer: 0, audio: null };
-const fmtClock = sec => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
-const modeLabel = () => focus.mode === 25 ? "Học 25 phút" : "Nghỉ 5 phút";
-function focusNeighbours(n) {
-  const k = sectionOfNote(n);
-  const list = NOTES.filter(x => x.module === n.module && x.kind === n.kind && sectionOfNote(x) === k).sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-  const i = list.findIndex(x => x.id === n.id);
-  return { prev: list[i - 1], next: list[i + 1] };
-}
-function focusUpdate(n) {
-  const { prev, next } = focusNeighbours(n);
-  const pv = $("#fbPrev"), nx = $("#fbNext");
-  pv.hidden = !prev; nx.hidden = !next;
-  if (prev) { pv.href = `#/n/${prev.id}`; pv.title = prev.short || prev.title; }
-  if (next) { nx.href = `#/n/${next.id}`; nx.title = next.short || next.title; }
-}
-function focusSet(on) {
-  focus.on = on;
-  document.documentElement.classList.toggle("focus", on);
-  if (!on) pomoReset();
-  $("#focusFab").hidden = on || !curNoteId();
-}
 const curNoteId = () => (location.hash.match(/^#\/n\/([^/]+)/) || [])[1] || "";
-function pomoRender() { $("#fbTime").textContent = fmtClock(focus.left); }
-function pomoReset() { clearInterval(focus.timer); focus.timer = 0; focus.left = focus.mode * 60; pomoRender(); $("#fbStart").textContent = "Bắt đầu"; }
-function pomoToggle() {
-  if (focus.timer) { clearInterval(focus.timer); focus.timer = 0; $("#fbStart").textContent = "Tiếp tục"; return; }
-  focus.timer = setInterval(() => {
-    focus.left--;
-    if (focus.left <= 0) {
-      clearInterval(focus.timer); focus.timer = 0;
-      focus.mode = focus.mode === 25 ? 5 : 25; focus.left = focus.mode * 60;
-      $("#fbMode").textContent = modeLabel(); $("#fbStart").textContent = "Bắt đầu";
-      beep();
-    }
-    pomoRender();
-  }, 1000);
-  $("#fbStart").textContent = "Tạm dừng";
-}
-function pomoMode() { focus.mode = focus.mode === 25 ? 5 : 25; $("#fbMode").textContent = modeLabel(); pomoReset(); }
-function beep() {
-  try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 660; g.gain.value = 0.15; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.6); } catch {}
-}
-$("#focusFab").onclick = () => { focusSet(true); window.scrollTo(0, 0); };
-$("#fbExit").onclick = () => focusSet(false);
-$("#fbStart").onclick = pomoToggle; $("#fbReset").onclick = pomoReset; $("#fbMode").onclick = pomoMode;
-pomoRender();
 
 // ---- định tuyến ----
 // ---- Quiz tự đánh giá (module Ung bướu, mục 11): câu hỏi từ đề cũ, 4 đáp án, giải thích từng đáp án ----
@@ -2667,7 +2620,6 @@ function route() {
   stickyTables();
   glossApply();
   document.body.classList.remove("tocpop"); $("#tocFab").hidden = !($("#main details.toc") && narrow());
-  if (m) focusUpdate(byId[m[1]]); if (!m && focus.on) focusSet(false); $("#focusFab").hidden = focus.on || !m;
   badge();
 }
 // vuốt ngang để chuyển tab của một bệnh (điện thoại, máy tính bảng); bỏ qua khi đang cuộn bảng, chọn chữ hay chạm vào ô nhập
